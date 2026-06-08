@@ -17,6 +17,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
   static const Duration _backgroundInsightsRefreshInterval = Duration(
     seconds: 20,
   );
+  static const Duration _rankingsRefreshInterval = Duration(seconds: 45);
 
   List<LeaderboardEntry> _cachedEntries = [];
   final RealtimeSubscriptionBag _realtimeSubscriptions =
@@ -27,6 +28,9 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
   String? _insightsRequestInFlightForId;
   DateTime? _lastInsightsRefreshAt;
   String? _lastInsightsRefreshId;
+  DateTime? _lastRankingsRefreshAt;
+  Future<void>? _activeRankingsLoad;
+  Timer? _rankingsRefreshDebounce;
 
   LeaderboardCubit() : super(const LeaderboardInitial());
 
@@ -40,14 +44,15 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
     _humanCompanyName = companyName;
     _humanCeoName = ceoName;
     subscribeToSimulationWithState(simCubit, (simState) {
-      loadRankings(
+      if (!_shouldRefreshRankings()) return;
+      unawaited(loadRankings(
         humanUserId: userId,
         humanCompanyName: companyName,
         humanCeoName: ceoName,
         humanCash: simState.cashBalance,
         humanNetWorth: 0.0,
         silent: true,
-      );
+      ));
     });
     _setupRealtime();
   }
@@ -55,12 +60,44 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
   @override
   Future<void> close() async {
     disposeReactivity();
+    _rankingsRefreshDebounce?.cancel();
     await _realtimeSubscriptions.clear();
     return super.close();
   }
 
   // Load rankings
   Future<void> loadRankings({
+    required String humanUserId,
+    required String humanCompanyName,
+    required String humanCeoName,
+    double humanCash = GameConstants.startingCash,
+    double humanNetWorth = GameConstants.startingCash,
+    int humanFleetSize = 0,
+    double humanMonthlyRevenue = 0.0,
+    bool silent = false,
+  }) async {
+    if (_activeRankingsLoad != null) {
+      await _activeRankingsLoad;
+      return;
+    }
+    _activeRankingsLoad = _loadRankingsInternal(
+      humanUserId: humanUserId,
+      humanCompanyName: humanCompanyName,
+      humanCeoName: humanCeoName,
+      humanCash: humanCash,
+      humanNetWorth: humanNetWorth,
+      humanFleetSize: humanFleetSize,
+      humanMonthlyRevenue: humanMonthlyRevenue,
+      silent: silent,
+    );
+    try {
+      await _activeRankingsLoad;
+    } finally {
+      _activeRankingsLoad = null;
+    }
+  }
+
+  Future<void> _loadRankingsInternal({
     required String humanUserId,
     required String humanCompanyName,
     required String humanCeoName,
@@ -144,6 +181,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         ..add(updatedHuman);
 
       _cachedEntries = mergedEntries;
+      _lastRankingsRefreshAt = DateTime.now();
 
       _sortEntries();
 
@@ -191,6 +229,40 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         monthlyRevenue: humanMonthlyRevenue,
       );
     }
+  }
+
+  bool _shouldRefreshRankings() {
+    if (_lastRankingsRefreshAt == null) return true;
+    return DateTime.now().difference(_lastRankingsRefreshAt!) >=
+        _rankingsRefreshInterval;
+  }
+
+  void _scheduleRankingsRefresh({
+    required String humanUserId,
+    required String humanCompanyName,
+    required String humanCeoName,
+    required double humanCash,
+    required double humanNetWorth,
+    required int humanFleetSize,
+    required double humanMonthlyRevenue,
+    bool force = false,
+  }) {
+    if (!force && !_shouldRefreshRankings()) return;
+    _rankingsRefreshDebounce?.cancel();
+    _rankingsRefreshDebounce = Timer(const Duration(milliseconds: 250), () {
+      unawaited(
+        loadRankings(
+          humanUserId: humanUserId,
+          humanCompanyName: humanCompanyName,
+          humanCeoName: humanCeoName,
+          humanCash: humanCash,
+          humanNetWorth: humanNetWorth,
+          humanFleetSize: humanFleetSize,
+          humanMonthlyRevenue: humanMonthlyRevenue,
+          silent: true,
+        ),
+      );
+    });
   }
 
   Future<void> selectCompetitor(LeaderboardEntry competitor) async {
@@ -311,17 +383,15 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
               ),
             );
 
-            unawaited(
-              loadRankings(
-                humanUserId: humanUserId,
-                humanCompanyName: humanCompanyName,
-                humanCeoName: humanCeoName,
-                humanCash: humanEntry.cash,
-                humanNetWorth: humanEntry.netWorth,
-                humanFleetSize: humanEntry.fleetSize,
-                humanMonthlyRevenue: humanEntry.monthlyRevenue,
-                silent: true,
-              ),
+            _scheduleRankingsRefresh(
+              humanUserId: humanUserId,
+              humanCompanyName: humanCompanyName,
+              humanCeoName: humanCeoName,
+              humanCash: humanEntry.cash,
+              humanNetWorth: humanEntry.netWorth,
+              humanFleetSize: humanEntry.fleetSize,
+              humanMonthlyRevenue: humanEntry.monthlyRevenue,
+              force: true,
             );
           },
         )

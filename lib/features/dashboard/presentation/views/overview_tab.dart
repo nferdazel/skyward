@@ -48,73 +48,46 @@ class OverviewTab extends StatelessWidget {
       decimalDigits: 0,
     );
 
-    return BlocBuilder<SimulationCubit, SimulationState>(
-      buildWhen: (previous, current) =>
-          previous.cashBalance != current.cashBalance ||
-          previous.operationalStatus != current.operationalStatus ||
-          previous.consecutiveNegativeDays != current.consecutiveNegativeDays ||
-          previous.recoveryStreakDays != current.recoveryStreakDays ||
-          previous.isSyncing != current.isSyncing,
-      builder: (context, simState) {
-        final fleetState = context.select((FleetCubit cubit) => cubit.state);
-        final routesState = context.select((RoutesCubit cubit) => cubit.state);
-        final financeState = context.select(
-          (FinanceCubit cubit) => cubit.state,
-        );
-        final leaderboardState = context.select(
-          (LeaderboardCubit cubit) => cubit.state,
-        );
-
-        final overview = _OverviewSnapshot.fromStates(
-          user: user,
-          simState: simState,
-          fleetState: fleetState,
-          routesState: routesState,
-          financeState: financeState,
-          leaderboardState: leaderboardState,
-        );
-
-        return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildCEOHeaderCard(context, user, overview),
-              const SizedBox(height: AppSpacing.sectionGap),
-              _buildStatsSummaryGrid(
-                context,
-                simState,
-                currencyFormat,
-                overview,
-              ),
-              const SizedBox(height: AppSpacing.sectionGap),
-              ResponsiveLayout(
-                desktopBody: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _buildRouteRiskBoard(
-                        context,
-                        overview,
-                        currencyFormat,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xl),
-                    Expanded(child: _buildActionQueue(context, overview)),
-                  ],
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _OverviewHeaderSection(user: user, host: this),
+          const SizedBox(height: AppSpacing.sectionGap),
+          _OverviewSummarySection(currencyFormat: currencyFormat, host: this),
+          const SizedBox(height: AppSpacing.sectionGap),
+          ResponsiveLayout(
+            desktopBody: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _OverviewRouteRiskSection(
+                    currencyFormat: currencyFormat,
+                    host: this,
+                    user: user,
+                  ),
                 ),
-                mobileBody: Column(
-                  children: [
-                    _buildRouteRiskBoard(context, overview, currencyFormat),
-                    const SizedBox(height: AppSpacing.sectionGap),
-                    _buildActionQueue(context, overview),
-                  ],
+                const SizedBox(width: AppSpacing.xl),
+                Expanded(
+                  child: _OverviewActionQueueSection(host: this, user: user),
                 ),
-              ),
-            ],
+              ],
+            ),
+            mobileBody: Column(
+              children: [
+                _OverviewRouteRiskSection(
+                  currencyFormat: currencyFormat,
+                  host: this,
+                  user: user,
+                ),
+                const SizedBox(height: AppSpacing.sectionGap),
+                _OverviewActionQueueSection(host: this, user: user),
+              ],
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -522,6 +495,95 @@ class OverviewTab extends StatelessWidget {
       ),
     );
   }
+}
+
+class _OverviewHeaderSection extends StatelessWidget {
+  final dynamic user;
+  final OverviewTab host;
+
+  const _OverviewHeaderSection({required this.user, required this.host});
+
+  @override
+  Widget build(BuildContext context) {
+    final overview = _selectOverviewSnapshot(context, user);
+    return host._buildCEOHeaderCard(context, user, overview);
+  }
+}
+
+class _OverviewSummarySection extends StatelessWidget {
+  final NumberFormat currencyFormat;
+  final OverviewTab host;
+
+  const _OverviewSummarySection({
+    required this.currencyFormat,
+    required this.host,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = context.read<AuthCubit>().state as AuthAuthenticated;
+    final simState = context.select((SimulationCubit cubit) => cubit.state);
+    final overview = _selectOverviewSnapshot(context, authState.user);
+    return host._buildStatsSummaryGrid(
+      context,
+      simState,
+      currencyFormat,
+      overview,
+    );
+  }
+}
+
+class _OverviewRouteRiskSection extends StatelessWidget {
+  final NumberFormat currencyFormat;
+  final OverviewTab host;
+  final dynamic user;
+
+  const _OverviewRouteRiskSection({
+    required this.currencyFormat,
+    required this.host,
+    required this.user,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final overview = _selectOverviewSnapshot(context, user);
+    return host._buildRouteRiskBoard(context, overview, currencyFormat);
+  }
+}
+
+class _OverviewActionQueueSection extends StatelessWidget {
+  final OverviewTab host;
+  final dynamic user;
+
+  const _OverviewActionQueueSection({
+    required this.host,
+    required this.user,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final overview = _selectOverviewSnapshot(context, user);
+    return host._buildActionQueue(context, overview);
+  }
+}
+
+_OverviewSnapshot _selectOverviewSnapshot(BuildContext context, dynamic user) {
+  final simState = context.select((SimulationCubit cubit) => cubit.state);
+  final fleetState = context.select((FleetCubit cubit) => cubit.state);
+  final routesState = context.select((RoutesCubit cubit) => cubit.state);
+  final financeState = context.select((FinanceCubit cubit) => cubit.state);
+  final leaderboardState = context.select(
+    (LeaderboardCubit cubit) => cubit.state,
+  );
+
+  return _OverviewSnapshot.fromStates(
+    user: user,
+    simState: simState,
+    fleetState: fleetState,
+    routesState: routesState,
+    financeState: financeState,
+    leaderboardState: leaderboardState,
+  );
 }
 
 class _OverviewPriority {
