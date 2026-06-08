@@ -62,22 +62,45 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
         flightsPerWeek ??
         _plannerMaintenancePreview?.allocatedFlightsPerWeek ??
         7;
-    _plannerMaintenancePreview = UserRoute.buildMaintenancePreviewForSchedule(
+    final nextPreview = UserRoute.buildMaintenancePreviewForSchedule(
       distanceKm: distanceKm,
       flightsPerWeek: currentFlights,
       aircraft: null,
       autoGroundingThreshold: autoGroundingThreshold,
     );
+    if (_samePreview(_plannerMaintenancePreview, nextPreview)) {
+      return;
+    }
+    _plannerMaintenancePreview = nextPreview;
     if (state is RoutesDataState) {
       _emitLoaded();
     }
   }
 
   void clearPlannerMaintenancePreview() {
+    if (_plannerMaintenancePreview == null) {
+      return;
+    }
     _plannerMaintenancePreview = null;
     if (state is RoutesDataState) {
       _emitLoaded();
     }
+  }
+
+  bool _samePreview(
+    RouteMaintenancePreview? left,
+    RouteMaintenancePreview? right,
+  ) {
+    if (identical(left, right)) return true;
+    if (left == null || right == null) return false;
+    return left.allocatedFlightsPerWeek == right.allocatedFlightsPerWeek &&
+        left.maxFlightsPerWeek == right.maxFlightsPerWeek &&
+        left.maintenanceHoursPerWeek == right.maintenanceHoursPerWeek &&
+        left.grossDamagePercent == right.grossDamagePercent &&
+        left.selfHealingCreditPercent == right.selfHealingCreditPercent &&
+        left.netHealthImpactPercent == right.netHealthImpactPercent &&
+        left.isGrounded == right.isGrounded &&
+        left.requiresAircraftAssignment == right.requiresAircraftAssignment;
   }
 
   void startAdjustmentMaintenancePreview({
