@@ -24,6 +24,8 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
   final RealtimeSubscriptionBag _realtimeSubscriptions =
       RealtimeSubscriptionBag();
   bool _suppressNextFleetRealtimeReload = false;
+  Timer? _realtimeRefreshDebounce;
+  Future<void>? _activeLoad;
 
   FleetCubit() : super(const FleetInitial());
 
@@ -62,12 +64,29 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
   @override
   Future<void> close() async {
     disposeReactivity();
+    _realtimeRefreshDebounce?.cancel();
     await _realtimeSubscriptions.clear();
     return super.close();
   }
 
   // Load available aircraft catalog and user owned/leased fleet
   Future<void> loadFleetAndCatalog(String userId, {bool silent = false}) async {
+    if (_activeLoad != null) {
+      await _activeLoad;
+      return;
+    }
+    _activeLoad = _loadFleetAndCatalogInternal(userId, silent: silent);
+    try {
+      await _activeLoad;
+    } finally {
+      _activeLoad = null;
+    }
+  }
+
+  Future<void> _loadFleetAndCatalogInternal(
+    String userId, {
+    bool silent = false,
+  }) async {
     if (!silent) {
       emit(const FleetLoading());
     }
@@ -126,6 +145,13 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         ),
       );
     }
+  }
+
+  void _scheduleRealtimeRefresh(String userId) {
+    _realtimeRefreshDebounce?.cancel();
+    _realtimeRefreshDebounce = Timer(const Duration(milliseconds: 180), () {
+      unawaited(loadFleetAndCatalog(userId, silent: true));
+    });
   }
 
   // Atomically purchase a new aircraft via PostgreSQL transaction
@@ -1090,7 +1116,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
               _suppressNextFleetRealtimeReload = false;
               return;
             }
-            unawaited(loadFleetAndCatalog(userId, silent: true));
+            _scheduleRealtimeRefresh(userId);
           },
         )
         .subscribe();

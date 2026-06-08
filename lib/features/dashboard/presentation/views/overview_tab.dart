@@ -49,6 +49,12 @@ class OverviewTab extends StatelessWidget {
     );
 
     return BlocBuilder<SimulationCubit, SimulationState>(
+      buildWhen: (previous, current) =>
+          previous.cashBalance != current.cashBalance ||
+          previous.operationalStatus != current.operationalStatus ||
+          previous.consecutiveNegativeDays != current.consecutiveNegativeDays ||
+          previous.recoveryStreakDays != current.recoveryStreakDays ||
+          previous.isSyncing != current.isSyncing,
       builder: (context, simState) {
         final fleetState = context.select((FleetCubit cubit) => cubit.state);
         final routesState = context.select((RoutesCubit cubit) => cubit.state);

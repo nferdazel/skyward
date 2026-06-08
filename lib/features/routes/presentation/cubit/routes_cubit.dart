@@ -23,6 +23,8 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
       GameConstants.defaultAutoGroundingThreshold;
   final RealtimeSubscriptionBag _realtimeSubscriptions =
       RealtimeSubscriptionBag();
+  Timer? _realtimeRefreshDebounce;
+  Future<void>? _activeLoad;
 
   RoutesCubit() : super(const RoutesInitial());
 
@@ -128,12 +130,29 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
   @override
   Future<void> close() async {
     disposeReactivity();
+    _realtimeRefreshDebounce?.cancel();
     await _realtimeSubscriptions.clear();
     return super.close();
   }
 
   // Load routes, airports catalog, and available (unassigned) aircraft
   Future<void> loadRoutesAndData(String userId, {bool silent = false}) async {
+    if (_activeLoad != null) {
+      await _activeLoad;
+      return;
+    }
+    _activeLoad = _loadRoutesAndDataInternal(userId, silent: silent);
+    try {
+      await _activeLoad;
+    } finally {
+      _activeLoad = null;
+    }
+  }
+
+  Future<void> _loadRoutesAndDataInternal(
+    String userId, {
+    bool silent = false,
+  }) async {
     if (!silent) {
       emit(const RoutesLoading());
     }
@@ -229,6 +248,13 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
         ),
       );
     }
+  }
+
+  void _scheduleRealtimeRefresh(String userId) {
+    _realtimeRefreshDebounce?.cancel();
+    _realtimeRefreshDebounce = Timer(const Duration(milliseconds: 180), () {
+      unawaited(loadRoutesAndData(userId, silent: true));
+    });
   }
 
   // Create a new flight connection route
@@ -847,9 +873,7 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
             column: 'user_id',
             value: userId,
           ),
-          callback: (_) {
-            unawaited(loadRoutesAndData(userId, silent: true));
-          },
+          callback: (_) => _scheduleRealtimeRefresh(userId),
         )
         .subscribe();
 
@@ -864,9 +888,7 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
             column: 'user_id',
             value: userId,
           ),
-          callback: (_) {
-            unawaited(loadRoutesAndData(userId, silent: true));
-          },
+          callback: (_) => _scheduleRealtimeRefresh(userId),
         )
         .subscribe();
 
