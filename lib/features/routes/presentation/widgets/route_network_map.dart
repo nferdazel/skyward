@@ -60,19 +60,27 @@ class RouteNetworkMap extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxHeight < 360 || constraints.maxWidth < 420;
+        final compact =
+            constraints.maxHeight < 360 || constraints.maxWidth < 420;
         final denseNetwork =
-            routes.length >= 12 || connectedAirports.length >= 18;
-        final arcSteps = denseNetwork ? 8 : 18;
-        final markerAirports = highlightedRoute == null && denseNetwork
-            ? connectedAirports.values.take(10).toList()
+            routes.length >= 8 || connectedAirports.length >= 14;
+        final ultraDenseNetwork =
+            routes.length >= 16 || connectedAirports.length >= 24;
+        final arcSteps = ultraDenseNetwork ? 4 : (denseNetwork ? 6 : 18);
+        final markerAirports = highlightedRoute == null
+            ? (ultraDenseNetwork
+                  ? connectedAirports.values.take(4).toList()
+                  : (denseNetwork
+                        ? connectedAirports.values.take(8).toList()
+                        : connectedAirports.values.toList()))
             : connectedAirports.values.toList();
         PerfDebug.eventOnChange(
           'routes.map_mode',
           signature:
-              '${denseNetwork}_${compact}_${routes.length}_${connectedAirports.length}_${markerAirports.length}',
+              '${ultraDenseNetwork}_${denseNetwork}_${compact}_${routes.length}_${connectedAirports.length}_${markerAirports.length}',
           fields: {
             'dense': denseNetwork,
+            'ultraDense': ultraDenseNetwork,
             'compact': compact,
             'routes': routes.length,
             'airports': connectedAirports.length,
@@ -83,7 +91,10 @@ class RouteNetworkMap extends StatelessWidget {
         final viewport = _MapViewport.fromRoutes(
           routes: mapRoutes,
           fallbackCenter: highlightedOrigin != null
-              ? LatLng(highlightedOrigin!.latitude, highlightedOrigin!.longitude)
+              ? LatLng(
+                  highlightedOrigin!.latitude,
+                  highlightedOrigin!.longitude,
+                )
               : (homeAirport != null
                     ? LatLng(homeAirport!.latitude, homeAirport!.longitude)
                     : const LatLng(12.0, 108.0)),
@@ -175,7 +186,8 @@ class RouteNetworkMap extends StatelessWidget {
                             minZoom: 1.5,
                             maxZoom: 8.5,
                             interactionOptions: const InteractionOptions(
-                              flags: InteractiveFlag.drag |
+                              flags:
+                                  InteractiveFlag.drag |
                                   InteractiveFlag.pinchZoom |
                                   InteractiveFlag.doubleTapZoom |
                                   InteractiveFlag.flingAnimation |
@@ -187,7 +199,7 @@ class RouteNetworkMap extends StatelessWidget {
                               urlTemplate:
                                   'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
                               userAgentPackageName: 'skyward',
-                              retinaMode: !denseNetwork,
+                              retinaMode: !(denseNetwork || compact),
                               panBuffer: 1,
                             ),
                             PolylineLayer(
@@ -211,9 +223,15 @@ class RouteNetworkMap extends StatelessWidget {
                                         route.destination.longitude,
                                       ),
                                     ],
-                                    strokeWidth: denseNetwork ? 2 : 3,
-                                    color: AppTheme.info.withValues(alpha: 0.72),
-                                    borderStrokeWidth: denseNetwork ? 4 : 7,
+                                    strokeWidth: ultraDenseNetwork
+                                        ? 1.5
+                                        : (denseNetwork ? 2 : 3),
+                                    color: AppTheme.info.withValues(
+                                      alpha: 0.72,
+                                    ),
+                                    borderStrokeWidth: ultraDenseNetwork
+                                        ? 0
+                                        : (denseNetwork ? 3 : 7),
                                     borderColor: AppTheme.info.withValues(
                                       alpha: 0.16,
                                     ),
@@ -235,9 +253,13 @@ class RouteNetworkMap extends StatelessWidget {
                                         highlightedRoute.destination.longitude,
                                       ),
                                     ],
-                                    strokeWidth: denseNetwork ? 3 : 4,
+                                    strokeWidth: ultraDenseNetwork
+                                        ? 2.5
+                                        : (denseNetwork ? 3 : 4),
                                     color: AppTheme.primary,
-                                    borderStrokeWidth: denseNetwork ? 6 : 9,
+                                    borderStrokeWidth: ultraDenseNetwork
+                                        ? 0
+                                        : (denseNetwork ? 4 : 9),
                                     borderColor: AppTheme.primary.withValues(
                                       alpha: 0.22,
                                     ),
@@ -252,10 +274,16 @@ class RouteNetworkMap extends StatelessWidget {
                                       airport.latitude,
                                       airport.longitude,
                                     ),
-                                    radius: denseNetwork ? 6 : 8,
+                                    radius: ultraDenseNetwork
+                                        ? 5
+                                        : (denseNetwork ? 6 : 8),
                                     useRadiusInMeter: false,
-                                    color: AppTheme.info.withValues(alpha: 0.18),
-                                    borderStrokeWidth: denseNetwork ? 1 : 1.5,
+                                    color: AppTheme.info.withValues(
+                                      alpha: 0.18,
+                                    ),
+                                    borderStrokeWidth: ultraDenseNetwork
+                                        ? 0.8
+                                        : (denseNetwork ? 1 : 1.5),
                                     borderColor: AppTheme.info.withValues(
                                       alpha: 0.5,
                                     ),
@@ -290,7 +318,7 @@ class RouteNetworkMap extends StatelessWidget {
                                   ),
                               ],
                             ),
-                            if (!denseNetwork || highlightedRoute != null)
+                            if (!ultraDenseNetwork || highlightedRoute != null)
                               MarkerLayer(
                                 markers: [
                                   for (final airport in markerAirports)
@@ -383,7 +411,8 @@ class RouteNetworkMap extends StatelessWidget {
     final endLat = destination.latitude * math.pi / 180.0;
     final endLon = destination.longitude * math.pi / 180.0;
 
-    final d = 2 *
+    final d =
+        2 *
         math.asin(
           math.sqrt(
             math.pow(math.sin((startLat - endLat) / 2), 2) +
@@ -400,9 +429,11 @@ class RouteNetworkMap extends StatelessWidget {
       final a = math.sin((1 - f) * d) / math.sin(d);
       final b = math.sin(f * d) / math.sin(d);
 
-      final x = a * math.cos(startLat) * math.cos(startLon) +
+      final x =
+          a * math.cos(startLat) * math.cos(startLon) +
           b * math.cos(endLat) * math.cos(endLon);
-      final y = a * math.cos(startLat) * math.sin(startLon) +
+      final y =
+          a * math.cos(startLat) * math.sin(startLon) +
           b * math.cos(endLat) * math.sin(endLon);
       final z = a * math.sin(startLat) + b * math.sin(endLat);
 
@@ -482,10 +513,7 @@ class _AirportMarker extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: AppTypography.badgeText.copyWith(
-            color: color,
-            fontSize: 10,
-          ),
+          style: AppTypography.badgeText.copyWith(color: color, fontSize: 10),
         ),
       ),
     );

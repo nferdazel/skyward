@@ -109,6 +109,8 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
     return BlocProvider<BlueprintPlannerFormCubit>(
       create: (context) => BlueprintPlannerFormCubit(),
       child: BlocConsumer<BlueprintPlannerFormCubit, BlueprintPlannerFormState>(
+        listenWhen: (previous, current) =>
+            previous.calculatedDistance != current.calculatedDistance,
         listener: (context, state) {
           final currentVal = double.tryParse(_priceController.text) ?? 0.0;
           if (state.currentProposedPrice > 0.0 &&
@@ -145,10 +147,8 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
             plannerPreview: plannerPreview,
             planningAssessment: planningAssessment,
           );
-          final mapPanel = RouteNetworkMap(
-            routes: widget.activeRoutes,
-            highlightedOrigin: state.selectedOrigin,
-            highlightedDestination: state.selectedDest,
+          final mapPanel = _BlueprintPlannerMapPanel(
+            activeRoutes: widget.activeRoutes,
             homeAirport: _resolveHomeAirport(context),
           );
 
@@ -206,7 +206,8 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
       widget.autoGroundingThreshold.toStringAsFixed(2),
     ].join('|');
 
-    if (_planningAssessmentKey == cacheKey && _planningAssessmentCache != null) {
+    if (_planningAssessmentKey == cacheKey &&
+        _planningAssessmentCache != null) {
       return _planningAssessmentCache;
     }
 
@@ -784,6 +785,33 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _BlueprintPlannerMapPanel extends StatelessWidget {
+  final List<UserRoute> activeRoutes;
+  final Airport? homeAirport;
+
+  const _BlueprintPlannerMapPanel({
+    required this.activeRoutes,
+    required this.homeAirport,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final highlightedOrigin = context.select(
+      (BlueprintPlannerFormCubit cubit) => cubit.state.selectedOrigin,
+    );
+    final highlightedDestination = context.select(
+      (BlueprintPlannerFormCubit cubit) => cubit.state.selectedDest,
+    );
+
+    return RouteNetworkMap(
+      routes: activeRoutes,
+      highlightedOrigin: highlightedOrigin,
+      highlightedDestination: highlightedDestination,
+      homeAirport: homeAirport,
     );
   }
 }
