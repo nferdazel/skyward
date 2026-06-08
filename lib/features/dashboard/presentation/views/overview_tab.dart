@@ -43,6 +43,8 @@ class OverviewTab extends StatelessWidget {
     }
 
     final user = authState.user;
+    final simState = context.select((SimulationCubit cubit) => cubit.state);
+    final overview = _selectOverviewSnapshot(context, user);
     final currencyFormat = NumberFormat.currency(
       symbol: '\$',
       decimalDigits: 0,
@@ -53,9 +55,14 @@ class OverviewTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _OverviewHeaderSection(user: user, host: this),
+          _OverviewHeaderSection(user: user, host: this, overview: overview),
           const SizedBox(height: AppSpacing.sectionGap),
-          _OverviewSummarySection(currencyFormat: currencyFormat, host: this),
+          _OverviewSummarySection(
+            currencyFormat: currencyFormat,
+            host: this,
+            simState: simState,
+            overview: overview,
+          ),
           const SizedBox(height: AppSpacing.sectionGap),
           ResponsiveLayout(
             desktopBody: Row(
@@ -65,12 +72,15 @@ class OverviewTab extends StatelessWidget {
                   child: _OverviewRouteRiskSection(
                     currencyFormat: currencyFormat,
                     host: this,
-                    user: user,
+                    overview: overview,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xl),
                 Expanded(
-                  child: _OverviewActionQueueSection(host: this, user: user),
+                  child: _OverviewActionQueueSection(
+                    host: this,
+                    overview: overview,
+                  ),
                 ),
               ],
             ),
@@ -79,10 +89,10 @@ class OverviewTab extends StatelessWidget {
                 _OverviewRouteRiskSection(
                   currencyFormat: currencyFormat,
                   host: this,
-                  user: user,
+                  overview: overview,
                 ),
                 const SizedBox(height: AppSpacing.sectionGap),
-                _OverviewActionQueueSection(host: this, user: user),
+                _OverviewActionQueueSection(host: this, overview: overview),
               ],
             ),
           ),
@@ -104,10 +114,7 @@ class OverviewTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            user.companyName,
-            style: AppTypography.screenTitleLarge,
-          ),
+          Text(user.companyName, style: AppTypography.screenTitleLarge),
           Text(
             '${AppStrings.ceoPrefix}: ${user.ceoName}',
             style: AppTypography.captionRegular.copyWith(
@@ -500,12 +507,16 @@ class OverviewTab extends StatelessWidget {
 class _OverviewHeaderSection extends StatelessWidget {
   final dynamic user;
   final OverviewTab host;
+  final _OverviewSnapshot overview;
 
-  const _OverviewHeaderSection({required this.user, required this.host});
+  const _OverviewHeaderSection({
+    required this.user,
+    required this.host,
+    required this.overview,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final overview = _selectOverviewSnapshot(context, user);
     return host._buildCEOHeaderCard(context, user, overview);
   }
 }
@@ -513,17 +524,18 @@ class _OverviewHeaderSection extends StatelessWidget {
 class _OverviewSummarySection extends StatelessWidget {
   final NumberFormat currencyFormat;
   final OverviewTab host;
+  final SimulationState simState;
+  final _OverviewSnapshot overview;
 
   const _OverviewSummarySection({
     required this.currencyFormat,
     required this.host,
+    required this.simState,
+    required this.overview,
   });
 
   @override
   Widget build(BuildContext context) {
-    final authState = context.read<AuthCubit>().state as AuthAuthenticated;
-    final simState = context.select((SimulationCubit cubit) => cubit.state);
-    final overview = _selectOverviewSnapshot(context, authState.user);
     return host._buildStatsSummaryGrid(
       context,
       simState,
@@ -536,33 +548,31 @@ class _OverviewSummarySection extends StatelessWidget {
 class _OverviewRouteRiskSection extends StatelessWidget {
   final NumberFormat currencyFormat;
   final OverviewTab host;
-  final dynamic user;
+  final _OverviewSnapshot overview;
 
   const _OverviewRouteRiskSection({
     required this.currencyFormat,
     required this.host,
-    required this.user,
+    required this.overview,
   });
 
   @override
   Widget build(BuildContext context) {
-    final overview = _selectOverviewSnapshot(context, user);
     return host._buildRouteRiskBoard(context, overview, currencyFormat);
   }
 }
 
 class _OverviewActionQueueSection extends StatelessWidget {
   final OverviewTab host;
-  final dynamic user;
+  final _OverviewSnapshot overview;
 
   const _OverviewActionQueueSection({
     required this.host,
-    required this.user,
+    required this.overview,
   });
 
   @override
   Widget build(BuildContext context) {
-    final overview = _selectOverviewSnapshot(context, user);
     return host._buildActionQueue(context, overview);
   }
 }
@@ -907,8 +917,8 @@ class _OverviewSnapshot {
       burnMixLabel: burnMixLabel,
       operationalStatus: operationalStatus,
       operationalStatusColor: operationalStatusColor,
-      consecutiveNegativeDays: user.consecutiveNegativeDays,
-      recoveryStreakDays: user.recoveryStreakDays,
+      consecutiveNegativeDays: simState.consecutiveNegativeDays,
+      recoveryStreakDays: simState.recoveryStreakDays,
       leadingBotArchetype: botLeader?.archetype ?? AppStrings.loadingLabel,
       leadingBotStatus: botLeader?.status ?? AppStrings.loadingLabel,
       leadingBotFleet: botLeader?.fleetSize ?? 0,

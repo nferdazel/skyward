@@ -1,6 +1,6 @@
 # Skyward Enforcement Backlog
 
-Last verified on 2026-06-07.
+Last verified on 2026-06-08.
 
 ## Baseline
 
@@ -39,6 +39,8 @@ Last verified on 2026-06-07.
 - Continue centralizing user-facing operational copy where it improves consistency.
 - Review dense operational screens for any remaining avoidable interaction friction.
 - Audit repeated Supabase parsing for safe extraction opportunities.
+- Keep runtime perf instrumentation and lazy workspace loading documented when
+  their behavior changes.
 - Keep simulation wear/repair math consistent between Flutter previews and SQL truth.
 - Add stronger regression coverage around compaction and owner-operator tooling.
 

@@ -25,10 +25,13 @@ authoritative simulation, economy, world time, and operational validation.
 
 - `DashboardScreen` is the runtime composition root
 - `SimulationCubit` is the central reconciliation source
-- `FleetCubit`, `RoutesCubit`, `FinanceCubit`, and `LeaderboardCubit` reload
-  through `SimulationReactiveMixin`
+- `LazyTabCubit` owns workspace lazy-load state for dashboard, fleet, and routes
+- `FleetCubit`, `RoutesCubit`, `FinanceCubit`, and `LeaderboardCubit` react
+  through `SimulationReactiveMixin`, but finance and leaderboard are lazy-init
+  surfaces
 - production Flutter observes backend time; it does not locally advance
   authoritative game time
+- debug builds expose lightweight `[PERF]` instrumentation for load/reload audits
 
 For the maintained backend/runtime record, use:
 - [docs_and_migrations/README.md](/home/sachiel/Projects/skyward/docs_and_migrations/README.md)

@@ -67,10 +67,7 @@ class DashboardScreen extends StatelessWidget {
 }
 
 class _AuthenticatedDashboardShell extends StatefulWidget {
-  const _AuthenticatedDashboardShell({
-    super.key,
-    required this.initialUser,
-  });
+  const _AuthenticatedDashboardShell({super.key, required this.initialUser});
 
   final User initialUser;
 
@@ -130,7 +127,7 @@ class _AuthenticatedDashboardShellState
       ..setupReactivity(_simulationCubit, user.id);
   }
 
-  void _ensureTabReady(int index, User user) {
+  void _ensureTabReady(int index, User user, SimulationState simulationState) {
     if (_lazyTabCubit.state.loadedIndexes.contains(index)) return;
     PerfDebug.event(
       'dashboard.tab_init',
@@ -149,7 +146,7 @@ class _AuthenticatedDashboardShellState
             humanUserId: user.id,
             humanCompanyName: user.companyName,
             humanCeoName: user.ceoName,
-            humanCash: user.cashBalance,
+            humanCash: simulationState.cashBalance,
             humanNetWorth: 0.0,
             humanFleetSize: 0,
             humanMonthlyRevenue: 0.0,
@@ -219,9 +216,7 @@ class _AuthenticatedDashboardShellState
   Widget build(BuildContext context) {
     final authState = context.read<AuthCubit>().state;
     if (authState is! AuthAuthenticated) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return MultiBlocProvider(
@@ -234,37 +229,26 @@ class _AuthenticatedDashboardShellState
         BlocProvider<FinanceCubit>.value(value: _financeCubit),
         BlocProvider<LazyTabCubit>.value(value: _lazyTabCubit),
       ],
-        child: BlocListener<SimulationCubit, SimulationState>(
-          listener: (context, simState) {
-          final authState = context.read<AuthCubit>().state;
-          if (authState is AuthAuthenticated) {
-            final updatedUser = authState.user.copyWith(
-              gameCurrentTime: simState.gameTime,
-              cashBalance: simState.cashBalance,
-              operationalStatus: simState.operationalStatus,
-              consecutiveNegativeDays: simState.consecutiveNegativeDays,
-              recoveryStreakDays: simState.recoveryStreakDays,
-            );
-            context.read<AuthCubit>().updateActiveUser(updatedUser);
-          }
+      child: BlocListener<NavigationCubit, NavigationState>(
+        listener: (context, navState) {
+          _ensureTabReady(
+            navState.activeIndex,
+            authState.user,
+            _simulationCubit.state,
+          );
         },
-        child: BlocListener<NavigationCubit, NavigationState>(
-          listener: (context, navState) {
-            _ensureTabReady(navState.activeIndex, authState.user);
-          },
-          child: ResponsiveLayout(
-            mobileBody: _buildMobileLayout(
-              context,
-              authState,
-              _currencyFormat,
-              _dateFormat,
-            ),
-            desktopBody: _buildDesktopLayout(
-              context,
-              authState,
-              _currencyFormat,
-              _dateFormat,
-            ),
+        child: ResponsiveLayout(
+          mobileBody: _buildMobileLayout(
+            context,
+            authState,
+            _currencyFormat,
+            _dateFormat,
+          ),
+          desktopBody: _buildDesktopLayout(
+            context,
+            authState,
+            _currencyFormat,
+            _dateFormat,
           ),
         ),
       ),
@@ -322,7 +306,8 @@ class _AuthenticatedDashboardShellState
                                     children: List.generate(
                                       6,
                                       (index) => RepaintBoundary(
-                                        child: lazyState.loadedIndexes.contains(
+                                        child:
+                                            lazyState.loadedIndexes.contains(
                                               index,
                                             )
                                             ? _buildTabChild(
@@ -509,5 +494,4 @@ class _AuthenticatedDashboardShellState
       ),
     );
   }
-
 }

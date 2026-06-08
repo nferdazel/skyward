@@ -1,6 +1,6 @@
 # Skyward AI Handover
 
-Last verified against code on 2026-06-07.
+Last verified against code on 2026-06-08.
 
 ## Current shape
 
@@ -20,10 +20,13 @@ Skyward is a Flutter airline-tycoon sim with:
 - `RoutesCubit`
 - `FinanceCubit`
 - `LeaderboardCubit`
+- `LazyTabCubit`
 - `SettingsCubit` is already provided above where needed by the shell
 
 `SimulationCubit` is the central backend-reconciliation source.
 Other feature cubits subscribe through `SimulationReactiveMixin`.
+`FinanceCubit` and `LeaderboardCubit` are initialized lazily when their
+workspaces are first opened.
 
 ## Backend truth
 
@@ -70,6 +73,8 @@ Recent work tightened:
   player and bot simulation
 - players can now dispose of idle aircraft through sale or lease termination
 - a private owner/operator optimizer RPC now exists for SQL-side route planning
+- dashboard/fleet/routes tab content now lazy-loads through `LazyTabCubit`
+- debug builds now emit lightweight `[PERF]` logs for load/reload auditing
 
 Leaderboard sorting was intentionally removed.
 Rankings now always default to net worth order.
@@ -104,12 +109,13 @@ audits when you need real operational state.
 2. Keep docs aligned with the code, not with old plans.
 3. Preserve Cubit-only app state boundaries.
 4. Avoid reintroducing blocking loaders where silent refresh is enough.
-5. Keep reset, simulation, and repair behavior aligned across Flutter and SQL.
-6. Keep Phase 9 isolated: deterministic daily simulation changes economy
+5. Keep lazy workspace initialization and reload throttling aligned with docs.
+6. Keep reset, simulation, and repair behavior aligned across Flutter and SQL.
+7. Keep Phase 9 isolated: deterministic daily simulation changes economy
    semantics and should not be bundled with UI or docs work.
-7. Keep validating the compaction audit RPCs before any live maintenance runs.
-8. Next backend policy step is Phase 16 foundation: player activity tracking,
+8. Keep validating the compaction audit RPCs before any live maintenance runs.
+9. Next backend policy step is Phase 16 foundation: player activity tracking,
    simulation status, and inactive-player audit/reporting.
-9. Finance now separates current balance-sheet state from rolling 30-day ledger
+10. Finance now separates current balance-sheet state from rolling 30-day ledger
    analytics. The backend contract for both human players and bots is
    `get_finance_snapshot()`.

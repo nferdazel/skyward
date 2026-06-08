@@ -1,6 +1,6 @@
 # Skyward Architecture Baseline
 
-Last verified against code on 2026-06-07.
+Last verified against code on 2026-06-08.
 
 ## Application model
 
@@ -39,6 +39,7 @@ Current runtime cubits:
 - `RoutesCubit`
 - `FinanceCubit`
 - `LeaderboardCubit`
+- `LazyTabCubit`
 - `SettingsCubit`
 
 Allowed local widget state is limited to widget lifecycle concerns such as:
@@ -54,6 +55,8 @@ reflected from Supabase realtime updates and periodic backend reconciliation.
 
 Feature cubits react to simulation sync completion through `SimulationReactiveMixin`.
 They do not reference one another directly.
+Dashboard, fleet, and routes also use `LazyTabCubit` to keep workspace/tab
+initialization Cubit-owned instead of widget-owned.
 
 The UI now also uses a hybrid Supabase Realtime reflection layer:
 - `SimulationCubit` listens to `users`
@@ -64,6 +67,8 @@ The UI now also uses a hybrid Supabase Realtime reflection layer:
 
 Realtime is used to reflect database writes into Cubit state faster.
 It does not replace authoritative SQL simulation or periodic reconciliation.
+`FinanceCubit` now uses simulation sync to refresh the current snapshot, while
+full ledger reloads stay on finance-related realtime events.
 
 ## UI system
 
@@ -118,6 +123,8 @@ Shared widget primitives now cover:
 - action queue for grounded fleet / route pressure / runway risk
 - competitor watch and finance watch rollups
 - player operational-status, distress streak, and recovery streak guidance
+- debug builds expose lightweight `[PERF]` instrumentation around dashboard,
+  fleet, routes, finance, leaderboard, and route-map reload paths
 
 ### AI competitors
 - backend-controlled simulation and decision loop
