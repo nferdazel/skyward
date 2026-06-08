@@ -36,6 +36,18 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthCubit, AuthState>(
+      buildWhen: (previous, current) {
+        if (previous.runtimeType != current.runtimeType) return true;
+        if (previous is! AuthAuthenticated || current is! AuthAuthenticated) {
+          return true;
+        }
+        return previous.user.id != current.user.id ||
+            previous.user.companyName != current.user.companyName ||
+            previous.user.ceoName != current.user.ceoName ||
+            previous.user.hqAirportIata != current.user.hqAirportIata ||
+            previous.user.autoGroundingThreshold !=
+                current.user.autoGroundingThreshold;
+      },
       builder: (context, authState) {
         if (authState is! AuthAuthenticated) {
           return const Scaffold(
@@ -78,6 +90,7 @@ class _AuthenticatedDashboardShellState
   late final RoutesCubit _routesCubit;
   late final LeaderboardCubit _leaderboardCubit;
   late final FinanceCubit _financeCubit;
+  final Set<int> _loadedTabIndexes = {0};
 
   @override
   void initState() {
@@ -108,27 +121,77 @@ class _AuthenticatedDashboardShellState
     _routesCubit
       ..loadRoutesAndData(user.id)
       ..setupReactivity(_simulationCubit, user.id);
+  }
 
-    _leaderboardCubit
-      ..loadRankings(
-        humanUserId: user.id,
-        humanCompanyName: user.companyName,
-        humanCeoName: user.ceoName,
-        humanCash: user.cashBalance,
-        humanNetWorth: 0.0,
-        humanFleetSize: 0,
-        humanMonthlyRevenue: 0.0,
-      )
-      ..setupReactivity(
-        _simulationCubit,
-        user.id,
-        user.companyName,
-        user.ceoName,
-      );
+  void _ensureTabReady(int index, User user) {
+    if (_loadedTabIndexes.contains(index)) return;
 
-    _financeCubit
-      ..loadLedger(user.id)
-      ..setupReactivity(_simulationCubit, user.id);
+    switch (index) {
+      case 3:
+        _financeCubit
+          ..loadLedger(user.id)
+          ..setupReactivity(_simulationCubit, user.id);
+        break;
+      case 4:
+        _leaderboardCubit
+          ..loadRankings(
+            humanUserId: user.id,
+            humanCompanyName: user.companyName,
+            humanCeoName: user.ceoName,
+            humanCash: user.cashBalance,
+            humanNetWorth: 0.0,
+            humanFleetSize: 0,
+            humanMonthlyRevenue: 0.0,
+          )
+          ..setupReactivity(
+            _simulationCubit,
+            user.id,
+            user.companyName,
+            user.ceoName,
+          );
+        break;
+      default:
+        break;
+    }
+
+    setState(() {
+      _loadedTabIndexes.add(index);
+    });
+  }
+
+  Widget _buildTabChild(
+    BuildContext context,
+    int index,
+    NumberFormat currencyFormat,
+    DateFormat dateFormat,
+  ) {
+    if (!_loadedTabIndexes.contains(index)) {
+      return const SizedBox.shrink();
+    }
+
+    switch (index) {
+      case 0:
+        return OverviewTab(
+          onNavigateToFleet: () {
+            _navigationCubit.selectTab(1);
+          },
+          onNavigateToRoutes: () {
+            _navigationCubit.selectTab(2);
+          },
+        );
+      case 1:
+        return const FleetView();
+      case 2:
+        return const RoutesView();
+      case 3:
+        return const FinanceView();
+      case 4:
+        return const LeaderboardView();
+      case 5:
+        return const SettingsView();
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   @override
@@ -144,7 +207,7 @@ class _AuthenticatedDashboardShellState
 
   @override
   Widget build(BuildContext context) {
-    final authState = context.watch<AuthCubit>().state;
+    final authState = context.read<AuthCubit>().state;
     if (authState is! AuthAuthenticated) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -160,8 +223,8 @@ class _AuthenticatedDashboardShellState
         BlocProvider<LeaderboardCubit>.value(value: _leaderboardCubit),
         BlocProvider<FinanceCubit>.value(value: _financeCubit),
       ],
-      child: BlocListener<SimulationCubit, SimulationState>(
-        listener: (context, simState) {
+        child: BlocListener<SimulationCubit, SimulationState>(
+          listener: (context, simState) {
           final authState = context.read<AuthCubit>().state;
           if (authState is AuthAuthenticated) {
             final updatedUser = authState.user.copyWith(
@@ -174,25 +237,24 @@ class _AuthenticatedDashboardShellState
             context.read<AuthCubit>().updateActiveUser(updatedUser);
           }
         },
-        child: BlocBuilder<SimulationCubit, SimulationState>(
-          builder: (context, simState) {
-            return ResponsiveLayout(
-              mobileBody: _buildMobileLayout(
-                context,
-                authState,
-                simState,
-                _currencyFormat,
-                _dateFormat,
-              ),
-              desktopBody: _buildDesktopLayout(
-                context,
-                authState,
-                simState,
-                _currencyFormat,
-                _dateFormat,
-              ),
-            );
+        child: BlocListener<NavigationCubit, NavigationState>(
+          listener: (context, navState) {
+            _ensureTabReady(navState.activeIndex, authState.user);
           },
+          child: ResponsiveLayout(
+            mobileBody: _buildMobileLayout(
+              context,
+              authState,
+              _currencyFormat,
+              _dateFormat,
+            ),
+            desktopBody: _buildDesktopLayout(
+              context,
+              authState,
+              _currencyFormat,
+              _dateFormat,
+            ),
+          ),
         ),
       ),
     );
@@ -201,7 +263,6 @@ class _AuthenticatedDashboardShellState
   Widget _buildDesktopLayout(
     BuildContext context,
     AuthAuthenticated authState,
-    SimulationState simState,
     NumberFormat currencyFormat,
     DateFormat dateFormat,
   ) {
@@ -219,22 +280,45 @@ class _AuthenticatedDashboardShellState
                 Expanded(
                   child: Column(
                     children: [
-                      TopHud(
-                        authState: authState,
-                        simState: simState,
-                        currencyFormat: currencyFormat,
-                        dateFormat: dateFormat,
-                        scale: scale,
+                      BlocBuilder<SimulationCubit, SimulationState>(
+                        buildWhen: (previous, current) =>
+                            previous.gameTime != current.gameTime ||
+                            previous.cashBalance != current.cashBalance ||
+                            previous.fuelPricePerLiter !=
+                                current.fuelPricePerLiter ||
+                            previous.isSyncing != current.isSyncing,
+                        builder: (context, simState) {
+                          return TopHud(
+                            authState: authState,
+                            simState: simState,
+                            currencyFormat: currencyFormat,
+                            dateFormat: dateFormat,
+                            scale: scale,
+                          );
+                        },
                       ),
                       Expanded(
                         child: Container(
                           padding: EdgeInsets.all(
                             AppSpacing.pagePadding * scale,
                           ),
-                          child: _buildActiveScreenContent(
-                            context,
-                            currencyFormat,
-                            dateFormat,
+                          child: BlocBuilder<NavigationCubit, NavigationState>(
+                            builder: (context, navState) {
+                              return IndexedStack(
+                                index: navState.activeIndex,
+                                children: List.generate(
+                                  6,
+                                  (index) => RepaintBoundary(
+                                    child: _buildTabChild(
+                                      context,
+                                      index,
+                                      currencyFormat,
+                                      dateFormat,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -252,7 +336,6 @@ class _AuthenticatedDashboardShellState
   Widget _buildMobileLayout(
     BuildContext context,
     AuthAuthenticated authState,
-    SimulationState simState,
     NumberFormat currencyFormat,
     DateFormat dateFormat,
   ) {
@@ -301,51 +384,77 @@ class _AuthenticatedDashboardShellState
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(40),
-          child: Container(
-            color: AppTheme.surface,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
+          child: BlocBuilder<SimulationCubit, SimulationState>(
+            buildWhen: (previous, current) =>
+                previous.gameTime != current.gameTime ||
+                previous.cashBalance != current.cashBalance ||
+                previous.fuelPricePerLiter != current.fuelPricePerLiter ||
+                previous.isSyncing != current.isSyncing,
+            builder: (context, simState) {
+              return Container(
+                color: AppTheme.surface,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    PulseDot(
-                      color: simState.isSyncing
-                          ? AppTheme.warning
-                          : AppTheme.success,
+                    Row(
+                      children: [
+                        PulseDot(
+                          color: simState.isSyncing
+                              ? AppTheme.warning
+                              : AppTheme.success,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          dateFormat.format(simState.gameTime),
+                          style: AppTypography.badgeText,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: AppSpacing.xs),
                     Text(
-                      dateFormat.format(simState.gameTime),
-                      style: AppTypography.badgeText,
+                      'F: \$${simState.fuelPricePerLiter.toStringAsFixed(2)}/L',
+                      style: AppTypography.badgeText.copyWith(
+                        color: AppTheme.warning,
+                        letterSpacing: 0.0,
+                      ),
+                    ),
+                    Text(
+                      currencyFormat.format(simState.cashBalance),
+                      style: AppTypography.badgeText.copyWith(
+                        color: AppTheme.success,
+                        letterSpacing: 0.0,
+                      ),
                     ),
                   ],
                 ),
-                Text(
-                  'F: \$${simState.fuelPricePerLiter.toStringAsFixed(2)}/L',
-                  style: AppTypography.badgeText.copyWith(
-                    color: AppTheme.warning,
-                    letterSpacing: 0.0,
-                  ),
-                ),
-                Text(
-                  currencyFormat.format(simState.cashBalance),
-                  style: AppTypography.badgeText.copyWith(
-                    color: AppTheme.success,
-                    letterSpacing: 0.0,
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(AppSpacing.sm),
-        child: _buildActiveScreenContent(context, currencyFormat, dateFormat),
+        child: BlocBuilder<NavigationCubit, NavigationState>(
+          builder: (context, navState) {
+            return IndexedStack(
+              index: navState.activeIndex,
+              children: List.generate(
+                6,
+                (index) => RepaintBoundary(
+                  child: _buildTabChild(
+                    context,
+                    index,
+                    currencyFormat,
+                    dateFormat,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
       bottomNavigationBar: BlocBuilder<NavigationCubit, NavigationState>(
         builder: (context, state) {
@@ -376,34 +485,4 @@ class _AuthenticatedDashboardShellState
     );
   }
 
-  Widget _buildActiveScreenContent(
-    BuildContext context,
-    NumberFormat currencyFormat,
-    DateFormat dateFormat,
-  ) {
-    final activeIndex = context.watch<NavigationCubit>().state.activeIndex;
-
-    if (activeIndex == 0) {
-      return OverviewTab(
-        onNavigateToFleet: () => context.read<NavigationCubit>().selectTab(1),
-        onNavigateToRoutes: () => context.read<NavigationCubit>().selectTab(2),
-      );
-    }
-    if (activeIndex == 1) {
-      return const FleetView();
-    }
-    if (activeIndex == 2) {
-      return const RoutesView();
-    }
-    if (activeIndex == 3) {
-      return const FinanceView();
-    }
-    if (activeIndex == 4) {
-      return const LeaderboardView();
-    }
-    if (activeIndex == 5) {
-      return const SettingsView();
-    }
-    return Container();
-  }
 }

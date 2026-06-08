@@ -50,6 +50,8 @@ class BlueprintPlannerForm extends StatefulWidget {
 class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _priceController;
+  String? _planningAssessmentKey;
+  RoutePlanningAssessment? _planningAssessmentCache;
 
   @override
   void initState() {
@@ -131,21 +133,10 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
           final plannedFlights =
               plannerPreview?.allocatedFlightsPerWeek ??
               GameConstants.defaultWeeklyFlights;
-          final planningAssessment =
-              state.selectedOrigin != null &&
-                  state.selectedDest != null &&
-                  state.calculatedDistance > 0.0 &&
-                  state.currentProposedPrice > 0.0
-              ? UserRoute.buildPlanningAssessment(
-                  origin: state.selectedOrigin!,
-                  destination: state.selectedDest!,
-                  distanceKm: state.calculatedDistance,
-                  ticketPrice: state.currentProposedPrice,
-                  flightsPerWeek: plannedFlights,
-                  availableAircraft: widget.availableAircraft,
-                  autoGroundingThreshold: widget.autoGroundingThreshold,
-                )
-              : null;
+          final planningAssessment = _buildPlanningAssessment(
+            state: state,
+            plannedFlights: plannedFlights,
+          );
 
           final plannerPanel = _buildPlannerPanel(
             context: context,
@@ -190,6 +181,47 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
         },
       ),
     );
+  }
+
+  RoutePlanningAssessment? _buildPlanningAssessment({
+    required BlueprintPlannerFormState state,
+    required int plannedFlights,
+  }) {
+    if (state.selectedOrigin == null ||
+        state.selectedDest == null ||
+        state.calculatedDistance <= 0.0 ||
+        state.currentProposedPrice <= 0.0) {
+      _planningAssessmentKey = null;
+      _planningAssessmentCache = null;
+      return null;
+    }
+
+    final cacheKey = [
+      state.selectedOrigin!.iata,
+      state.selectedDest!.iata,
+      state.calculatedDistance.toStringAsFixed(2),
+      state.currentProposedPrice.toStringAsFixed(2),
+      plannedFlights,
+      widget.availableAircraft.length,
+      widget.autoGroundingThreshold.toStringAsFixed(2),
+    ].join('|');
+
+    if (_planningAssessmentKey == cacheKey && _planningAssessmentCache != null) {
+      return _planningAssessmentCache;
+    }
+
+    final assessment = UserRoute.buildPlanningAssessment(
+      origin: state.selectedOrigin!,
+      destination: state.selectedDest!,
+      distanceKm: state.calculatedDistance,
+      ticketPrice: state.currentProposedPrice,
+      flightsPerWeek: plannedFlights,
+      availableAircraft: widget.availableAircraft,
+      autoGroundingThreshold: widget.autoGroundingThreshold,
+    );
+    _planningAssessmentKey = cacheKey;
+    _planningAssessmentCache = assessment;
+    return assessment;
   }
 
   Airport? _resolveHomeAirport(BuildContext context) {

@@ -60,6 +60,12 @@ class RouteNetworkMap extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxHeight < 360 || constraints.maxWidth < 420;
+        final denseNetwork =
+            routes.length >= 12 || connectedAirports.length >= 18;
+        final arcSteps = denseNetwork ? 8 : 18;
+        final markerAirports = highlightedRoute == null && denseNetwork
+            ? connectedAirports.values.take(10).toList()
+            : connectedAirports.values.toList();
         final viewport = _MapViewport.fromRoutes(
           routes: mapRoutes,
           fallbackCenter: highlightedOrigin != null
@@ -138,164 +144,186 @@ class RouteNetworkMap extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    border: Border.all(color: AppTheme.surfaceSubtle),
-                  ),
-                  clipBehavior: Clip.hardEdge,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      FlutterMap(
-                        options: MapOptions(
-                          initialCenter: viewport.center,
-                          initialZoom: viewport.zoom,
-                          minZoom: 1.5,
-                          maxZoom: 8.5,
-                          interactionOptions: const InteractionOptions(
-                            flags: InteractiveFlag.drag |
-                                InteractiveFlag.pinchZoom |
-                                InteractiveFlag.doubleTapZoom |
-                                InteractiveFlag.flingAnimation |
-                                InteractiveFlag.scrollWheelZoom,
+                child: RepaintBoundary(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.surface,
+                      border: Border.all(color: AppTheme.surfaceSubtle),
+                    ),
+                    clipBehavior: Clip.hardEdge,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        FlutterMap(
+                          options: MapOptions(
+                            initialCenter: viewport.center,
+                            initialZoom: viewport.zoom,
+                            minZoom: 1.5,
+                            maxZoom: 8.5,
+                            interactionOptions: const InteractionOptions(
+                              flags: InteractiveFlag.drag |
+                                  InteractiveFlag.pinchZoom |
+                                  InteractiveFlag.doubleTapZoom |
+                                  InteractiveFlag.flingAnimation |
+                                  InteractiveFlag.scrollWheelZoom,
+                            ),
                           ),
-                        ),
-                        children: [
-                          TileLayer(
-                            urlTemplate:
-                                'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-                            userAgentPackageName: 'skyward',
-                            retinaMode: true,
-                            panBuffer: 1,
-                          ),
-                          PolylineLayer(
-                            polylines: [
-                              for (final route
-                                  in mapRoutes.where((route) => !route.highlighted))
-                                Polyline(
-                                  points: [
-                                    LatLng(
-                                      route.origin.latitude,
-                                      route.origin.longitude,
+                          children: [
+                            TileLayer(
+                              urlTemplate:
+                                  'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                              userAgentPackageName: 'skyward',
+                              retinaMode: !denseNetwork,
+                              panBuffer: 1,
+                            ),
+                            PolylineLayer(
+                              polylines: [
+                                for (final route in mapRoutes.where(
+                                  (route) => !route.highlighted,
+                                ))
+                                  Polyline(
+                                    points: [
+                                      LatLng(
+                                        route.origin.latitude,
+                                        route.origin.longitude,
+                                      ),
+                                      ..._buildGreatCircleArc(
+                                        route.origin,
+                                        route.destination,
+                                        steps: arcSteps,
+                                      ),
+                                      LatLng(
+                                        route.destination.latitude,
+                                        route.destination.longitude,
+                                      ),
+                                    ],
+                                    strokeWidth: denseNetwork ? 2 : 3,
+                                    color: AppTheme.info.withValues(alpha: 0.72),
+                                    borderStrokeWidth: denseNetwork ? 4 : 7,
+                                    borderColor: AppTheme.info.withValues(
+                                      alpha: 0.16,
                                     ),
-                                    ..._buildGreatCircleArc(
-                                      route.origin,
-                                      route.destination,
-                                    ),
-                                    LatLng(
-                                      route.destination.latitude,
-                                      route.destination.longitude,
-                                    ),
-                                  ],
-                                  strokeWidth: 3,
-                                  color: AppTheme.info.withValues(alpha: 0.72),
-                                  borderStrokeWidth: 7,
-                                  borderColor: AppTheme.info.withValues(alpha: 0.16),
-                                ),
-                              if (highlightedRoute != null)
-                                Polyline(
-                                  points: [
-                                    LatLng(
-                                      highlightedRoute.origin.latitude,
-                                      highlightedRoute.origin.longitude,
-                                    ),
-                                    ..._buildGreatCircleArc(
-                                      highlightedRoute.origin,
-                                      highlightedRoute.destination,
-                                    ),
-                                    LatLng(
-                                      highlightedRoute.destination.latitude,
-                                      highlightedRoute.destination.longitude,
-                                    ),
-                                  ],
-                                  strokeWidth: 4,
-                                  color: AppTheme.primary,
-                                  borderStrokeWidth: 9,
-                                  borderColor: AppTheme.primary.withValues(
-                                    alpha: 0.22,
                                   ),
-                                ),
-                            ],
-                          ),
-                          CircleLayer(
-                            circles: [
-                              for (final airport in connectedAirports.values)
-                                CircleMarker(
-                                  point: LatLng(airport.latitude, airport.longitude),
-                                  radius: 8,
-                                  useRadiusInMeter: false,
-                                  color: AppTheme.info.withValues(alpha: 0.18),
-                                  borderStrokeWidth: 1.5,
-                                  borderColor: AppTheme.info.withValues(alpha: 0.5),
-                                ),
-                              if (highlightedOrigin != null)
-                                CircleMarker(
-                                  point: LatLng(
-                                    highlightedOrigin!.latitude,
-                                    highlightedOrigin!.longitude,
+                                if (highlightedRoute != null)
+                                  Polyline(
+                                    points: [
+                                      LatLng(
+                                        highlightedRoute.origin.latitude,
+                                        highlightedRoute.origin.longitude,
+                                      ),
+                                      ..._buildGreatCircleArc(
+                                        highlightedRoute.origin,
+                                        highlightedRoute.destination,
+                                        steps: arcSteps,
+                                      ),
+                                      LatLng(
+                                        highlightedRoute.destination.latitude,
+                                        highlightedRoute.destination.longitude,
+                                      ),
+                                    ],
+                                    strokeWidth: denseNetwork ? 3 : 4,
+                                    color: AppTheme.primary,
+                                    borderStrokeWidth: denseNetwork ? 6 : 9,
+                                    borderColor: AppTheme.primary.withValues(
+                                      alpha: 0.22,
+                                    ),
                                   ),
-                                  radius: 10,
-                                  useRadiusInMeter: false,
-                                  color: AppTheme.primary.withValues(alpha: 0.18),
-                                  borderStrokeWidth: 2,
-                                  borderColor: AppTheme.primary,
-                                ),
-                              if (highlightedDestination != null)
-                                CircleMarker(
-                                  point: LatLng(
-                                    highlightedDestination!.latitude,
-                                    highlightedDestination!.longitude,
-                                  ),
-                                  radius: 10,
-                                  useRadiusInMeter: false,
-                                  color: AppTheme.primary.withValues(alpha: 0.18),
-                                  borderStrokeWidth: 2,
-                                  borderColor: AppTheme.primary,
-                                ),
-                            ],
-                          ),
-                          MarkerLayer(
-                            markers: [
-                              for (final airport in connectedAirports.values)
-                                Marker(
-                                  point: LatLng(airport.latitude, airport.longitude),
-                                  width: 72,
-                                  height: 28,
-                                  alignment: Alignment.topCenter,
-                                  child: _AirportMarker(
-                                    label: airport.iata,
-                                    highlighted:
-                                        airport.iata == highlightedOrigin?.iata ||
-                                        airport.iata == highlightedDestination?.iata,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      IgnorePointer(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                AppTheme.background.withValues(alpha: 0.05),
-                                Colors.transparent,
-                                AppTheme.background.withValues(alpha: 0.12),
                               ],
-                              stops: const [0.0, 0.5, 1.0],
+                            ),
+                            CircleLayer(
+                              circles: [
+                                for (final airport in connectedAirports.values)
+                                  CircleMarker(
+                                    point: LatLng(
+                                      airport.latitude,
+                                      airport.longitude,
+                                    ),
+                                    radius: denseNetwork ? 6 : 8,
+                                    useRadiusInMeter: false,
+                                    color: AppTheme.info.withValues(alpha: 0.18),
+                                    borderStrokeWidth: denseNetwork ? 1 : 1.5,
+                                    borderColor: AppTheme.info.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                  ),
+                                if (highlightedOrigin != null)
+                                  CircleMarker(
+                                    point: LatLng(
+                                      highlightedOrigin!.latitude,
+                                      highlightedOrigin!.longitude,
+                                    ),
+                                    radius: denseNetwork ? 8 : 10,
+                                    useRadiusInMeter: false,
+                                    color: AppTheme.primary.withValues(
+                                      alpha: 0.18,
+                                    ),
+                                    borderStrokeWidth: 2,
+                                    borderColor: AppTheme.primary,
+                                  ),
+                                if (highlightedDestination != null)
+                                  CircleMarker(
+                                    point: LatLng(
+                                      highlightedDestination!.latitude,
+                                      highlightedDestination!.longitude,
+                                    ),
+                                    radius: denseNetwork ? 8 : 10,
+                                    useRadiusInMeter: false,
+                                    color: AppTheme.primary.withValues(
+                                      alpha: 0.18,
+                                    ),
+                                    borderStrokeWidth: 2,
+                                    borderColor: AppTheme.primary,
+                                  ),
+                              ],
+                            ),
+                            if (!denseNetwork || highlightedRoute != null)
+                              MarkerLayer(
+                                markers: [
+                                  for (final airport in markerAirports)
+                                    Marker(
+                                      point: LatLng(
+                                        airport.latitude,
+                                        airport.longitude,
+                                      ),
+                                      width: 72,
+                                      height: 28,
+                                      alignment: Alignment.topCenter,
+                                      child: _AirportMarker(
+                                        label: airport.iata,
+                                        highlighted:
+                                            airport.iata ==
+                                                highlightedOrigin?.iata ||
+                                            airport.iata ==
+                                                highlightedDestination?.iata,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                          ],
+                        ),
+                        IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  AppTheme.background.withValues(alpha: 0.05),
+                                  Colors.transparent,
+                                  AppTheme.background.withValues(alpha: 0.12),
+                                ],
+                                stops: const [0.0, 0.5, 1.0],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const Positioned(
-                        right: 8,
-                        bottom: 8,
-                        child: _MapAttributionBadge(),
-                      ),
-                    ],
+                        const Positioned(
+                          right: 8,
+                          bottom: 8,
+                          child: _MapAttributionBadge(),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -330,8 +358,11 @@ class RouteNetworkMap extends StatelessWidget {
     );
   }
 
-  List<LatLng> _buildGreatCircleArc(Airport origin, Airport destination) {
-    const steps = 18;
+  List<LatLng> _buildGreatCircleArc(
+    Airport origin,
+    Airport destination, {
+    required int steps,
+  }) {
     final points = <LatLng>[];
     final startLat = origin.latitude * math.pi / 180.0;
     final startLon = origin.longitude * math.pi / 180.0;
