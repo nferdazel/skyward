@@ -434,6 +434,7 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
 
   void _setupRealtime(String userId) {
     if (DevModeManager.isDevMode || SupabaseManager.hasMockClient) return;
+    unawaited(_realtimeSubscriptions.clear());
 
     final ledgerChannel = SupabaseManager.client
         .channel('public:financial_ledger:user_id=eq.$userId')

@@ -905,6 +905,7 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
 
   void _setupRealtime(String userId) {
     if (DevModeManager.isDevMode || SupabaseManager.hasMockClient) return;
+    unawaited(_realtimeSubscriptions.clear());
 
     final routesChannel = SupabaseManager.client
         .channel('public:user_routes:user_id=eq.$userId')

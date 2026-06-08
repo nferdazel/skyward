@@ -370,6 +370,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
 
   void _setupRealtime() {
     if (DevModeManager.isDevMode || SupabaseManager.hasMockClient) return;
+    unawaited(_realtimeSubscriptions.clear());
 
     final channel = SupabaseManager.client
         .channel('public:ai_competitors')

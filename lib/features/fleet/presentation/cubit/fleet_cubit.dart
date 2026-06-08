@@ -1116,6 +1116,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
 
   void _setupRealtime(String userId) {
     if (DevModeManager.isDevMode || SupabaseManager.hasMockClient) return;
+    unawaited(_realtimeSubscriptions.clear());
 
     final fleetChannel = SupabaseManager.client
         .channel('public:user_fleet:user_id=eq.$userId')
