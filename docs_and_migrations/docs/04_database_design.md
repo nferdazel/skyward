@@ -72,6 +72,10 @@ Important fields used by Flutter:
 ### `sessions`
 Custom auth sessions used by the app login flow.
 
+### `global_game_settings`
+Global game configuration used by nearly every simulation RPC.
+Contains starting cash, fuel price, safety limits, bot count, and lease deposit settings.
+
 ### `aircraft_models`
 Static aircraft catalog used for acquisition and planning.
 Last live baseline verified on 2026-06-01: `48` rows.

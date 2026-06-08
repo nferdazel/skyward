@@ -260,7 +260,7 @@ join season_clock s on s.id = u.season_id
 where u.id = '<your_user_id>';
 ```
 
-## 11. Season-clock foundation check
+## 14. Season-clock foundation check
 
 Use this after applying Phase 2 to confirm there is one active season and that
 players/bots are linked to it.
@@ -292,7 +292,7 @@ select
 from ai_competitors;
 ```
 
-## 12. World tick RPC foundation check
+## 15. World tick RPC foundation check
 
 Use this after applying Phase 3 to confirm the scheduler-safe clock RPCs work.
 This advances only `season_clock`, not player/bot actor clocks.
@@ -323,7 +323,7 @@ order by started_at desc
 limit 10;
 ```
 
-## 13. World tick scheduler health check
+## 16. World tick scheduler health check
 
 Use this after applying Phase 4 to confirm the pg_cron job exists and the season
 clock is being ticked automatically. If this fails with `permission denied for
@@ -364,7 +364,7 @@ order by started_at desc
 limit 10;
 ```
 
-## 14. World actor tick audit
+## 17. World actor tick audit
 
 Use this after applying Phase 5 to confirm actors are no longer lagging behind
 the shared season clock.
@@ -396,7 +396,7 @@ where ai.status != 'Bankrupt'
 order by ai.company_name asc;
 ```
 
-## 15. World-clock guardrail report
+## 18. World-clock guardrail report
 
 Use this after Phase 7/8/11-lite to catch common world-time regressions quickly.
 
@@ -405,7 +405,7 @@ select *
 from get_world_tick_guardrail_report();
 ```
 
-## 16. Phase 9 daily segmentation audit
+## 19. Phase 9 daily segmentation audit
 
 Use this after applying Phase 9 to inspect whether recent multi-day catch-up
 created ledger rows across game-day boundaries instead of only on the final day.
@@ -438,7 +438,7 @@ where proname in (
 order by proname;
 ```
 
-## 17. Free-tier database size audit
+## 20. Free-tier database size audit
 
 Use this after applying Phase 12/13 to inspect Supabase Free database-size risk.
 If `get_table_size_report()` fails with extension-schema permission errors,

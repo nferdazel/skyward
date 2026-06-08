@@ -21,7 +21,8 @@ Skyward is a Flutter airline-tycoon sim with:
 - `FinanceCubit`
 - `LeaderboardCubit`
 - `LazyTabCubit`
-- `SettingsCubit` is already provided above where needed by the shell
+- `BlueprintPlannerFormCubit`
+- `SettingsCubit` is provided in `main.dart` at app level
 
 `SimulationCubit` is the central backend-reconciliation source.
 Other feature cubits subscribe through `SimulationReactiveMixin`.

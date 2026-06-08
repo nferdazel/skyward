@@ -40,6 +40,7 @@ Current runtime cubits:
 - `FinanceCubit`
 - `LeaderboardCubit`
 - `LazyTabCubit`
+- `BlueprintPlannerFormCubit`
 - `SettingsCubit`
 
 Allowed local widget state is limited to widget lifecycle concerns such as:

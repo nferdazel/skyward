@@ -322,12 +322,6 @@ This is the live Flutter-to-Supabase contract surface.
   - catches up simulation before changing fare or schedule
   - enforces assigned-aircraft weekly schedule limits server-side
 
-`delete_route`
-- caller: `RoutesCubit.deleteRoute()`
-- params:
-  - `p_user_id`
-  - `p_route_id`
-
 ### Owner-only tools
 
 `get_owner_route_optimizer`
@@ -338,11 +332,18 @@ This is the live Flutter-to-Supabase contract surface.
   - `p_destination_iata`
   - `p_limit`
   - `p_include_assigned`
+  - `p_exclude_existing_routes`
 - current behavior:
   - scans reachable destinations for one player fleet
   - scores fare and seat-layout candidates
   - returns top route opportunities by estimated weekly contribution
   - is intentionally granted only to `service_role`
+
+`delete_route`
+- caller: `RoutesCubit.deleteRoute()`
+- params:
+  - `p_user_id`
+  - `p_route_id`
 - current behavior:
   - catches up simulation before closing the route
   - grounds the assigned aircraft before deleting the route
@@ -401,6 +402,7 @@ The client also reads some tables directly through Supabase queries:
 - `financial_ledger`
 - `users`
 - `airports`
+- `global_game_settings`
 
 These are still part of the effective contract because UI parsing depends on their returned fields.
 
