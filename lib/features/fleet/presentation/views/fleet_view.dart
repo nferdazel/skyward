@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/perf_debug.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
@@ -29,13 +30,44 @@ import '../../domain/fleet_models.dart';
 import '../cubit/fleet_cubit.dart';
 import '../cubit/fleet_state.dart';
 
-class FleetView extends StatelessWidget {
+class FleetView extends StatefulWidget {
   const FleetView({super.key});
 
+  @override
+  State<FleetView> createState() => _FleetViewState();
+}
+
+class _FleetViewState extends State<FleetView>
+    with SingleTickerProviderStateMixin {
   static final _currencyFormat = NumberFormat.currency(
     symbol: '\$',
     decimalDigits: 0,
   );
+  late final TabController _tabController;
+  final Set<int> _loadedTabs = {0};
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) return;
+      final index = _tabController.index;
+      if (_loadedTabs.add(index)) {
+        PerfDebug.event('fleet.tab_init', fields: {'tab': index});
+      }
+      PerfDebug.event('fleet.tab_switch', fields: {'tab': index});
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,52 +86,57 @@ class FleetView extends StatelessWidget {
           AppSnackBar.showError(context, state.message);
         }
       },
-      child: DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Sub Header Navigation Tabs (v7.0 Spec)
-              TabBar(
-                isScrollable: false,
-                labelColor: AppTheme.primary,
-                unselectedLabelColor: AppTheme.textSecondary,
-                indicatorColor: AppTheme.primary,
-                indicatorWeight: 2,
-                indicatorSize: TabBarIndicatorSize.tab,
-                tabs: [
-                  Tab(
-                    child: Text(
-                      AppStrings.activeFleetTab,
-                      style: AppTypography.sectionHeaderMedium,
-                    ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TabBar(
+              controller: _tabController,
+              isScrollable: false,
+              labelColor: AppTheme.primary,
+              unselectedLabelColor: AppTheme.textSecondary,
+              indicatorColor: AppTheme.primary,
+              indicatorWeight: 2,
+              indicatorSize: TabBarIndicatorSize.tab,
+              tabs: [
+                Tab(
+                  child: Text(
+                    AppStrings.activeFleetTab,
+                    style: AppTypography.sectionHeaderMedium,
                   ),
-                  Tab(
-                    child: Text(
-                      AppStrings.acquireAircraftTab,
-                      style: AppTypography.sectionHeaderMedium,
-                    ),
+                ),
+                Tab(
+                  child: Text(
+                    AppStrings.acquireAircraftTab,
+                    style: AppTypography.sectionHeaderMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.tabContentGap),
+            Expanded(
+              child: IndexedStack(
+                index: _tabController.index,
+                children: [
+                  RepaintBoundary(
+                    child: _loadedTabs.contains(0)
+                        ? _buildActiveFleetTab(
+                            userId,
+                            _currencyFormat,
+                            autoGroundingThreshold,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  RepaintBoundary(
+                    child: _loadedTabs.contains(1)
+                        ? _buildAcquireTab(userId, _currencyFormat)
+                        : const SizedBox.shrink(),
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.tabContentGap),
-              // Tab Contents
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    _buildActiveFleetTab(
-                      userId,
-                      _currencyFormat,
-                      autoGroundingThreshold,
-                    ),
-                    _buildAcquireTab(userId, _currencyFormat),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

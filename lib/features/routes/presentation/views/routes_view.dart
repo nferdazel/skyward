@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/perf_debug.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/widgets/app_button.dart';
@@ -26,13 +27,44 @@ import '../../domain/route_models.dart';
 import '../../../fleet/domain/fleet_models.dart';
 import '../widgets/blueprint_planner_form.dart';
 
-class RoutesView extends StatelessWidget {
+class RoutesView extends StatefulWidget {
   const RoutesView({super.key});
 
+  @override
+  State<RoutesView> createState() => _RoutesViewState();
+}
+
+class _RoutesViewState extends State<RoutesView>
+    with SingleTickerProviderStateMixin {
   static final _currencyFormat = NumberFormat.currency(
     symbol: '\$',
     decimalDigits: 0,
   );
+  late final TabController _tabController;
+  final Set<int> _loadedTabs = {0};
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) return;
+      final index = _tabController.index;
+      if (_loadedTabs.add(index)) {
+        PerfDebug.event('routes.tab_init', fields: {'tab': index});
+      }
+      PerfDebug.event('routes.tab_switch', fields: {'tab': index});
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,60 +75,61 @@ class RoutesView extends StatelessWidget {
 
     final userId = authState.user.id;
     final autoGroundingThreshold = authState.user.autoGroundingThreshold;
-    return DefaultTabController(
-      length: 2,
-      child: Builder(
-        builder: (context) {
-          return Scaffold(
-            backgroundColor: Colors.transparent,
-            body: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Tabs Navigation
-                TabBar(
-                  isScrollable: false,
-                  labelColor: AppTheme.primary,
-                  unselectedLabelColor: AppTheme.textSecondary,
-                  indicatorColor: AppTheme.primary,
-                  indicatorWeight: 2,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  tabs: [
-                    Tab(
-                      child: Text(
-                        AppStrings.flightConnectionsTab,
-                        style: AppTypography.sectionHeaderMedium,
-                      ),
-                    ),
-                    Tab(
-                      child: Text(
-                        AppStrings.blueprintNetworkTab,
-                        style: AppTypography.sectionHeaderMedium,
-                      ),
-                    ),
-                  ],
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TabBar(
+            controller: _tabController,
+            isScrollable: false,
+            labelColor: AppTheme.primary,
+            unselectedLabelColor: AppTheme.textSecondary,
+            indicatorColor: AppTheme.primary,
+            indicatorWeight: 2,
+            indicatorSize: TabBarIndicatorSize.tab,
+            tabs: [
+              Tab(
+                child: Text(
+                  AppStrings.flightConnectionsTab,
+                  style: AppTypography.sectionHeaderMedium,
                 ),
-                const SizedBox(height: AppSpacing.tabContentGap),
-                // Tab contents
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _buildConnectionsTab(
-                        userId,
-                        _currencyFormat,
-                        autoGroundingThreshold,
-                      ),
-                      _buildBlueprintTab(
-                        userId,
-                        _currencyFormat,
-                        authState.user.autoGroundingThreshold,
-                      ),
-                    ],
-                  ),
+              ),
+              Tab(
+                child: Text(
+                  AppStrings.blueprintNetworkTab,
+                  style: AppTypography.sectionHeaderMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.tabContentGap),
+          Expanded(
+            child: IndexedStack(
+              index: _tabController.index,
+              children: [
+                RepaintBoundary(
+                  child: _loadedTabs.contains(0)
+                      ? _buildConnectionsTab(
+                          userId,
+                          _currencyFormat,
+                          autoGroundingThreshold,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                RepaintBoundary(
+                  child: _loadedTabs.contains(1)
+                      ? _buildBlueprintTab(
+                          userId,
+                          _currencyFormat,
+                          authState.user.autoGroundingThreshold,
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ],
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -677,8 +710,7 @@ class RoutesView extends StatelessWidget {
           autoGroundingThreshold: autoGroundingThreshold,
           currencyFormat: currencyFormat,
           routesCubit: context.read<RoutesCubit>(),
-          onSuccessRedirect: () =>
-              DefaultTabController.of(context).animateTo(0),
+          onSuccessRedirect: () => _tabController.animateTo(0),
         );
       },
     );
