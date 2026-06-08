@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'app_button.dart';
 import 'app_dialog_shell.dart';
 
 class AppMultiSelectField extends StatelessWidget {
@@ -32,7 +33,7 @@ class AppMultiSelectField extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
-          vertical: AppSpacing.sm,
+          vertical: AppSpacing.xs,
         ),
         decoration: BoxDecoration(
           color: AppTheme.background,
@@ -93,12 +94,16 @@ class AppMultiSelectField extends StatelessWidget {
                             return CheckboxListTile(
                               value: selected,
                               dense: true,
+                              visualDensity: const VisualDensity(
+                                horizontal: -4,
+                                vertical: -4,
+                              ),
                               contentPadding: EdgeInsets.zero,
                               activeColor: AppTheme.primary,
                               controlAffinity: ListTileControlAffinity.leading,
                               title: Text(
                                 option.toUpperCase(),
-                                style: AppTypography.badgeText.copyWith(
+                                style: AppTypography.captionRegular.copyWith(
                                   color: AppTypography.textPrimary,
                                 ),
                               ),
@@ -116,28 +121,33 @@ class AppMultiSelectField extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.sm),
                     Row(
                       children: [
-                        TextButton(
+                        AppButton(
+                          text: 'CLEAR',
                           onPressed: () {
                             onChanged(const []);
                             Navigator.of(dialogContext).pop();
                           },
-                          child: const Text('CLEAR'),
+                          type: AppButtonType.secondary,
+                          height: 36,
                         ),
                         const Spacer(),
-                        TextButton(
+                        AppButton(
+                          text: 'CANCEL',
                           onPressed: () => Navigator.of(dialogContext).pop(),
-                          child: const Text('CANCEL'),
+                          type: AppButtonType.secondary,
+                          height: 36,
                         ),
                         const SizedBox(width: AppSpacing.xs),
-                        FilledButton(
+                        AppButton(
+                          text: 'APPLY',
                           onPressed: () {
                             onChanged(working);
                             Navigator.of(dialogContext).pop();
                           },
-                          child: const Text('APPLY'),
+                          height: 36,
                         ),
                       ],
                     ),
