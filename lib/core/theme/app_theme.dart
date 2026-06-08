@@ -160,10 +160,10 @@ class AppTheme {
           foregroundColor: Colors.black,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-          textStyle: GoogleFonts.ibmPlexMono(
-            fontWeight: FontWeight.bold,
+          textStyle: GoogleFonts.ibmPlexSans(
+            fontWeight: FontWeight.w600,
             fontSize: 14,
-            letterSpacing: 2.0,
+            letterSpacing: 0.1,
           ),
           elevation: 0,
         ),
@@ -174,10 +174,10 @@ class AppTheme {
           side: const BorderSide(color: SkywardColors.darkAccent, width: 1.0),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-          textStyle: GoogleFonts.ibmPlexMono(
-            fontWeight: FontWeight.bold,
+          textStyle: GoogleFonts.ibmPlexSans(
+            fontWeight: FontWeight.w600,
             fontSize: 14,
-            letterSpacing: 2.0,
+            letterSpacing: 0.1,
           ),
         ),
       ),
@@ -188,15 +188,15 @@ class AppTheme {
           horizontal: 20,
           vertical: 18,
         ),
-        labelStyle: GoogleFonts.ibmPlexMono(
+        labelStyle: GoogleFonts.ibmPlexSans(
           color: SkywardColors.darkTextSec,
           fontSize: 12,
-          letterSpacing: 1.5,
+          letterSpacing: 0.1,
         ),
-        hintStyle: GoogleFonts.ibmPlexMono(
+        hintStyle: GoogleFonts.ibmPlexSans(
           color: SkywardColors.darkTextDim,
           fontSize: 12,
-          letterSpacing: 1.5,
+          letterSpacing: 0.1,
         ),
         enabledBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.zero,
@@ -341,10 +341,10 @@ class AppTheme {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-          textStyle: GoogleFonts.ibmPlexMono(
-            fontWeight: FontWeight.bold,
+          textStyle: GoogleFonts.ibmPlexSans(
+            fontWeight: FontWeight.w600,
             fontSize: 14,
-            letterSpacing: 2.0,
+            letterSpacing: 0.1,
           ),
           elevation: 0,
         ),
@@ -355,10 +355,10 @@ class AppTheme {
           side: const BorderSide(color: SkywardColors.lightAccent, width: 1.0),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-          textStyle: GoogleFonts.ibmPlexMono(
-            fontWeight: FontWeight.bold,
+          textStyle: GoogleFonts.ibmPlexSans(
+            fontWeight: FontWeight.w600,
             fontSize: 14,
-            letterSpacing: 2.0,
+            letterSpacing: 0.1,
           ),
         ),
       ),
@@ -369,15 +369,15 @@ class AppTheme {
           horizontal: 20,
           vertical: 18,
         ),
-        labelStyle: GoogleFonts.ibmPlexMono(
+        labelStyle: GoogleFonts.ibmPlexSans(
           color: SkywardColors.lightTextSec,
           fontSize: 12,
-          letterSpacing: 1.5,
+          letterSpacing: 0.1,
         ),
-        hintStyle: GoogleFonts.ibmPlexMono(
+        hintStyle: GoogleFonts.ibmPlexSans(
           color: SkywardColors.lightTextDim,
           fontSize: 12,
-          letterSpacing: 1.5,
+          letterSpacing: 0.1,
         ),
         enabledBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.zero,

@@ -103,9 +103,9 @@ class LeaderboardView extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: AppSpacing.lg),
+            const SizedBox(width: AppSpacing.md),
             SizedBox(
-              width: 320,
+              width: 300,
               child: RepaintBoundary(
                 child: _buildDesktopIntelPanel(context, state, cubit),
               ),
@@ -180,7 +180,7 @@ class LeaderboardView extends StatelessWidget {
                     RankCell(rank: rank, isHuman: isHuman),
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                        vertical: 8,
+                        vertical: 6,
                         horizontal: 6,
                       ),
                       child: Column(
@@ -211,10 +211,8 @@ class LeaderboardView extends StatelessWidget {
                           const SizedBox(height: AppSpacing.xxs),
                           Text(
                             entry.ceoName,
-                            style: AppTypography.badgeText.copyWith(
-                              fontSize: 10,
+                            style: AppTypography.captionRegular.copyWith(
                               color: AppTheme.textSecondary,
-                              letterSpacing: 0.0,
                             ),
                           ),
                         ],

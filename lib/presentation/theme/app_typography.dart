@@ -70,17 +70,17 @@ class AppTypography {
     height: 1.25,
   );
 
-  static TextStyle get badgeText => GoogleFonts.ibmPlexMono(
+  static TextStyle get badgeText => GoogleFonts.ibmPlexSans(
     fontSize: 11,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.w600,
     color: primaryAccent,
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   );
 
-  static TextStyle get buttonText => GoogleFonts.ibmPlexMono(
+  static TextStyle get buttonText => GoogleFonts.ibmPlexSans(
     fontSize: 12,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.w600,
     color: Colors.black,
-    letterSpacing: 0.4,
+    letterSpacing: 0.1,
   );
 }

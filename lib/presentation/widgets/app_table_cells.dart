@@ -11,7 +11,7 @@ class AppTableHeaderCell extends StatelessWidget {
   const AppTableHeaderCell({
     super.key,
     required this.label,
-    this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    this.padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
     this.color,
   });
 
@@ -23,7 +23,7 @@ class AppTableHeaderCell extends StatelessWidget {
         label,
         style: AppTypography.badgeText.copyWith(
           color: color ?? AppTheme.textMuted,
-          letterSpacing: 1.0,
+          letterSpacing: 0.4,
         ),
       ),
     );
@@ -37,7 +37,7 @@ class AppTableBodyCell extends StatelessWidget {
   const AppTableBodyCell({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    this.padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
   });
 
   @override

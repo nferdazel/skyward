@@ -17,8 +17,8 @@ class AppBadge extends StatelessWidget {
     required this.color,
     this.backgroundColor,
     this.fontSize = 9.0,
-    this.letterSpacing = 0.8,
-    this.padding = const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+    this.letterSpacing = 0.4,
+    this.padding = const EdgeInsets.symmetric(horizontal: 6.0, vertical: 3.0),
   });
 
   factory AppBadge.success({required String label}) {
@@ -55,6 +55,7 @@ class AppBadge extends StatelessWidget {
           fontSize: fontSize,
           color: color,
           letterSpacing: letterSpacing,
+          height: 1.0,
         ),
       ),
     );

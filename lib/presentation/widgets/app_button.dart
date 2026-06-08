@@ -44,7 +44,7 @@ class AppButton extends StatelessWidget {
     Border? getBorder() {
       if (isPrimary) return null;
       final borderColor = isEnabled ? AppTheme.primary : AppTheme.surfaceSubtle;
-      return Border.all(color: borderColor, width: 1.5);
+      return Border.all(color: borderColor, width: 1.0);
     }
 
     return SizedBox(
@@ -55,7 +55,7 @@ class AppButton extends StatelessWidget {
         child: Container(
           alignment: Alignment.center,
           decoration: BoxDecoration(color: getBgColor(), border: getBorder()),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           child: isLoading
               ? SizedBox(
                   width: 20,
@@ -75,7 +75,7 @@ class AppButton extends StatelessWidget {
                     ],
                     Flexible(
                       child: Text(
-                        text.toUpperCase(),
+                        text,
                         style: AppTypography.buttonText.copyWith(
                           color: getTextColor(),
                         ),

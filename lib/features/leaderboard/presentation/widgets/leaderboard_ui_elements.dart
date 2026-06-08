@@ -21,12 +21,12 @@ class LeaderboardTableHeaderCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Text(
         text,
         style: AppTypography.badgeText.copyWith(
           color: AppTypography.textSecondary,
-          letterSpacing: 0.8,
+          letterSpacing: 0.3,
         ),
       ),
     );
@@ -53,11 +53,10 @@ class LeaderboardTableCell extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Text(
         text,
-        style: AppTypography.badgeText.copyWith(
-          fontSize: 11,
+        style: AppTypography.bodyMedium.copyWith(
           color: color ?? AppTypography.textPrimary,
           fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-          letterSpacing: isMono ? 0.0 : 0.5,
+          letterSpacing: isMono ? 0.0 : 0.1,
         ),
       ),
     );
@@ -74,8 +73,8 @@ class RankCell extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Container(
-        width: 24,
-        height: 24,
+        width: 22,
+        height: 22,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: isHuman
@@ -88,6 +87,7 @@ class RankCell extends StatelessWidget {
           style: AppTypography.badgeText.copyWith(
             color: isHuman ? AppTheme.primary : AppTypography.textSecondary,
             fontWeight: FontWeight.bold,
+            fontSize: 10,
           ),
         ),
       ),
