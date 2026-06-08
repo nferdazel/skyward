@@ -9,6 +9,7 @@ import '../../../../core/database/supabase_client.dart';
 import '../../../../core/mixins/simulation_reactive_mixin.dart';
 import '../../../../core/realtime/realtime_subscription_bag.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
+import '../../../../core/utils/perf_debug.dart';
 import '../../../fleet/domain/fleet_models.dart';
 import '../../domain/route_models.dart';
 import 'routes_state.dart';
@@ -153,6 +154,7 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
     String userId, {
     bool silent = false,
   }) async {
+    final stopwatch = PerfDebug.start('routes.load');
     if (!silent) {
       emit(const RoutesLoading());
     }
@@ -222,6 +224,16 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
       _cachedRoutes = routes;
       _cachedAirports = airports;
       _cachedAvailableAircraft = availableAircraft;
+      PerfDebug.end(
+        'routes.load',
+        stopwatch,
+        fields: {
+          'silent': silent,
+          'airports': airports.length,
+          'routes': routes.length,
+          'availableFleet': availableAircraft.length,
+        },
+      );
 
       emit(
         RoutesLoaded(
@@ -233,6 +245,11 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
         ),
       );
     } catch (e, stack) {
+      PerfDebug.end(
+        'routes.load',
+        stopwatch,
+        fields: {'silent': silent, 'error': true},
+      );
       SupabaseManager.logError('loadRoutesAndData', e, stack);
       emit(
         RoutesError(
@@ -251,6 +268,10 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
   }
 
   void _scheduleRealtimeRefresh(String userId) {
+    PerfDebug.event(
+      'routes.realtime_refresh_scheduled',
+      fields: {'user': userId},
+    );
     _realtimeRefreshDebounce?.cancel();
     _realtimeRefreshDebounce = Timer(const Duration(milliseconds: 180), () {
       unawaited(loadRoutesAndData(userId, silent: true));

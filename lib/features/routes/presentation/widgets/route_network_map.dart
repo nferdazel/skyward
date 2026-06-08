@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/perf_debug.dart';
 import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
 import '../../domain/route_models.dart';
@@ -66,6 +67,19 @@ class RouteNetworkMap extends StatelessWidget {
         final markerAirports = highlightedRoute == null && denseNetwork
             ? connectedAirports.values.take(10).toList()
             : connectedAirports.values.toList();
+        PerfDebug.eventOnChange(
+          'routes.map_mode',
+          signature:
+              '${denseNetwork}_${compact}_${routes.length}_${connectedAirports.length}_${markerAirports.length}',
+          fields: {
+            'dense': denseNetwork,
+            'compact': compact,
+            'routes': routes.length,
+            'airports': connectedAirports.length,
+            'labels': markerAirports.length,
+            'arcSteps': arcSteps,
+          },
+        );
         final viewport = _MapViewport.fromRoutes(
           routes: mapRoutes,
           fallbackCenter: highlightedOrigin != null

@@ -9,6 +9,7 @@ import '../../../../core/database/supabase_client.dart';
 import '../../../../core/mixins/simulation_reactive_mixin.dart';
 import '../../../../core/realtime/realtime_subscription_bag.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
+import '../../../../core/utils/perf_debug.dart';
 import '../../domain/leaderboard_models.dart';
 import 'leaderboard_state.dart';
 
@@ -107,6 +108,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
     double humanMonthlyRevenue = 0.0,
     bool silent = false,
   }) async {
+    final stopwatch = PerfDebug.start('leaderboard.load');
     if (!silent) {
       emit(const LeaderboardLoading());
     }
@@ -182,6 +184,14 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
 
       _cachedEntries = mergedEntries;
       _lastRankingsRefreshAt = DateTime.now();
+      PerfDebug.end(
+        'leaderboard.load',
+        stopwatch,
+        fields: {
+          'silent': silent,
+          'entries': _cachedEntries.length,
+        },
+      );
 
       _sortEntries();
 
@@ -218,6 +228,11 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         unawaited(_refreshSelectedInsights(selectedEntry, silent: true));
       }
     } catch (e) {
+      PerfDebug.end(
+        'leaderboard.load',
+        stopwatch,
+        fields: {'silent': silent, 'error': true},
+      );
       SupabaseManager.logError('loadRankings', e);
       _loadMockRankings(
         humanUserId: humanUserId,
@@ -248,6 +263,10 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
     bool force = false,
   }) {
     if (!force && !_shouldRefreshRankings()) return;
+    PerfDebug.event(
+      'leaderboard.refresh_scheduled',
+      fields: {'force': force, 'user': humanUserId},
+    );
     _rankingsRefreshDebounce?.cancel();
     _rankingsRefreshDebounce = Timer(const Duration(milliseconds: 250), () {
       unawaited(

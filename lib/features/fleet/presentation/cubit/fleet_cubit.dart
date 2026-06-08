@@ -8,6 +8,7 @@ import '../../../../core/database/supabase_client.dart';
 import '../../../../core/mixins/simulation_reactive_mixin.dart';
 import '../../../../core/realtime/realtime_subscription_bag.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
+import '../../../../core/utils/perf_debug.dart';
 import '../../domain/fleet_models.dart';
 import 'fleet_state.dart';
 
@@ -87,6 +88,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
     String userId, {
     bool silent = false,
   }) async {
+    final stopwatch = PerfDebug.start('fleet.load');
     if (!silent) {
       emit(const FleetLoading());
     }
@@ -119,6 +121,15 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
 
       _cachedCatalog = catalog;
       _cachedFleet = fleet;
+      PerfDebug.end(
+        'fleet.load',
+        stopwatch,
+        fields: {
+          'silent': silent,
+          'catalog': catalog.length,
+          'fleet': fleet.length,
+        },
+      );
 
       emit(
         FleetLoaded(
@@ -131,6 +142,11 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         ),
       );
     } catch (e, stack) {
+      PerfDebug.end(
+        'fleet.load',
+        stopwatch,
+        fields: {'silent': silent, 'error': true},
+      );
       SupabaseManager.logError('loadFleetAndCatalog', e, stack);
       emit(
         FleetError(
@@ -148,6 +164,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
   }
 
   void _scheduleRealtimeRefresh(String userId) {
+    PerfDebug.event('fleet.realtime_refresh_scheduled', fields: {'user': userId});
     _realtimeRefreshDebounce?.cancel();
     _realtimeRefreshDebounce = Timer(const Duration(milliseconds: 180), () {
       unawaited(loadFleetAndCatalog(userId, silent: true));

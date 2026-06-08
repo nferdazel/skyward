@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/perf_debug.dart';
 import '../../../../core/widgets/pulse_dot.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../core/widgets/ticker_tape.dart';
@@ -105,6 +106,10 @@ class _AuthenticatedDashboardShellState
   }
 
   void _bootstrapForUser(User user) {
+    PerfDebug.event(
+      'dashboard.bootstrap',
+      fields: {'user': user.id, 'eagerTabs': 'overview,fleet,routes'},
+    );
     _simulationCubit.startLoop(
       userId: user.id,
       initialGameTime: user.gameCurrentTime,
@@ -125,6 +130,10 @@ class _AuthenticatedDashboardShellState
 
   void _ensureTabReady(int index, User user) {
     if (_loadedTabIndexes.contains(index)) return;
+    PerfDebug.event(
+      'dashboard.tab_init',
+      fields: {'tab': index, 'user': user.id},
+    );
 
     switch (index) {
       case 3:

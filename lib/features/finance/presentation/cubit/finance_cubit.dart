@@ -8,6 +8,7 @@ import '../../../../core/database/supabase_client.dart';
 import '../../../../core/mixins/simulation_reactive_mixin.dart';
 import '../../../../core/realtime/realtime_subscription_bag.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
+import '../../../../core/utils/perf_debug.dart';
 import '../../domain/finance_snapshot.dart';
 import '../../domain/ledger_model.dart';
 import 'finance_state.dart';
@@ -196,6 +197,7 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
   }
 
   Future<void> _loadLedgerInternal(String userId, {bool silent = false}) async {
+    final stopwatch = PerfDebug.start('finance.ledger_load');
     if (!silent) {
       final snapshot = _snapshotState();
       emit(
@@ -243,9 +245,23 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
       final logs = ledgerResponse.map((l) => LedgerEntry.fromMap(l)).toList();
       _cachedLogs = logs;
       _cachedSnapshot = FinanceSnapshot.fromMap(snapshotMap);
+      PerfDebug.end(
+        'finance.ledger_load',
+        stopwatch,
+        fields: {
+          'silent': silent,
+          'logs': logs.length,
+          'hasSnapshot': _cachedSnapshot != const FinanceSnapshot.empty(),
+        },
+      );
 
       emit(_buildFinanceState(logs, snapshot: _cachedSnapshot));
     } catch (e) {
+      PerfDebug.end(
+        'finance.ledger_load',
+        stopwatch,
+        fields: {'silent': silent, 'error': true},
+      );
       SupabaseManager.logError('loadLedger', e);
       final snapshot = _snapshotState();
       emit(
@@ -291,11 +307,22 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
     String userId, {
     bool silent = true,
   }) async {
+    final stopwatch = PerfDebug.start('finance.snapshot_refresh');
     try {
       final snapshotMap = await _fetchSnapshotMap(userId);
       _cachedSnapshot = FinanceSnapshot.fromMap(snapshotMap);
+      PerfDebug.end(
+        'finance.snapshot_refresh',
+        stopwatch,
+        fields: {'silent': silent},
+      );
       emit(_buildFinanceState(_cachedLogs, snapshot: _cachedSnapshot));
     } catch (e) {
+      PerfDebug.end(
+        'finance.snapshot_refresh',
+        stopwatch,
+        fields: {'silent': silent, 'error': true},
+      );
       if (!silent) {
         SupabaseManager.logError('refreshFinanceSnapshot', e);
       }
@@ -314,6 +341,10 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
   }
 
   void _scheduleRealtimeRefresh(String userId, {required bool fullReload}) {
+    PerfDebug.event(
+      'finance.realtime_refresh_scheduled',
+      fields: {'user': userId, 'fullReload': fullReload},
+    );
     _pendingFullReload = _pendingFullReload || fullReload;
     _realtimeRefreshDebounce?.cancel();
     _realtimeRefreshDebounce = Timer(const Duration(milliseconds: 150), () {
