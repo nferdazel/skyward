@@ -569,10 +569,11 @@ class LeaderboardView extends StatelessWidget {
         final isHuman = !entry.isBot;
 
         return AppCard(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
           backgroundColor: isHuman
               ? AppTheme.primary.withValues(alpha: 0.04)
               : AppTheme.surface,
+          padding: const EdgeInsets.all(AppSpacing.sm),
           child: InkWell(
             onTap: () => _showCompetitorInsights(context, entry),
             child: Column(
@@ -605,11 +606,11 @@ class LeaderboardView extends StatelessWidget {
                                     : (rank == 2
                                           ? AppTheme.primary
                                           : AppTheme.textPrimary),
-                                fontSize: 12,
+                                fontSize: 11,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -638,7 +639,7 @@ class LeaderboardView extends StatelessWidget {
                                 ),
                                 Text(
                                   'CEO: ${entry.ceoName}',
-                                  style: AppTypography.badgeText.copyWith(
+                                  style: AppTypography.captionRegular.copyWith(
                                     color: AppTypography.textSecondary,
                                     letterSpacing: 0.0,
                                   ),
@@ -651,7 +652,7 @@ class LeaderboardView extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppSpacing.sm),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -666,7 +667,7 @@ class LeaderboardView extends StatelessWidget {
                         ),
                         Text(
                           AppStrings.netWorthLabel,
-                          style: AppTypography.badgeText.copyWith(
+                          style: AppTypography.captionRegular.copyWith(
                             color: AppTypography.textSecondary,
                           ),
                         ),
@@ -674,9 +675,9 @@ class LeaderboardView extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.sm),
                 Divider(color: AppTheme.surfaceSubtle, height: 1),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.sm),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

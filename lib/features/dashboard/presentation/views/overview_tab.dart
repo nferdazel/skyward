@@ -118,15 +118,9 @@ class OverviewTab extends StatelessWidget {
     _OverviewSnapshot overview,
   ) {
     return AppCard(
-      customBorder: Border(
-        top: BorderSide(color: AppTheme.primary, width: 2.0),
-        bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
-        left: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
-        right: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
-      ),
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.pagePadding,
-        vertical: AppSpacing.lg,
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,15 +255,9 @@ class OverviewTab extends StatelessWidget {
     Color color,
   ) {
     return AppCard(
-      customBorder: Border(
-        top: BorderSide(color: color, width: 2.0),
-        bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
-        left: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
-        right: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
-      ),
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,14 +266,13 @@ class OverviewTab extends StatelessWidget {
             label,
             style: AppTypography.badgeText.copyWith(
               color: AppTypography.textSecondary,
-              letterSpacing: 0.8,
+              letterSpacing: 0.4,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             value,
             style: AppTypography.sectionHeaderLarge.copyWith(
-              fontFamily: AppTypography.badgeText.fontFamily,
               color: color,
               letterSpacing: 0.0,
             ),
@@ -301,7 +288,7 @@ class OverviewTab extends StatelessWidget {
     NumberFormat currencyFormat,
   ) {
     return AppCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -313,7 +300,7 @@ class OverviewTab extends StatelessWidget {
                 AppStrings.routeRiskTitle,
                 style: AppTypography.badgeText.copyWith(
                   color: AppTypography.textPrimary,
-                  letterSpacing: 1.0,
+                  letterSpacing: 0.4,
                 ),
               ),
             ],
@@ -358,7 +345,7 @@ class OverviewTab extends StatelessWidget {
 
   Widget _buildAdviceItem(BuildContext context, String topic, String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -387,7 +374,7 @@ class OverviewTab extends StatelessWidget {
                   text,
                   style: AppTypography.bodyMedium.copyWith(
                     color: AppTypography.textSecondary,
-                    height: 1.5,
+                    height: 1.4,
                   ),
                 ),
               ],
@@ -400,7 +387,7 @@ class OverviewTab extends StatelessWidget {
 
   Widget _buildActionQueue(BuildContext context, _OverviewSnapshot overview) {
     return AppCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -416,7 +403,7 @@ class OverviewTab extends StatelessWidget {
                 AppStrings.actionQueueTitle,
                 style: AppTypography.badgeText.copyWith(
                   color: AppTypography.textPrimary,
-                  letterSpacing: 1.0,
+                  letterSpacing: 0.4,
                 ),
               ),
             ],
@@ -435,7 +422,7 @@ class OverviewTab extends StatelessWidget {
           else
             ...overview.priorities.map(
               (priority) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: _buildActionButton(
                   context,
                   priority.label,
@@ -493,8 +480,11 @@ class OverviewTab extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: AppCard(
-        backgroundColor: AppTheme.surface3,
-        padding: const EdgeInsets.all(AppSpacing.md),
+        backgroundColor: AppTheme.background,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.sm,
+        ),
         child: Row(
           children: [
             Expanded(
@@ -505,7 +495,7 @@ class OverviewTab extends StatelessWidget {
                     label,
                     style: AppTypography.badgeText.copyWith(
                       color: AppTheme.primary,
-                      letterSpacing: 0.8,
+                      letterSpacing: 0.4,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs - AppSpacing.xxs),
