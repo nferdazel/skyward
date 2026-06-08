@@ -60,6 +60,7 @@ jobs:
         run: |
           sed -i "s|https://YOUR_SUPABASE.supabase.co|${{ secrets.SUPABASE_URL }}|g" build/web/vercel.json
           sed -i "s|wss://YOUR_SUPABASE.supabase.co|$(echo '${{ secrets.SUPABASE_URL }}' | sed 's|https://|wss://|g')|g" build/web/vercel.json
+          sed -i "s|https://YOUR_SUPABASE_MAPS|https://*.basemaps.cartocdn.com|g" build/web/vercel.json
 
       - name: Setup Node
         uses: actions/setup-node@v4
