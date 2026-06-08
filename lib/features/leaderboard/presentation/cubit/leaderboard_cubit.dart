@@ -46,14 +46,16 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
     _humanCeoName = ceoName;
     subscribeToSimulationWithState(simCubit, (simState) {
       if (!_shouldRefreshRankings()) return;
-      unawaited(loadRankings(
-        humanUserId: userId,
-        humanCompanyName: companyName,
-        humanCeoName: ceoName,
-        humanCash: simState.cashBalance,
-        humanNetWorth: 0.0,
-        silent: true,
-      ));
+      unawaited(
+        loadRankings(
+          humanUserId: userId,
+          humanCompanyName: companyName,
+          humanCeoName: ceoName,
+          humanCash: simState.cashBalance,
+          humanNetWorth: 0.0,
+          silent: true,
+        ),
+      );
     });
     _setupRealtime();
   }
@@ -134,19 +136,18 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
 
       final entries = response.map((e) => LeaderboardEntry.fromMap(e)).toList();
 
-      // Fetch actual fleet count for the human player
-      int actualFleetSize = humanFleetSize;
-      try {
-        final List<dynamic> fleetResponse = await SupabaseManager.client
-            .from('user_fleet')
-            .select('id')
-            .eq('user_id', humanUserId);
-        actualFleetSize = fleetResponse.length;
-      } catch (_) {}
-
       final dbHumanIdx = entries.indexWhere(
         (e) => !e.isBot && e.id == humanUserId,
       );
+      final cachedHumanIdx = _cachedEntries.indexWhere(
+        (entry) => !entry.isBot && entry.id == humanUserId,
+      );
+      final cachedHuman = cachedHumanIdx != -1
+          ? _cachedEntries[cachedHumanIdx]
+          : null;
+      final resolvedFleetSize = humanFleetSize > 0
+          ? humanFleetSize
+          : (cachedHuman?.fleetSize ?? 0);
       final LeaderboardEntry freshHuman = dbHumanIdx != -1
           ? entries[dbHumanIdx]
           : LeaderboardEntry(
@@ -157,7 +158,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
               archetype: 'Player',
               cash: humanCash,
               netWorth: humanNetWorth,
-              fleetSize: actualFleetSize,
+              fleetSize: resolvedFleetSize,
               monthlyRevenue: humanMonthlyRevenue,
               status: 'Active',
             );
@@ -172,25 +173,25 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         archetype: 'Player',
         cash: humanCash > 0 ? humanCash : freshHuman.cash,
         netWorth: humanNetWorth > 0 ? humanNetWorth : freshHuman.netWorth,
-        fleetSize: actualFleetSize > 0 ? actualFleetSize : freshHuman.fleetSize,
+        fleetSize: resolvedFleetSize > 0
+            ? resolvedFleetSize
+            : freshHuman.fleetSize,
         monthlyRevenue: freshHuman.monthlyRevenue,
         status: freshHuman.status,
       );
 
-      final mergedEntries = entries
-          .where((entry) => entry.isBot || entry.id != humanUserId)
-          .toList()
-        ..add(updatedHuman);
+      final mergedEntries =
+          entries
+              .where((entry) => entry.isBot || entry.id != humanUserId)
+              .toList()
+            ..add(updatedHuman);
 
       _cachedEntries = mergedEntries;
       _lastRankingsRefreshAt = DateTime.now();
       PerfDebug.end(
         'leaderboard.load',
         stopwatch,
-        fields: {
-          'silent': silent,
-          'entries': _cachedEntries.length,
-        },
+        fields: {'silent': silent, 'entries': _cachedEntries.length},
       );
 
       _sortEntries();
@@ -386,21 +387,23 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
               return;
             }
 
-            final humanEntry = _cachedEntries.where((entry) => !entry.isBot).firstWhere(
-              (_) => true,
-              orElse: () => LeaderboardEntry(
-                id: humanUserId,
-                companyName: humanCompanyName,
-                ceoName: humanCeoName,
-                isBot: false,
-                archetype: 'Player',
-                cash: GameConstants.startingCash,
-                netWorth: GameConstants.startingCash,
-                fleetSize: 0,
-                monthlyRevenue: 0.0,
-                status: 'Active',
-              ),
-            );
+            final humanEntry = _cachedEntries
+                .where((entry) => !entry.isBot)
+                .firstWhere(
+                  (_) => true,
+                  orElse: () => LeaderboardEntry(
+                    id: humanUserId,
+                    companyName: humanCompanyName,
+                    ceoName: humanCeoName,
+                    isBot: false,
+                    archetype: 'Player',
+                    cash: GameConstants.startingCash,
+                    netWorth: GameConstants.startingCash,
+                    fleetSize: 0,
+                    monthlyRevenue: 0.0,
+                    status: 'Active',
+                  ),
+                );
 
             _scheduleRankingsRefresh(
               humanUserId: humanUserId,
