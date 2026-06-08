@@ -522,7 +522,7 @@ class FinanceView extends StatelessWidget {
   Widget _buildHeaderCell(String text) {
     return AppTableHeaderCell(
       label: text,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     );
   }
 
@@ -544,12 +544,12 @@ class FinanceView extends StatelessWidget {
       children: [
         // Column 1: Category Badge
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(children: [_buildCategoryPill(entry.category)]),
         ),
         // Column 2: Details Description
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Text(
             entry.description,
             style: AppTypography.bodyMedium.copyWith(
@@ -559,7 +559,7 @@ class FinanceView extends StatelessWidget {
         ),
         // Column 3: Game calendar date
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: AppStatText(
             label: _dateOnlyFormat.format(entry.gameDate),
             value: _timeOnlyFormat.format(entry.gameDate),
@@ -569,12 +569,16 @@ class FinanceView extends StatelessWidget {
         ),
         // Column 4: Cash flow yield
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Text(
-            '$sign${currencyFormat.format(entry.amount)}',
-            style: AppTypography.badgeText.copyWith(
-              color: valueColor,
-              letterSpacing: 0.0,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '$sign${currencyFormat.format(entry.amount)}',
+              textAlign: TextAlign.right,
+              style: AppTypography.badgeText.copyWith(
+                color: valueColor,
+                letterSpacing: 0.0,
+              ),
             ),
           ),
         ),

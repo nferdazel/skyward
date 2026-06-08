@@ -25,8 +25,8 @@ class AppTableIconAction extends StatelessWidget {
       child: InkWell(
         onTap: onPressed,
         child: Container(
-          width: 30,
-          height: 30,
+          width: 28,
+          height: 28,
           decoration: BoxDecoration(
             color: foreground.withValues(alpha: 0.08),
             border: Border.all(
@@ -36,7 +36,7 @@ class AppTableIconAction extends StatelessWidget {
           ),
           child: Icon(
             icon,
-            size: 16,
+            size: 15,
             color: onPressed == null ? AppTheme.textMuted : foreground,
           ),
         ),

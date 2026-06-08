@@ -1358,13 +1358,13 @@ class RoutesView extends StatelessWidget {
     return AppTableHeaderCell(
       label: label,
       color: AppTypography.textSecondary,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
     );
   }
 
   Widget _routesTableCell(Widget child) {
     return AppTableBodyCell(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       child: child,
     );
   }

@@ -11,7 +11,7 @@ class AppTableHeaderCell extends StatelessWidget {
   const AppTableHeaderCell({
     super.key,
     required this.label,
-    this.padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+    this.padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
     this.color,
   });
 
@@ -37,7 +37,7 @@ class AppTableBodyCell extends StatelessWidget {
   const AppTableBodyCell({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    this.padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
   });
 
   @override

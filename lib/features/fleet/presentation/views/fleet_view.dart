@@ -1172,38 +1172,51 @@ class FleetView extends StatelessWidget {
                   ),
                 ),
                 _tableCell(
-                  Text(
-                    '${model.rangeKm} KM',
-                    style: AppTypography.badgeText.copyWith(
-                      color: AppTheme.textPrimary,
-                      letterSpacing: 0.0,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '${model.rangeKm} KM',
+                      textAlign: TextAlign.right,
+                      style: AppTypography.badgeText.copyWith(
+                        color: AppTheme.textPrimary,
+                        letterSpacing: 0.0,
+                      ),
                     ),
                   ),
                 ),
                 _tableCell(
-                  Text(
-                    '${model.capacity} PAX',
-                    style: AppTypography.badgeText.copyWith(
-                      color: AppTheme.textPrimary,
-                      letterSpacing: 0.0,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '${model.capacity} PAX',
+                      textAlign: TextAlign.right,
+                      style: AppTypography.badgeText.copyWith(
+                        color: AppTheme.textPrimary,
+                        letterSpacing: 0.0,
+                      ),
                     ),
                   ),
                 ),
                 _tableCell(
-                  Text(
-                    '${model.fuelBurnPerKm} L/KM',
-                    style: AppTypography.badgeText.copyWith(
-                      color: AppTheme.textPrimary,
-                      letterSpacing: 0.0,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '${model.fuelBurnPerKm} L/KM',
+                      textAlign: TextAlign.right,
+                      style: AppTypography.badgeText.copyWith(
+                        color: AppTheme.textPrimary,
+                        letterSpacing: 0.0,
+                      ),
                     ),
                   ),
                 ),
                 _tableCell(
                   Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
                         'Lease ${currencyFormat.format(model.leasePricePerMonth)}/mo',
+                        textAlign: TextAlign.right,
                         style: AppTypography.badgeText.copyWith(
                           color: AppTheme.textPrimary,
                           letterSpacing: 0.0,
@@ -1212,6 +1225,7 @@ class FleetView extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
                         'Buy ${currencyFormat.format(model.purchasePrice)}',
+                        textAlign: TextAlign.right,
                         style: AppTypography.badgeText.copyWith(
                           color: AppTheme.primary,
                           letterSpacing: 0.0,
@@ -1236,7 +1250,7 @@ class FleetView extends StatelessWidget {
                                 true,
                               ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.xs),
                       AppTableIconAction(
                         tooltip: AppStrings.buyAircraftTooltip,
                         icon: Icons.shopping_cart_checkout,
