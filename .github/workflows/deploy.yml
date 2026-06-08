@@ -57,9 +57,12 @@ jobs:
         run: cp vercel.json build/web/vercel.json
 
       - name: Inject Supabase URL into Vercel config
+        env:
+          SUPABASE_WSS_URL: ${{ secrets.SUPABASE_URL }}
         run: |
+          WSS_URL=$(echo "$SUPABASE_WSS_URL" | sed 's|https://|wss://|')
           sed -i "s|https://YOUR_SUPABASE.supabase.co|${{ secrets.SUPABASE_URL }}|g" build/web/vercel.json
-          sed -i "s|wss://YOUR_SUPABASE.supabase.co|$(echo '${{ secrets.SUPABASE_URL }}' | sed 's|https://|wss://|g')|g" build/web/vercel.json
+          sed -i "s|wss://YOUR_SUPABASE.supabase.co|${WSS_URL}|g" build/web/vercel.json
 
       - name: Setup Node
         uses: actions/setup-node@v4
