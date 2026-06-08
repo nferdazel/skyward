@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/lazy_tab_cubit.dart';
 import '../../../../core/utils/perf_debug.dart';
 import '../../../../core/widgets/pulse_dot.dart';
 import '../../../../core/widgets/responsive_layout.dart';
@@ -91,7 +92,7 @@ class _AuthenticatedDashboardShellState
   late final RoutesCubit _routesCubit;
   late final LeaderboardCubit _leaderboardCubit;
   late final FinanceCubit _financeCubit;
-  final Set<int> _loadedTabIndexes = {0};
+  late final LazyTabCubit _lazyTabCubit;
 
   @override
   void initState() {
@@ -102,6 +103,7 @@ class _AuthenticatedDashboardShellState
     _routesCubit = RoutesCubit();
     _leaderboardCubit = LeaderboardCubit();
     _financeCubit = FinanceCubit();
+    _lazyTabCubit = LazyTabCubit();
     _bootstrapForUser(widget.initialUser);
   }
 
@@ -129,7 +131,7 @@ class _AuthenticatedDashboardShellState
   }
 
   void _ensureTabReady(int index, User user) {
-    if (_loadedTabIndexes.contains(index)) return;
+    if (_lazyTabCubit.state.loadedIndexes.contains(index)) return;
     PerfDebug.event(
       'dashboard.tab_init',
       fields: {'tab': index, 'user': user.id},
@@ -163,9 +165,7 @@ class _AuthenticatedDashboardShellState
         break;
     }
 
-    setState(() {
-      _loadedTabIndexes.add(index);
-    });
+    _lazyTabCubit.activate(index);
   }
 
   Widget _buildTabChild(
@@ -174,7 +174,7 @@ class _AuthenticatedDashboardShellState
     NumberFormat currencyFormat,
     DateFormat dateFormat,
   ) {
-    if (!_loadedTabIndexes.contains(index)) {
+    if (!_lazyTabCubit.state.loadedIndexes.contains(index)) {
       return const SizedBox.shrink();
     }
 
@@ -211,6 +211,7 @@ class _AuthenticatedDashboardShellState
     _routesCubit.close();
     _leaderboardCubit.close();
     _financeCubit.close();
+    _lazyTabCubit.close();
     super.dispose();
   }
 
@@ -231,6 +232,7 @@ class _AuthenticatedDashboardShellState
         BlocProvider<RoutesCubit>.value(value: _routesCubit),
         BlocProvider<LeaderboardCubit>.value(value: _leaderboardCubit),
         BlocProvider<FinanceCubit>.value(value: _financeCubit),
+        BlocProvider<LazyTabCubit>.value(value: _lazyTabCubit),
       ],
         child: BlocListener<SimulationCubit, SimulationState>(
           listener: (context, simState) {
@@ -313,19 +315,27 @@ class _AuthenticatedDashboardShellState
                           ),
                           child: BlocBuilder<NavigationCubit, NavigationState>(
                             builder: (context, navState) {
-                              return IndexedStack(
-                                index: navState.activeIndex,
-                                children: List.generate(
-                                  6,
-                                  (index) => RepaintBoundary(
-                                    child: _buildTabChild(
-                                      context,
-                                      index,
-                                      currencyFormat,
-                                      dateFormat,
+                              return BlocBuilder<LazyTabCubit, LazyTabState>(
+                                builder: (context, lazyState) {
+                                  return IndexedStack(
+                                    index: navState.activeIndex,
+                                    children: List.generate(
+                                      6,
+                                      (index) => RepaintBoundary(
+                                        child: lazyState.loadedIndexes.contains(
+                                              index,
+                                            )
+                                            ? _buildTabChild(
+                                                context,
+                                                index,
+                                                currencyFormat,
+                                                dateFormat,
+                                              )
+                                            : const SizedBox.shrink(),
+                                      ),
                                     ),
-                                  ),
-                                ),
+                                  );
+                                },
                               );
                             },
                           ),
@@ -448,19 +458,25 @@ class _AuthenticatedDashboardShellState
         padding: const EdgeInsets.all(AppSpacing.sm),
         child: BlocBuilder<NavigationCubit, NavigationState>(
           builder: (context, navState) {
-            return IndexedStack(
-              index: navState.activeIndex,
-              children: List.generate(
-                6,
-                (index) => RepaintBoundary(
-                  child: _buildTabChild(
-                    context,
-                    index,
-                    currencyFormat,
-                    dateFormat,
+            return BlocBuilder<LazyTabCubit, LazyTabState>(
+              builder: (context, lazyState) {
+                return IndexedStack(
+                  index: navState.activeIndex,
+                  children: List.generate(
+                    6,
+                    (index) => RepaintBoundary(
+                      child: lazyState.loadedIndexes.contains(index)
+                          ? _buildTabChild(
+                              context,
+                              index,
+                              currencyFormat,
+                              dateFormat,
+                            )
+                          : const SizedBox.shrink(),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             );
           },
         ),

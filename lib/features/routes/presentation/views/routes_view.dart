@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/lazy_tab_cubit.dart';
 import '../../../../core/utils/perf_debug.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../presentation/theme/app_spacing.dart';
@@ -41,28 +42,28 @@ class _RoutesViewState extends State<RoutesView>
     decimalDigits: 0,
   );
   late final TabController _tabController;
-  final Set<int> _loadedTabs = {0};
+  late final LazyTabCubit _lazyTabCubit;
 
   @override
   void initState() {
     super.initState();
+    _lazyTabCubit = LazyTabCubit();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) return;
       final index = _tabController.index;
-      if (_loadedTabs.add(index)) {
+      if (!_lazyTabCubit.state.loadedIndexes.contains(index)) {
         PerfDebug.event('routes.tab_init', fields: {'tab': index});
       }
       PerfDebug.event('routes.tab_switch', fields: {'tab': index});
-      if (mounted) {
-        setState(() {});
-      }
+      _lazyTabCubit.activate(index);
     });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _lazyTabCubit.close();
     super.dispose();
   }
 
@@ -75,61 +76,68 @@ class _RoutesViewState extends State<RoutesView>
 
     final userId = authState.user.id;
     final autoGroundingThreshold = authState.user.autoGroundingThreshold;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TabBar(
-            controller: _tabController,
-            isScrollable: false,
-            labelColor: AppTheme.primary,
-            unselectedLabelColor: AppTheme.textSecondary,
-            indicatorColor: AppTheme.primary,
-            indicatorWeight: 2,
-            indicatorSize: TabBarIndicatorSize.tab,
-            tabs: [
-              Tab(
-                child: Text(
-                  AppStrings.flightConnectionsTab,
-                  style: AppTypography.sectionHeaderMedium,
+    return BlocProvider<LazyTabCubit>.value(
+      value: _lazyTabCubit,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TabBar(
+              controller: _tabController,
+              isScrollable: false,
+              labelColor: AppTheme.primary,
+              unselectedLabelColor: AppTheme.textSecondary,
+              indicatorColor: AppTheme.primary,
+              indicatorWeight: 2,
+              indicatorSize: TabBarIndicatorSize.tab,
+              tabs: [
+                Tab(
+                  child: Text(
+                    AppStrings.flightConnectionsTab,
+                    style: AppTypography.sectionHeaderMedium,
+                  ),
                 ),
-              ),
-              Tab(
-                child: Text(
-                  AppStrings.blueprintNetworkTab,
-                  style: AppTypography.sectionHeaderMedium,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.tabContentGap),
-          Expanded(
-            child: IndexedStack(
-              index: _tabController.index,
-              children: [
-                RepaintBoundary(
-                  child: _loadedTabs.contains(0)
-                      ? _buildConnectionsTab(
-                          userId,
-                          _currencyFormat,
-                          autoGroundingThreshold,
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                RepaintBoundary(
-                  child: _loadedTabs.contains(1)
-                      ? _buildBlueprintTab(
-                          userId,
-                          _currencyFormat,
-                          authState.user.autoGroundingThreshold,
-                        )
-                      : const SizedBox.shrink(),
+                Tab(
+                  child: Text(
+                    AppStrings.blueprintNetworkTab,
+                    style: AppTypography.sectionHeaderMedium,
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.tabContentGap),
+            Expanded(
+              child: BlocBuilder<LazyTabCubit, LazyTabState>(
+                builder: (context, tabState) {
+                  return IndexedStack(
+                    index: tabState.activeIndex,
+                    children: [
+                      RepaintBoundary(
+                        child: tabState.loadedIndexes.contains(0)
+                            ? _buildConnectionsTab(
+                                userId,
+                                _currencyFormat,
+                                autoGroundingThreshold,
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      RepaintBoundary(
+                        child: tabState.loadedIndexes.contains(1)
+                            ? _buildBlueprintTab(
+                                userId,
+                                _currencyFormat,
+                                authState.user.autoGroundingThreshold,
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
