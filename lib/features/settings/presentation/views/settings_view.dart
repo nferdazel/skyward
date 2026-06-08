@@ -1,0 +1,634 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/database/supabase_client.dart';
+import '../../../../core/utils/dev_mode_manager.dart';
+import '../../../../presentation/theme/app_spacing.dart';
+import '../../../../presentation/widgets/searchable_airport_dropdown.dart';
+import '../../../../presentation/widgets/app_card.dart';
+import '../../../../presentation/widgets/app_button.dart';
+import '../../../../presentation/widgets/app_dialog_shell.dart';
+import '../../../../presentation/widgets/app_labeled_value.dart';
+import '../../../../presentation/widgets/app_snackbar.dart';
+import '../../../../presentation/theme/app_typography.dart';
+import '../../../../presentation/widgets/app_section_header.dart';
+import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/game_constants.dart';
+import '../../../auth/domain/user_model.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_state.dart';
+import '../../../routes/domain/route_models.dart';
+import '../../../simulation/presentation/cubit/simulation_cubit.dart';
+import '../../../fleet/presentation/cubit/fleet_cubit.dart';
+import '../../../routes/presentation/cubit/routes_cubit.dart';
+import '../cubit/settings_cubit.dart';
+
+class SettingsView extends StatefulWidget {
+  const SettingsView({super.key});
+
+  @override
+  State<SettingsView> createState() => _SettingsViewState();
+}
+
+class _SettingsViewState extends State<SettingsView> {
+  late TextEditingController _companyController;
+  late FocusNode _companyFocusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _companyFocusNode = FocusNode();
+    final authState = context.read<AuthCubit>().state;
+    String initialCompany = '';
+    if (authState is AuthAuthenticated) {
+      initialCompany = authState.user.companyName;
+    }
+    _companyController = TextEditingController(text: initialCompany);
+
+    // Load airports registry on init instead of during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (authState is AuthAuthenticated) {
+        context.read<SettingsCubit>().loadAirports(
+          authState.user.hqAirportIata,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _companyController.dispose();
+    _companyFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = context.watch<AuthCubit>().state;
+    if (authState is! AuthAuthenticated) {
+      return const Center(child: Text(AppStrings.unauthorized));
+    }
+
+    final user = authState.user;
+
+    // Sync controller only if not focused, to handle reset or remote changes safely
+    if (!_companyFocusNode.hasFocus &&
+        _companyController.text != user.companyName) {
+      _companyController.text = user.companyName;
+    }
+
+    return BlocConsumer<SettingsCubit, SettingsState>(
+      listener: (context, state) {
+        if (state.isSaveSuccess) {
+          AppSnackBar.showSuccess(context, AppStrings.settingsSavedSuccess);
+        } else if (state.errorMessage != null) {
+          AppSnackBar.showError(
+            context,
+            '${AppStrings.failed}: ${state.errorMessage}',
+          );
+        }
+      },
+      builder: (context, state) {
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            border: Border.all(color: AppTheme.surfaceSubtle, width: 1.0),
+          ),
+          padding: const EdgeInsets.all(AppSpacing.cardPadding),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const AppSectionHeader(title: AppStrings.systemSettingsTitle),
+                const SizedBox(height: AppSpacing.blockGap),
+
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1080),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final split = constraints.maxWidth >= 920;
+                        if (split) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    _buildGameSettingsSection(
+                                      context,
+                                      state,
+                                      user,
+                                    ),
+                                    const SizedBox(
+                                      height: AppSpacing.sectionGap,
+                                    ),
+                                    _buildDangerZoneSection(
+                                      context,
+                                      state,
+                                      user.id,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.lg),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    _buildProfileFormSection(
+                                      context,
+                                      state,
+                                      user,
+                                    ),
+                                    const SizedBox(
+                                      height: AppSpacing.sectionGap,
+                                    ),
+                                    _buildCredentialsSection(
+                                      context,
+                                      state,
+                                      user,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return Column(
+                          children: [
+                            _buildProfileFormSection(context, state, user),
+                            const SizedBox(height: AppSpacing.sectionGap),
+                            _buildGameSettingsSection(context, state, user),
+                            const SizedBox(height: AppSpacing.sectionGap),
+                            _buildCredentialsSection(context, state, user),
+                            const SizedBox(height: AppSpacing.sectionGap),
+                            _buildDangerZoneSection(context, state, user.id),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProfileFormSection(
+    BuildContext context,
+    SettingsState state,
+    dynamic user,
+  ) {
+    final cubit = context.read<SettingsCubit>();
+
+    return AppCard(
+      backgroundColor: AppTheme.background,
+      padding: const EdgeInsets.all(AppSpacing.cardPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(AppStrings.brandingSectionTitle, style: AppTypography.badgeText),
+          const SizedBox(height: AppSpacing.md),
+
+          TextFormField(
+            controller: _companyController,
+            focusNode: _companyFocusNode,
+            decoration: const InputDecoration(
+              labelText: AppStrings.companyNameLabel,
+              prefixIcon: Icon(Icons.business_outlined, size: 20),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Searchable HQ Airport Autocomplete Chooser (UX Unification)
+          Text(
+            AppStrings.hqAirportLabel,
+            style: AppTypography.badgeText.copyWith(
+              color: AppTypography.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          state.isLoadingAirports
+              ? SizedBox(
+                  height: 48,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primary,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                )
+              : _buildSearchableHqDropdown(context, state),
+          const SizedBox(height: AppSpacing.xl),
+
+          AppButton(
+            text: AppStrings.saveBrandButton,
+            isLoading: state.isSaving,
+            icon: Icons.save_outlined,
+            width: double.infinity,
+            onPressed: () {
+              cubit.saveSettings(
+                userId: user.id,
+                companyName: _companyController.text,
+                autoGroundingThreshold: state.groundingThreshold,
+                hqAirportIata: state.selectedHq ?? user.hqAirportIata,
+                onSyncBalance: () =>
+                    context.read<SimulationCubit>().syncWithDatabase(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGameSettingsSection(
+    BuildContext context,
+    SettingsState state,
+    dynamic user,
+  ) {
+    final cubit = context.read<SettingsCubit>();
+    final currentThreshold =
+        state.groundingThreshold == 30.0 && user.autoGroundingThreshold != 30.0
+        ? user.autoGroundingThreshold
+        : state.groundingThreshold;
+
+    return AppCard(
+      backgroundColor: AppTheme.background,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppStrings.visualInterfaceConfig,
+            style: AppTypography.badgeText,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  AppStrings.autoGroundingLabel,
+                  style: AppTypography.badgeText.copyWith(
+                    color: AppTypography.textPrimary,
+                    letterSpacing: 0.0,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                '${currentThreshold.toStringAsFixed(0)}%',
+                style: AppTypography.badgeText.copyWith(
+                  color: AppTheme.warning,
+                  letterSpacing: 0.0,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 2.0,
+              activeTrackColor: AppTheme.warning,
+              inactiveTrackColor: AppTheme.surfaceSubtle,
+              thumbColor: AppTheme.warning,
+              overlayColor: AppTheme.warning.withValues(alpha: 0.1),
+            ),
+            child: Slider(
+              value: currentThreshold,
+              min: 10.0,
+              max: 50.0,
+              divisions: 8,
+              onChanged: cubit.setGroundingThreshold,
+            ),
+          ),
+          Text(
+            AppStrings.autoGroundingDesc,
+            style: AppTypography.captionRegular.copyWith(
+              color: AppTypography.textMuted,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Divider(color: AppTheme.surfaceSubtle),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppStrings.uiScalingLabel,
+                      style: AppTypography.badgeText.copyWith(
+                        color: AppTypography.textPrimary,
+                        letterSpacing: 0.0,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      AppStrings.uiScalingDesc,
+                      style: AppTypography.captionRegular.copyWith(
+                        color: AppTypography.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                '${state.uiScale.toStringAsFixed(1)}x',
+                style: AppTypography.badgeText,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 2.0,
+              activeTrackColor: AppTheme.primary,
+              inactiveTrackColor: AppTheme.surfaceSubtle,
+              thumbColor: AppTheme.primary,
+              overlayColor: AppTheme.primary.withValues(alpha: 0.1),
+            ),
+            child: Slider(
+              value: state.uiScale,
+              min: 0.8,
+              max: 1.4,
+              divisions: 6,
+              onChanged: cubit.setUiScale,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchableHqDropdown(BuildContext context, SettingsState state) {
+    final cubit = context.read<SettingsCubit>();
+
+    final domainAirports = state.airports
+        .map(
+          (a) => Airport(
+            iata: a['iata'] ?? '',
+            name: a['name'] ?? '',
+            city: a['city'] ?? '',
+            country: a['country'] ?? '',
+            latitude: 0.0,
+            longitude: 0.0,
+            demandIndex: 50,
+            airportTax: 0.0,
+          ),
+        )
+        .toList();
+
+    // Always resolve selected airport from current cubit state
+    final activeHq = state.selectedHq;
+    Airport? selectedAirport;
+    if (activeHq != null && activeHq.isNotEmpty && domainAirports.isNotEmpty) {
+      selectedAirport = domainAirports.firstWhere(
+        (a) => a.iata == activeHq,
+        orElse: () => Airport(
+          iata: activeHq,
+          name: '',
+          city: '',
+          country: '',
+          latitude: 0.0,
+          longitude: 0.0,
+          demandIndex: 50,
+          airportTax: 0.0,
+        ),
+      );
+      if (selectedAirport.name.isEmpty) selectedAirport = null;
+    }
+
+    return SearchableAirportDropdown(
+      label: AppStrings.selectHqHubAirport,
+      airports: domainAirports,
+      selectedValue: selectedAirport,
+      onSelected: (Airport? selection) {
+        cubit.setHq(selection?.iata ?? '');
+      },
+    );
+  }
+
+  Widget _buildCredentialsSection(
+    BuildContext context,
+    SettingsState state,
+    dynamic user,
+  ) {
+    return AppCard(
+      backgroundColor: AppTheme.surface3,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppStrings.ceoSecurityAuthorization,
+            style: AppTypography.badgeText,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          _buildInfoRow(AppStrings.chiefExecutive, user.ceoName),
+          Divider(color: AppTheme.surfaceSubtle, height: 24),
+          _buildInfoRow(
+            AppStrings.companyRegistry,
+            user.companyName.toUpperCase(),
+          ),
+          Divider(color: AppTheme.surfaceSubtle, height: 24),
+          _buildInfoRow(AppStrings.operationalBaseHq, user.hqAirportIata),
+          Divider(color: AppTheme.surfaceSubtle, height: 24),
+          _buildInfoRow(AppStrings.accountIdentifier, user.id),
+          Divider(color: AppTheme.surfaceSubtle, height: 24),
+          _buildInfoRow(AppStrings.registrationLevel, AppStrings.principalCeo),
+          Divider(color: AppTheme.surfaceSubtle, height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDangerZoneSection(
+    BuildContext context,
+    SettingsState state,
+    String userId,
+  ) {
+    return AppCard(
+      backgroundColor: AppTheme.surface3,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppStrings.criticalOperationAuth,
+            style: AppTypography.badgeText.copyWith(color: AppTheme.error),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            AppStrings.resetAirlineConfirmDesc.split('\n\n').first,
+            style: AppTypography.captionRegular.copyWith(
+              color: AppTypography.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: state.isSaving
+                  ? null
+                  : () => _showResetConfirmation(context, userId),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: AppTheme.error, width: 1.0),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.zero,
+                ),
+                foregroundColor: AppTheme.error,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.md,
+                ),
+              ),
+              child: Text(
+                AppStrings.resetProfileButton,
+                textAlign: TextAlign.center,
+                style: AppTypography.buttonText.copyWith(color: AppTheme.error),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return AppLabeledValue(label: label, value: value);
+  }
+
+  void _showResetConfirmation(BuildContext context, String userId) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AppDialogShell(
+          title: AppStrings.criticalOperationAuth,
+          titleColor: AppTheme.error,
+          content: Text(
+            AppStrings.resetAirlineConfirmDesc,
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          actions: Row(
+            children: [
+              Expanded(
+                child: AppButton(
+                  text: AppStrings.abortOperation,
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  type: AppButtonType.secondary,
+                  height: 40,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: AppButton(
+                  text: AppStrings.confirmReset,
+                  onPressed: () async {
+                    Navigator.of(dialogContext).pop();
+
+                    final settingsCubit = context.read<SettingsCubit>();
+                    final simulationCubit = context.read<SimulationCubit>();
+                    final fleetCubit = context.read<FleetCubit>();
+                    final routesCubit = context.read<RoutesCubit>();
+                    final authCubit = context.read<AuthCubit>();
+
+                    final success = await settingsCubit.resetAirline(
+                      userId: userId,
+                      onResetComplete: () async {
+                        double freshCash = GameConstants.startingCash;
+                        DateTime freshTime = DateTime.parse(
+                          '2020-01-01T00:00:00Z',
+                        );
+                        if (!DevModeManager.isDevMode &&
+                            authCubit.state is AuthAuthenticated) {
+                          freshTime = (authCubit.state as AuthAuthenticated)
+                              .user
+                              .gameCurrentTime;
+                        }
+
+                        simulationCubit.stopLoop();
+
+                        if (!DevModeManager.isDevMode) {
+                          try {
+                            final response = await SupabaseManager.client
+                                .from('users')
+                                .select('*')
+                                .eq('id', userId)
+                                .single();
+                            final freshUser = User.fromMap(response);
+                            freshCash = freshUser.cashBalance;
+                            freshTime = freshUser.gameCurrentTime;
+                            authCubit.updateActiveUser(freshUser);
+                          } catch (_) {
+                            if (authCubit.state is AuthAuthenticated) {
+                              final currentUser =
+                                  (authCubit.state as AuthAuthenticated).user;
+                              final updatedUser = currentUser.copyWith(
+                                cashBalance: GameConstants.startingCash,
+                                gameCurrentTime: freshTime,
+                                hqAirportIata: 'SIN',
+                              );
+                              authCubit.updateActiveUser(updatedUser);
+                            }
+                          }
+                        } else if (authCubit.state is AuthAuthenticated) {
+                          final currentUser =
+                              (authCubit.state as AuthAuthenticated).user;
+                          final updatedUser = currentUser.copyWith(
+                            cashBalance: GameConstants.startingCash,
+                            gameCurrentTime: freshTime,
+                            hqAirportIata: 'SIN',
+                          );
+                          authCubit.updateActiveUser(updatedUser);
+                        }
+
+                        await simulationCubit.startLoop(
+                          userId: userId,
+                          initialGameTime: freshTime,
+                          initialCash: freshCash,
+                        );
+
+                        await fleetCubit.loadFleetAndCatalog(userId);
+                        await routesCubit.loadRoutesAndData(userId);
+                      },
+                    );
+
+                    if (context.mounted) {
+                      if (success) {
+                        AppSnackBar.showSuccess(
+                          context,
+                          AppStrings.airlineResetSuccess,
+                        );
+                      } else {
+                        AppSnackBar.showError(
+                          context,
+                          '${AppStrings.airlineResetFailedPrefix}${settingsCubit.state.errorMessage ?? AppStrings.unknownError}',
+                        );
+                      }
+                    }
+                  },
+                  height: 40,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}

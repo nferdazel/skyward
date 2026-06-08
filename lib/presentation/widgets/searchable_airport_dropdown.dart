@@ -1,0 +1,251 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import '../../core/constants/app_strings.dart';
+import '../../core/theme/app_theme.dart';
+import '../../features/routes/domain/route_models.dart';
+import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
+
+class SearchableAirportDropdown extends StatefulWidget {
+  final String label;
+  final List<Airport> airports;
+  final Airport? selectedValue;
+  final ValueChanged<Airport?> onSelected;
+
+  const SearchableAirportDropdown({
+    super.key,
+    required this.label,
+    required this.airports,
+    required this.selectedValue,
+    required this.onSelected,
+  });
+
+  @override
+  State<SearchableAirportDropdown> createState() => _SearchableAirportDropdownState();
+}
+
+class _SearchableAirportDropdownState extends State<SearchableAirportDropdown> {
+  final _textController = TextEditingController();
+  final _focusNode = FocusNode();
+  final _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  Timer? _blurRestoreTimer;
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _textController.text = _getDisplayText(widget.selectedValue);
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(SearchableAirportDropdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedValue != widget.selectedValue && !_focusNode.hasFocus) {
+      _textController.text = _getDisplayText(widget.selectedValue);
+    }
+  }
+
+  @override
+  void dispose() {
+    _blurRestoreTimer?.cancel();
+    _removeOverlay();
+    _textController.dispose();
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (_focusNode.hasFocus) {
+      _blurRestoreTimer?.cancel();
+      _query = '';
+      _textController.clear();
+      _showOverlay();
+    } else {
+      // Delay to allow tap on option to register
+      _blurRestoreTimer?.cancel();
+      _blurRestoreTimer = Timer(const Duration(milliseconds: 150), () {
+        if (!mounted) return;
+        if (!_focusNode.hasFocus) {
+          _removeOverlay();
+          _textController.text = _getDisplayText(widget.selectedValue);
+        }
+      });
+    }
+  }
+
+  String _getDisplayText(Airport? airport) {
+    if (airport == null) return '';
+    return '[${airport.iata}] ${airport.city} (${airport.country})'.toUpperCase();
+  }
+
+  List<Airport> _getFilteredAirports() {
+    if (_query.isEmpty) return widget.airports;
+    final q = _query.toLowerCase();
+    return widget.airports.where((a) {
+      return a.iata.toLowerCase().contains(q) ||
+          a.city.toLowerCase().contains(q) ||
+          a.country.toLowerCase().contains(q) ||
+          a.name.toLowerCase().contains(q);
+    }).toList();
+  }
+
+  void _showOverlay() {
+    _removeOverlay();
+    _overlayEntry = OverlayEntry(
+      builder: (context) => _buildOverlay(),
+    );
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _selectAirport(Airport airport) {
+    widget.onSelected(airport);
+    _textController.text = _getDisplayText(airport);
+    _focusNode.unfocus();
+    _removeOverlay();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: TextFormField(
+        controller: _textController,
+        focusNode: _focusNode,
+        style: AppTypography.bodyMedium.copyWith(color: AppTheme.textPrimary),
+        decoration: InputDecoration(
+          labelText: widget.label.toUpperCase(),
+          labelStyle: AppTypography.badgeText.copyWith(color: AppTheme.textSecondary),
+          prefixIcon: Icon(Icons.flight_takeoff, size: 20, color: AppTheme.primary),
+          suffixIcon: _textController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.clear, size: 18, color: AppTheme.textSecondary),
+                  onPressed: () {
+                    _textController.clear();
+                    widget.onSelected(null);
+                    setState(() {});
+                  },
+                )
+              : Icon(Icons.arrow_drop_down, color: AppTheme.textSecondary),
+        ),
+        onChanged: (value) {
+          _query = value;
+          if (_focusNode.hasFocus) {
+            _removeOverlay();
+            _showOverlay();
+          }
+        },
+        onTap: () {
+          if (!_focusNode.hasFocus) {
+            _focusNode.requestFocus();
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildOverlay() {
+    final filtered = _getFilteredAirports();
+    return Positioned(
+      width: 400,
+      child: CompositedTransformFollower(
+        link: _layerLink,
+        showWhenUnlinked: false,
+        offset: const Offset(0, 52),
+        child: Material(
+          elevation: 8,
+          borderRadius: BorderRadius.zero,
+          color: AppTheme.surface,
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 250),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppTheme.surfaceSubtle, width: 1.0),
+            ),
+            child: filtered.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Text(
+                      AppStrings.noMatchingAirports,
+                      style: AppTypography.badgeText.copyWith(
+                        color: AppTheme.textMuted,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final airport = filtered[index];
+                      final isSelected = widget.selectedValue?.iata == airport.iata;
+                      return InkWell(
+                        onTap: () => _selectAirport(airport),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
+                          color: isSelected ? AppTheme.primary.withValues(alpha: 0.08) : null,
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.xs,
+                                  vertical: AppSpacing.xxs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary.withValues(alpha: 0.1),
+                                  border: Border.all(color: AppTheme.primary, width: 1.0),
+                                ),
+                                child: Text(
+                                  airport.iata,
+                                  style: AppTypography.badgeText.copyWith(
+                                    color: AppTheme.primary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${airport.city}, ${airport.country}',
+                                      style: AppTypography.bodyMedium.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: AppSpacing.xxs),
+                                    Text(
+                                      airport.name,
+                                      style: AppTypography.captionLight.copyWith(
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}

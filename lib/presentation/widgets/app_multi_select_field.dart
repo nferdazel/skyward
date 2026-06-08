@@ -1,0 +1,153 @@
+import 'package:flutter/material.dart';
+
+import '../../core/theme/app_theme.dart';
+import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
+import 'app_dialog_shell.dart';
+
+class AppMultiSelectField extends StatelessWidget {
+  final String label;
+  final List<String> options;
+  final List<String> selectedValues;
+  final ValueChanged<List<String>> onChanged;
+
+  const AppMultiSelectField({
+    super.key,
+    required this.label,
+    required this.options,
+    required this.selectedValues,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = selectedValues.isEmpty
+        ? 'ALL'
+        : selectedValues.length == 1
+        ? selectedValues.first.toUpperCase()
+        : '${selectedValues.length} SELECTED';
+
+    return InkWell(
+      onTap: () => _showPicker(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: AppTheme.background,
+          border: Border.all(color: AppTheme.surfaceSubtle),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: AppTypography.captionRegular.copyWith(
+                      color: AppTypography.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    summary,
+                    style: AppTypography.badgeText.copyWith(
+                      color: AppTypography.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Icon(Icons.expand_more, color: AppTheme.primary, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showPicker(BuildContext context) async {
+    final working = List<String>.from(selectedValues);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AppDialogShell(
+              title: label,
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: options.map((option) {
+                            final selected = working.contains(option);
+                            return CheckboxListTile(
+                              value: selected,
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              activeColor: AppTheme.primary,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              title: Text(
+                                option.toUpperCase(),
+                                style: AppTypography.badgeText.copyWith(
+                                  color: AppTypography.textPrimary,
+                                ),
+                              ),
+                              onChanged: (_) {
+                                setState(() {
+                                  if (selected) {
+                                    working.remove(option);
+                                  } else {
+                                    working.add(option);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            onChanged(const []);
+                            Navigator.of(dialogContext).pop();
+                          },
+                          child: const Text('CLEAR'),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          child: const Text('CANCEL'),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        FilledButton(
+                          onPressed: () {
+                            onChanged(working);
+                            Navigator.of(dialogContext).pop();
+                          },
+                          child: const Text('APPLY'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}

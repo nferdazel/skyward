@@ -1,0 +1,200 @@
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../core/database/supabase_client.dart';
+import '../../../../core/utils/dev_mode_manager.dart';
+
+class SettingsState {
+  final double uiScale;
+  final List<Map<String, dynamic>> airports;
+  final bool isLoadingAirports;
+  final String? selectedHq;
+  final double groundingThreshold;
+  final bool isSaving;
+  final String? errorMessage;
+  final bool isSaveSuccess;
+
+  const SettingsState({
+    this.uiScale = 1.0,
+    this.airports = const [],
+    this.isLoadingAirports = false,
+    this.selectedHq,
+    this.groundingThreshold = 30.0,
+    this.isSaving = false,
+    this.errorMessage,
+    this.isSaveSuccess = false,
+  });
+
+  SettingsState copyWith({
+    double? uiScale,
+    List<Map<String, dynamic>>? airports,
+    bool? isLoadingAirports,
+    String? selectedHq,
+    double? groundingThreshold,
+    bool? isSaving,
+    String? errorMessage,
+    bool? isSaveSuccess,
+  }) {
+    return SettingsState(
+      uiScale: uiScale ?? this.uiScale,
+      airports: airports ?? this.airports,
+      isLoadingAirports: isLoadingAirports ?? this.isLoadingAirports,
+      selectedHq: selectedHq ?? this.selectedHq,
+      groundingThreshold: groundingThreshold ?? this.groundingThreshold,
+      isSaving: isSaving ?? this.isSaving,
+      errorMessage: errorMessage,
+      isSaveSuccess: isSaveSuccess ?? false,
+    );
+  }
+}
+
+class SettingsCubit extends Cubit<SettingsState> {
+  SettingsCubit() : super(const SettingsState());
+
+  void setUiScale(double scale) {
+    emit(state.copyWith(uiScale: scale));
+  }
+
+  void setHq(String hq) {
+    emit(state.copyWith(selectedHq: hq));
+  }
+
+  void setGroundingThreshold(double threshold) {
+    emit(state.copyWith(groundingThreshold: threshold));
+  }
+
+  Future<void> loadAirports(String currentHq) async {
+    emit(state.copyWith(isLoadingAirports: true, selectedHq: currentHq));
+    try {
+      if (!DevModeManager.isDevMode) {
+        final List<dynamic> response = await SupabaseManager.client
+            .from('airports')
+            .select('iata, name, city, country')
+            .order('country', ascending: true);
+        final list = response.map((e) => Map<String, dynamic>.from(e)).toList();
+        emit(state.copyWith(airports: list, isLoadingAirports: false));
+      } else {
+        final mockList = [
+          {
+            'iata': 'CGK',
+            'name': 'Soekarno-Hatta International',
+            'city': 'Jakarta',
+            'country': 'Indonesia',
+          },
+          {
+            'iata': 'SIN',
+            'name': 'Changi International',
+            'city': 'Singapore',
+            'country': 'Singapore',
+          },
+          {
+            'iata': 'KUL',
+            'name': 'Kuala Lumpur International',
+            'city': 'Kuala Lumpur',
+            'country': 'Malaysia',
+          },
+          {
+            'iata': 'BKK',
+            'name': 'Suvarnabhumi Airport',
+            'city': 'Bangkok',
+            'country': 'Thailand',
+          },
+          {
+            'iata': 'HND',
+            'name': 'Haneda Airport',
+            'city': 'Tokyo',
+            'country': 'Japan',
+          },
+        ];
+        emit(state.copyWith(airports: mockList, isLoadingAirports: false));
+      }
+    } catch (e, stack) {
+      SupabaseManager.logError('loadAirports', e, stack);
+      emit(
+        state.copyWith(isLoadingAirports: false, errorMessage: e.toString()),
+      );
+    }
+  }
+
+  Future<void> saveSettings({
+    required String userId,
+    required String companyName,
+    required double autoGroundingThreshold,
+    required String? hqAirportIata,
+    required Function onSyncBalance,
+  }) async {
+    emit(state.copyWith(isSaving: true));
+    try {
+      if (!DevModeManager.isDevMode) {
+        final List<dynamic> response = await SupabaseManager.client.rpc(
+          'save_airline_settings',
+          params: {
+            'p_user_id': userId,
+            'p_company_name': companyName,
+            'p_auto_grounding_threshold': autoGroundingThreshold,
+            'p_hq_airport_iata': hqAirportIata,
+          },
+        );
+
+        final result = response.isNotEmpty
+            ? response[0] as Map<String, dynamic>
+            : <String, dynamic>{};
+        final success = result['success'] as bool? ?? false;
+        final message = result['message'] as String? ?? 'Settings save failed.';
+        if (!success) {
+          SupabaseManager.logRpcFailure('save_airline_settings', {
+            'p_user_id': userId,
+            'p_company_name': companyName,
+            'p_auto_grounding_threshold': autoGroundingThreshold,
+            'p_hq_airport_iata': hqAirportIata,
+          }, message);
+          emit(state.copyWith(isSaving: false, errorMessage: message));
+          return;
+        }
+
+        await onSyncBalance();
+      }
+      emit(state.copyWith(isSaving: false, isSaveSuccess: true));
+    } catch (e, stack) {
+      SupabaseManager.logError('saveSettings', e, stack);
+      emit(state.copyWith(isSaving: false, errorMessage: e.toString()));
+    }
+  }
+
+  // Atomically wipe and reset user airline profile via PL/pgSQL transaction
+  Future<bool> resetAirline({
+    required String userId,
+    required Function onResetComplete,
+  }) async {
+    emit(state.copyWith(isSaving: true));
+    try {
+      if (!DevModeManager.isDevMode) {
+        final List<dynamic> response = await SupabaseManager.client.rpc(
+          'reset_user_airline',
+          params: {'p_user_id': userId},
+        );
+        if (response.isNotEmpty) {
+          final result = response[0] as Map<String, dynamic>;
+          final success = result['success'] as bool? ?? false;
+          final message = result['message'] as String? ?? 'Wipe failed';
+          if (!success) {
+            SupabaseManager.logRpcFailure('reset_user_airline', {
+              'p_user_id': userId,
+            }, message);
+            emit(state.copyWith(isSaving: false, errorMessage: message));
+            return false;
+          }
+        }
+      }
+
+      // Execute local triggers to reset simulations, fleet, and routes
+      await onResetComplete();
+
+      emit(state.copyWith(isSaving: false, isSaveSuccess: true));
+      return true;
+    } catch (e, stack) {
+      SupabaseManager.logError('reset_user_airline', e, stack);
+      emit(state.copyWith(isSaving: false, errorMessage: e.toString()));
+      return false;
+    }
+  }
+}

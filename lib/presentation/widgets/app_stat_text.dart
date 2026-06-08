@@ -1,0 +1,50 @@
+import 'package:flutter/material.dart';
+
+import '../../core/theme/app_theme.dart';
+import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
+
+class AppStatText extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? labelColor;
+  final Color? valueColor;
+  final CrossAxisAlignment crossAxisAlignment;
+  final TextAlign textAlign;
+
+  const AppStatText({
+    super.key,
+    required this.label,
+    required this.value,
+    this.labelColor,
+    this.valueColor,
+    this.crossAxisAlignment = CrossAxisAlignment.start,
+    this.textAlign = TextAlign.start,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: crossAxisAlignment,
+      children: [
+        Text(
+          label,
+          textAlign: textAlign,
+          style: AppTypography.badgeText.copyWith(
+            color: labelColor ?? AppTheme.textSecondary,
+            letterSpacing: 0.4,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          value,
+          textAlign: textAlign,
+          style: AppTypography.badgeText.copyWith(
+            color: valueColor ?? AppTheme.textPrimary,
+            letterSpacing: 0.0,
+          ),
+        ),
+      ],
+    );
+  }
+}

@@ -1,0 +1,50 @@
+import 'package:flutter/material.dart';
+
+import '../../core/theme/app_theme.dart';
+import '../theme/app_typography.dart';
+
+class AppTableHeaderCell extends StatelessWidget {
+  final String label;
+  final EdgeInsetsGeometry padding;
+  final Color? color;
+
+  const AppTableHeaderCell({
+    super.key,
+    required this.label,
+    this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: padding,
+      child: Text(
+        label,
+        style: AppTypography.badgeText.copyWith(
+          color: color ?? AppTheme.textMuted,
+          letterSpacing: 1.0,
+        ),
+      ),
+    );
+  }
+}
+
+class AppTableBodyCell extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  const AppTableBodyCell({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: padding,
+      child: child,
+    );
+  }
+}

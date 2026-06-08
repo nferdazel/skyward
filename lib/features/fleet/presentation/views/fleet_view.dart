@@ -1,0 +1,1909 @@
+// ignore_for_file: deprecated_member_use
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+
+import '../../../../core/constants/app_strings.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/responsive_layout.dart';
+import '../../../../presentation/theme/app_spacing.dart';
+import '../../../../presentation/theme/app_typography.dart';
+import '../../../../presentation/widgets/app_badge.dart';
+import '../../../../presentation/widgets/app_button.dart';
+import '../../../../presentation/widgets/app_card.dart';
+import '../../../../presentation/widgets/app_dialog_shell.dart';
+import '../../../../presentation/widgets/app_empty_state.dart';
+import '../../../../presentation/widgets/app_info_strip.dart';
+import '../../../../presentation/widgets/app_labeled_value.dart';
+import '../../../../presentation/widgets/app_multi_select_field.dart';
+import '../../../../presentation/widgets/app_snackbar.dart';
+import '../../../../presentation/widgets/app_table_cells.dart';
+import '../../../../presentation/widgets/app_table_icon_action.dart';
+import '../../../../presentation/widgets/app_table_shell.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_state.dart';
+import '../../../routes/presentation/cubit/routes_cubit.dart';
+import '../../../routes/presentation/cubit/routes_state.dart';
+import '../../../simulation/presentation/cubit/simulation_cubit.dart';
+import '../../domain/fleet_models.dart';
+import '../cubit/fleet_cubit.dart';
+import '../cubit/fleet_state.dart';
+
+class FleetView extends StatelessWidget {
+  const FleetView({super.key});
+
+  static final _currencyFormat = NumberFormat.currency(
+    symbol: '\$',
+    decimalDigits: 0,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = context.read<AuthCubit>().state;
+    if (authState is! AuthAuthenticated) {
+      return const Center(child: Text(AppStrings.unauthorized));
+    }
+
+    final userId = authState.user.id;
+    final autoGroundingThreshold = authState.user.autoGroundingThreshold;
+    return BlocListener<FleetCubit, FleetState>(
+      listener: (context, state) {
+        if (state is FleetActionSuccess) {
+          AppSnackBar.showSuccess(context, state.message);
+        } else if (state is FleetError) {
+          AppSnackBar.showError(context, state.message);
+        }
+      },
+      child: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Sub Header Navigation Tabs (v7.0 Spec)
+              TabBar(
+                isScrollable: false,
+                labelColor: AppTheme.primary,
+                unselectedLabelColor: AppTheme.textSecondary,
+                indicatorColor: AppTheme.primary,
+                indicatorWeight: 2,
+                indicatorSize: TabBarIndicatorSize.tab,
+                tabs: [
+                  Tab(
+                    child: Text(
+                      AppStrings.activeFleetTab,
+                      style: AppTypography.sectionHeaderMedium,
+                    ),
+                  ),
+                  Tab(
+                    child: Text(
+                      AppStrings.acquireAircraftTab,
+                      style: AppTypography.sectionHeaderMedium,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.tabContentGap),
+              // Tab Contents
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _buildActiveFleetTab(
+                      userId,
+                      _currencyFormat,
+                      autoGroundingThreshold,
+                    ),
+                    _buildAcquireTab(userId, _currencyFormat),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveFleetTab(
+    String userId,
+    NumberFormat currencyFormat,
+    double autoGroundingThreshold,
+  ) {
+    return BlocBuilder<FleetCubit, FleetState>(
+      buildWhen: (previous, current) => current is! FleetActionSuccess,
+      builder: (context, state) {
+        if (state is FleetLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (state is FleetError && _isEmptyState(state)) {
+          return Center(
+            child: Text(
+              AppStrings.failedToLoadFleetRegistry,
+              style: AppTypography.buttonText.copyWith(color: AppTheme.error),
+            ),
+          );
+        }
+
+        final fleetList = _getFleetList(state);
+        final isActionLoading = state is FleetActionLoading;
+        final routesState = context.select((RoutesCubit cubit) => cubit.state);
+        final assignedFleetIds = routesState is RoutesDataState
+            ? routesState.routes
+                  .map((route) => route.assignedAircraftId)
+                  .whereType<String>()
+                  .toSet()
+            : <String>{};
+
+        if (fleetList.isEmpty) {
+          return _buildEmptyFleetView();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: RepaintBoundary(
+                child: ResponsiveLayout(
+                  desktopBody: _buildActiveFleetTable(
+                    context,
+                    fleetList,
+                    userId,
+                    currencyFormat,
+                    isActionLoading,
+                    autoGroundingThreshold,
+                    assignedFleetIds,
+                  ),
+                  mobileBody: ListView.builder(
+                    itemCount: fleetList.length,
+                    physics: const BouncingScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: _buildActiveFleetCard(
+                          context,
+                          fleetList[index],
+                          userId,
+                          currencyFormat,
+                          isActionLoading,
+                          autoGroundingThreshold,
+                          assignedFleetIds,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildActiveFleetTable(
+    BuildContext context,
+    List<UserFleetAircraft> fleetList,
+    String userId,
+    NumberFormat currencyFormat,
+    bool isActionLoading,
+    double autoGroundingThreshold,
+    Set<String> assignedFleetIds,
+  ) {
+    return AppTableShell(
+      child: Table(
+        columnWidths: const {
+          0: FlexColumnWidth(1.1), // TAIL
+          1: FlexColumnWidth(2.1), // AIRCRAFT
+          2: FlexColumnWidth(1.0), // ACQ
+          3: FlexColumnWidth(1.1), // CONDITION
+          4: FlexColumnWidth(1.0), // STATUS
+          5: FlexColumnWidth(1.8), // CABIN
+          6: FlexColumnWidth(1.0), // ACTIONS
+        },
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        children: [
+          TableRow(
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceSubtle.withValues(alpha: 0.15),
+            ),
+            children: [
+              _tableHeaderCell(AppStrings.tailHeader),
+              _tableHeaderCell(AppStrings.aircraftHeader),
+              _tableHeaderCell(AppStrings.acquisitionHeader),
+              _tableHeaderCell(AppStrings.conditionHeader),
+              _tableHeaderCell(AppStrings.statusHeader),
+              _tableHeaderCell(AppStrings.cabinHeader),
+              _tableHeaderCell(AppStrings.actionsHeader),
+            ],
+          ),
+          ...fleetList.map((aircraft) {
+            final isGrounded = aircraft.isMaintenanceGrounded(
+              autoGroundingThreshold,
+            );
+            final isAssigned = assignedFleetIds.contains(aircraft.id);
+            return TableRow(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
+                ),
+              ),
+              children: [
+                _tableCell(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppBadge.primary(label: aircraft.tailNumber),
+                      const SizedBox(height: AppSpacing.xs - 2),
+                      Text(
+                        aircraft.nickname.toUpperCase(),
+                        style: AppTypography.badgeText.copyWith(
+                          fontSize: 9,
+                          color: AppTheme.textSecondary,
+                          letterSpacing: 0.5,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                _tableCell(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        aircraft.model.modelName,
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppTypography.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxs - 2),
+                      Text(
+                        aircraft.model.manufacturer.toUpperCase(),
+                        style: AppTypography.badgeText.copyWith(
+                          color: AppTypography.textSecondary,
+                          fontSize: 9,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        '${aircraft.model.capacity} ${AppStrings.capacityPaxSuffix}',
+                        style: AppTypography.badgeText.copyWith(
+                          fontSize: 9,
+                          color: AppTheme.primary,
+                          letterSpacing: 0.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _tableCell(_buildAcquisitionBadge(aircraft.acquisitionType)),
+                _tableCell(_buildWearConditionCell(aircraft.condition)),
+                _tableCell(_buildStatusBadge(aircraft.status, isGrounded)),
+                _tableCell(
+                  Builder(
+                    builder: (context) {
+                      final int economy = aircraft.economySeats;
+                      final int business = aircraft.businessSeats;
+                      final int first = aircraft.firstClassSeats;
+                      final int capacity = aircraft.model.capacity;
+                      final int occupied =
+                          (economy * 1) + (business * 2) + (first * 3);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'E $economy  B $business  F $first',
+                            style: AppTypography.badgeText.copyWith(
+                              fontSize: 11,
+                              color: AppTypography.textPrimary,
+                              letterSpacing: 0.0,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            '$occupied / $capacity slots',
+                            style: AppTypography.badgeText.copyWith(
+                              fontSize: 9,
+                              color: occupied <= capacity
+                                  ? AppTheme.success
+                                  : AppTheme.error,
+                              letterSpacing: 0.0,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                _tableCell(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildDisposalIconAction(
+                        context: context,
+                        aircraft: aircraft,
+                        userId: userId,
+                        currencyFormat: currencyFormat,
+                        isAssigned: isAssigned,
+                        isActionLoading: isActionLoading,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      AppTableIconAction(
+                        tooltip: AppStrings.configureSeatsTooltip,
+                        icon: Icons.tune,
+                        onPressed: () =>
+                            _showSeatConfigDialog(context, aircraft, userId),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      aircraft.condition < 100.0
+                          ? AppTableIconAction(
+                              tooltip:
+                                  '${AppStrings.repairTooltipPrefix}${currencyFormat.format(aircraft.repairCost)}',
+                              icon: Icons.build_outlined,
+                              onPressed: isActionLoading
+                                  ? null
+                                  : () => _confirmRepair(
+                                      context,
+                                      aircraft,
+                                      userId,
+                                      currencyFormat,
+                                    ),
+                            )
+                          : AppBadge(
+                              label: AppStrings.okStatus,
+                              color: AppTheme.success,
+                              fontSize: 10,
+                              letterSpacing: 0.4,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 8,
+                              ),
+                            ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyFleetView() {
+    return const Center(
+      child: AppEmptyState(
+        icon: Icons.flight_outlined,
+        title: AppStrings.yourHangarEmpty,
+        description: AppStrings.yourHangarEmptyDesc,
+      ),
+    );
+  }
+
+  Widget _buildActiveFleetCard(
+    BuildContext context,
+    UserFleetAircraft aircraft,
+    String userId,
+    NumberFormat currencyFormat,
+    bool isActionLoading,
+    double autoGroundingThreshold,
+    Set<String> assignedFleetIds,
+  ) {
+    final isGrounded = aircraft.isMaintenanceGrounded(autoGroundingThreshold);
+    final isAssigned = assignedFleetIds.contains(aircraft.id);
+    return AppCard(
+      borderColor: isGrounded ? AppTheme.error : AppTheme.surfaceSubtle,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(children: [AppBadge.primary(label: aircraft.tailNumber)]),
+              Row(
+                children: [
+                  _buildAcquisitionBadge(aircraft.acquisitionType),
+                  _buildStatusBadge(aircraft.status, isGrounded),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '${aircraft.model.manufacturer.toUpperCase()} ${aircraft.model.modelName}',
+            style: AppTypography.bodyMedium.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppTypography.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            isAssigned
+                ? AppStrings.assignedFleetLabel
+                : AppStrings.idleFleetLabel,
+            style: AppTypography.badgeText.copyWith(
+              color: isAssigned ? AppTheme.primary : AppTheme.warning,
+              letterSpacing: 0.2,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _buildWearConditionCell(aircraft.condition),
+          const SizedBox(height: AppSpacing.md),
+          Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      text: 'DETAILS',
+                      onPressed: () => _showAircraftDetailsDialog(
+                        context,
+                        aircraft,
+                        currencyFormat,
+                        isAssigned,
+                      ),
+                      type: AppButtonType.secondary,
+                      height: 40,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: AppButton(
+                      text: AppStrings.configureSeatsButton,
+                      onPressed: () =>
+                          _showSeatConfigDialog(context, aircraft, userId),
+                      type: AppButtonType.secondary,
+                      height: 40,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      text: aircraft.acquisitionType == 'lease'
+                          ? AppStrings.terminateLeaseButton
+                          : AppStrings.sellAircraftButton,
+                      onPressed: isAssigned
+                          ? null
+                          : () => _confirmDisposal(
+                              context,
+                              aircraft,
+                              userId,
+                              currencyFormat,
+                              isAssigned,
+                            ),
+                      type: AppButtonType.secondary,
+                      height: 40,
+                    ),
+                  ),
+                  if (aircraft.condition < 100.0) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: AppButton(
+                        text:
+                            '${AppStrings.repairButtonPrefix} (${currencyFormat.format(aircraft.repairCost)})',
+                        onPressed: isActionLoading
+                            ? null
+                            : () => _confirmRepair(
+                                context,
+                                aircraft,
+                                userId,
+                                currencyFormat,
+                              ),
+                        type: AppButtonType.secondary,
+                        height: 40,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAircraftDetailsDialog(
+    BuildContext context,
+    UserFleetAircraft aircraft,
+    NumberFormat currencyFormat,
+    bool isAssigned,
+  ) {
+    final capacity = aircraft.model.capacity;
+    final occupied =
+        aircraft.economySeats +
+        (aircraft.businessSeats * 2) +
+        (aircraft.firstClassSeats * 3);
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AppDialogShell(
+          title: '${aircraft.tailNumber} ${aircraft.model.modelName}',
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: AppSpacing.lg,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    AppLabeledValue(
+                      label: AppStrings.rangeHeader,
+                      value:
+                          '${aircraft.model.rangeKm} ${AppStrings.rangeKmLabel}',
+                    ),
+                    AppLabeledValue(
+                      label: AppStrings.seatsHeader,
+                      value: '${aircraft.model.capacity}',
+                    ),
+                    AppLabeledValue(
+                      label: AppStrings.assignedFleetLabel,
+                      value: isAssigned
+                          ? AppStrings.activeState
+                          : AppStrings.idleFleetLabel,
+                      valueColor: isAssigned
+                          ? AppTheme.primary
+                          : AppTheme.warning,
+                    ),
+                    AppLabeledValue(
+                      label: AppStrings.repairExposureLabel,
+                      value: currencyFormat.format(aircraft.repairCost),
+                      valueColor: aircraft.repairCost > 0
+                          ? AppTheme.warning
+                          : AppTheme.success,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppInfoStrip(
+                  backgroundColor: AppTheme.background,
+                  child: Wrap(
+                    spacing: AppSpacing.lg,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      AppLabeledValue(
+                        label: 'ECONOMY',
+                        value: '${aircraft.economySeats}',
+                      ),
+                      AppLabeledValue(
+                        label: 'BUSINESS',
+                        value: '${aircraft.businessSeats}',
+                      ),
+                      AppLabeledValue(
+                        label: 'FIRST',
+                        value: '${aircraft.firstClassSeats}',
+                      ),
+                      AppLabeledValue(
+                        label: AppStrings.maxSlotsLabel,
+                        value: '$occupied / $capacity',
+                        valueColor: occupied <= capacity
+                            ? AppTheme.success
+                            : AppTheme.error,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSeatConfigDialog(
+    BuildContext context,
+    UserFleetAircraft aircraft,
+    String userId,
+  ) {
+    final fleetCubit = context.read<FleetCubit>();
+    int economy = aircraft.economySeats;
+    int business = aircraft.businessSeats;
+    int firstClass = aircraft.firstClassSeats;
+    final int capacity = aircraft.model.capacity;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final int occupiedSlots =
+                (economy * 1) + (business * 2) + (firstClass * 3);
+            final bool isValid = occupiedSlots <= capacity;
+            final int remainingSlots = capacity - occupiedSlots;
+
+            return AppDialogShell(
+              title: AppStrings.configureSeatAllocation,
+              subtitle:
+                  '${AppStrings.aircraftSubtitlePrefix}: ${aircraft.model.manufacturer.toUpperCase()} ${aircraft.model.modelName} [${aircraft.tailNumber}]',
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Divider(color: AppTheme.surfaceSubtle),
+                  const SizedBox(height: AppSpacing.md),
+
+                  Text(
+                    AppStrings.realisticSpaceConfiguration.toUpperCase(),
+                    style: AppTypography.badgeText.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    AppStrings.realisticSpaceConfigurationDesc,
+                    style: AppTypography.captionRegular.copyWith(
+                      color: AppTheme.textMuted,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  _buildSeatAdjustmentRow(
+                    ctx,
+                    AppStrings.economyClassSlots,
+                    economy,
+                    (val) {
+                      setDialogState(() {
+                        economy = val;
+                      });
+                    },
+                    maxPossible: capacity,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildSeatAdjustmentRow(
+                    ctx,
+                    AppStrings.businessClassSlots,
+                    business,
+                    (val) {
+                      setDialogState(() {
+                        business = val;
+                      });
+                    },
+                    maxPossible: (capacity / 2).floor(),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _buildSeatAdjustmentRow(
+                    ctx,
+                    AppStrings.firstClassSlots,
+                    firstClass,
+                    (val) {
+                      setDialogState(() {
+                        firstClass = val;
+                      });
+                    },
+                    maxPossible: (capacity / 3).floor(),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Slots progress bar
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        AppStrings.totalSlotAllocation,
+                        style: AppTypography.badgeText.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        '$occupiedSlots / $capacity ${AppStrings.slotsSuffix}',
+                        style: AppTypography.badgeText.copyWith(
+                          color: isValid ? AppTheme.success : AppTheme.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Container(
+                    height: 8,
+                    width: double.infinity,
+                    decoration: BoxDecoration(color: AppTheme.background),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: (occupiedSlots / capacity).clamp(0.0, 1.0),
+                      child: Container(
+                        color: isValid ? AppTheme.success : AppTheme.error,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  if (!isValid)
+                    Text(
+                      '${AppStrings.slotsExceededPrefix}${occupiedSlots - capacity}${AppStrings.slotsExceededSuffix}',
+                      style: AppTypography.badgeText.copyWith(
+                        color: AppTheme.error,
+                      ),
+                    )
+                  else
+                    Text(
+                      '${AppStrings.slotsRemainingPrefix}$remainingSlots${AppStrings.slotsRemainingSuffix}',
+                      style: AppTypography.badgeText.copyWith(
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                ],
+              ),
+              actions: Row(
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      text: AppStrings.cancelLabel,
+                      onPressed: () => Navigator.pop(dialogCtx),
+                      type: AppButtonType.secondary,
+                      height: 40,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: AppButton(
+                      text: AppStrings.applyConfig,
+                      onPressed: !isValid
+                          ? null
+                          : () async {
+                              Navigator.pop(dialogCtx);
+                              await fleetCubit.configureSeats(
+                                userId: userId,
+                                aircraftId: aircraft.id,
+                                economy: economy,
+                                business: business,
+                                firstClass: firstClass,
+                              );
+                            },
+                      type: AppButtonType.primary,
+                      height: 40,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSeatAdjustmentRow(
+    BuildContext context,
+    String label,
+    int value,
+    ValueChanged<int> onChanged, {
+    required int maxPossible,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: AppTypography.badgeText.copyWith(
+                fontSize: 10,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            Text(
+              '$value Seats',
+              style: AppTypography.badgeText.copyWith(
+                fontSize: 11,
+                color: AppTheme.primary,
+              ),
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.remove, size: 16, color: AppTheme.textSecondary),
+              onPressed: value > 0 ? () => onChanged(value - 1) : null,
+            ),
+            Expanded(
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 2.0,
+                  activeTrackColor: AppTheme.primary,
+                  inactiveTrackColor: AppTheme.surfaceSubtle,
+                  thumbColor: AppTheme.primary,
+                  overlayColor: AppTheme.primary.withValues(alpha: 0.1),
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 6,
+                  ),
+                ),
+                child: Slider(
+                  value: value.toDouble(),
+                  min: 0,
+                  max: maxPossible.toDouble(),
+                  onChanged: (v) => onChanged(v.toInt()),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.add, size: 16, color: AppTheme.textSecondary),
+              onPressed: value < maxPossible
+                  ? () => onChanged(value + 1)
+                  : null,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAcquireTab(String userId, NumberFormat currencyFormat) {
+    return BlocBuilder<FleetCubit, FleetState>(
+      buildWhen: (previous, current) => current is! FleetActionSuccess,
+      builder: (context, state) {
+        if (state is FleetLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final catalog = _getCatalogList(state);
+        if (catalog.isEmpty) {
+          return const Center(child: Text(AppStrings.noCatalogModelsAvailable));
+        }
+
+        final isActionLoading = state is FleetActionLoading;
+
+        final cubit = context.read<FleetCubit>();
+        final filters = state is FleetDataState
+            ? (
+                manufacturers: state.selectedManufacturers,
+                categories: state.selectedCategories,
+                ranges: state.selectedRangeBrackets,
+                sortBy: state.sortBy,
+              )
+            : (
+                manufacturers: <String>[],
+                categories: <String>[],
+                ranges: <String>[],
+                sortBy: 'price_asc',
+              );
+
+        var filteredCatalog = catalog.where((model) {
+          if (filters.manufacturers.isNotEmpty &&
+              !filters.manufacturers.contains(model.manufacturer)) {
+            return false;
+          }
+          if (filters.categories.isNotEmpty &&
+              !filters.categories.contains(_catalogCategoryLabel(model.type))) {
+            return false;
+          }
+          if (filters.ranges.isNotEmpty &&
+              !filters.ranges.contains(_rangeBracketLabel(model.rangeKm))) {
+            return false;
+          }
+          return true;
+        }).toList();
+
+        filteredCatalog.sort((a, b) {
+          switch (filters.sortBy) {
+            case 'price_asc':
+              return a.purchasePrice.compareTo(b.purchasePrice);
+            case 'price_desc':
+              return b.purchasePrice.compareTo(a.purchasePrice);
+            case 'range_desc':
+              return b.rangeKm.compareTo(a.rangeKm);
+            case 'capacity_desc':
+              return b.capacity.compareTo(a.capacity);
+            case 'fuel_efficiency':
+              return a.fuelBurnPerKm.compareTo(b.fuelBurnPerKm);
+            default:
+              return a.purchasePrice.compareTo(b.purchasePrice);
+          }
+        });
+
+        return ResponsiveLayout(
+          desktopBody: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildFilterSortBar(context, cubit, filters),
+              Expanded(
+                child: filteredCatalog.isEmpty
+                    ? const Center(
+                        child: Text(AppStrings.noAircraftMatchCriteria),
+                      )
+                    : _buildCatalogTable(
+                        context,
+                        filteredCatalog,
+                        userId,
+                        currencyFormat,
+                        isActionLoading,
+                      ),
+              ),
+            ],
+          ),
+          mobileBody: ListView(
+            physics: const BouncingScrollPhysics(),
+            children: [
+              _buildFilterSortBar(context, cubit, filters),
+              if (filteredCatalog.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(AppSpacing.xxl),
+                    child: Text(AppStrings.noAircraftMatchFilterCriteria),
+                  ),
+                )
+              else
+                ...filteredCatalog.map(
+                  (model) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: _buildCatalogCard(
+                      context,
+                      model,
+                      userId,
+                      currencyFormat,
+                      isActionLoading,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterSortBar(
+    BuildContext context,
+    FleetCubit cubit,
+    ({
+      List<String> manufacturers,
+      List<String> categories,
+      List<String> ranges,
+      String sortBy,
+    })
+    filters,
+  ) {
+    final manufacturers = [
+      'Boeing',
+      'Airbus',
+      'Embraer',
+      'ATR',
+      'Bombardier',
+      'COMAC',
+      'De Havilland',
+      'CASA',
+      'Sukhoi',
+      'Irkut',
+    ];
+    final categories = [
+      'Regional Turboprop',
+      'Regional Jet',
+      'Narrow-body Jet',
+      'Wide-body Jet',
+    ];
+    final ranges = [
+      'Short Range (< 2,000 km)',
+      'Medium Range (2,000 - 6,000 km)',
+      'Long Range (6,000+ km)',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      margin: const EdgeInsets.only(bottom: AppSpacing.blockGap),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        border: Border.all(color: AppTheme.surfaceSubtle, width: 1.0),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final filterChildren = [
+            AppMultiSelectField(
+              label: AppStrings.manufacturerFilterLabel,
+              options: manufacturers,
+              selectedValues: filters.manufacturers,
+              onChanged: cubit.setManufacturerFilter,
+            ),
+            AppMultiSelectField(
+              label: AppStrings.categoryFilterLabel,
+              options: categories,
+              selectedValues: filters.categories,
+              onChanged: cubit.setCategoryFilter,
+            ),
+            AppMultiSelectField(
+              label: AppStrings.rangeFilterLabel,
+              options: ranges,
+              selectedValues: filters.ranges,
+              onChanged: cubit.setRangeBracketFilter,
+            ),
+          ];
+
+          return ResponsiveLayout(
+            desktopBody: constraints.maxWidth >= 1180
+                ? Row(
+                    children: [
+                      for (var i = 0; i < filterChildren.length; i++) ...[
+                        Expanded(child: filterChildren[i]),
+                        if (i < filterChildren.length - 1)
+                          const SizedBox(width: AppSpacing.sm),
+                      ],
+                    ],
+                  )
+                : Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: filterChildren
+                        .map(
+                          (child) => SizedBox(
+                            width: (constraints.maxWidth - AppSpacing.sm) / 2,
+                            child: child,
+                          ),
+                        )
+                        .toList(),
+                  ),
+            mobileBody: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppMultiSelectField(
+                  label: AppStrings.manufacturerFilterLabel,
+                  options: manufacturers,
+                  selectedValues: filters.manufacturers,
+                  onChanged: cubit.setManufacturerFilter,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                AppMultiSelectField(
+                  label: AppStrings.categoryFilterLabel,
+                  options: categories,
+                  selectedValues: filters.categories,
+                  onChanged: cubit.setCategoryFilter,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                AppMultiSelectField(
+                  label: AppStrings.rangeFilterLabel,
+                  options: ranges,
+                  selectedValues: filters.ranges,
+                  onChanged: cubit.setRangeBracketFilter,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _catalogCategoryLabel(String type) {
+    switch (type) {
+      case 'regional_turboprop':
+        return 'Regional Turboprop';
+      case 'regional_jet':
+        return 'Regional Jet';
+      case 'narrow_body_jet':
+        return 'Narrow-body Jet';
+      case 'wide_body_jet':
+        return 'Wide-body Jet';
+      default:
+        return type;
+    }
+  }
+
+  String _rangeBracketLabel(int rangeKm) {
+    if (rangeKm < 2000) {
+      return 'Short Range (< 2,000 km)';
+    }
+    if (rangeKm <= 6000) {
+      return 'Medium Range (2,000 - 6,000 km)';
+    }
+    return 'Long Range (6,000+ km)';
+  }
+
+  Widget _buildCatalogTable(
+    BuildContext context,
+    List<AircraftModel> catalog,
+    String userId,
+    NumberFormat currencyFormat,
+    bool isActionLoading,
+  ) {
+    return AppTableShell(
+      child: Table(
+        columnWidths: const {
+          0: FlexColumnWidth(2.4), // AIRCRAFT
+          1: FlexColumnWidth(1.2), // CLASS
+          2: FlexColumnWidth(1.0), // RANGE
+          3: FlexColumnWidth(0.9), // SEATS
+          4: FlexColumnWidth(1.0), // BURN
+          5: FlexColumnWidth(1.7), // PRICING
+          6: FlexColumnWidth(1.0), // ACTIONS
+        },
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        children: [
+          TableRow(
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceSubtle.withValues(alpha: 0.15),
+            ),
+            children: [
+              _tableHeaderCell(AppStrings.aircraftHeader),
+              _tableHeaderCell(AppStrings.classHeader),
+              _tableHeaderCell(AppStrings.rangeHeader),
+              _tableHeaderCell(AppStrings.seatsHeader),
+              _tableHeaderCell(AppStrings.burnHeader),
+              _tableHeaderCell(AppStrings.pricingHeader),
+              _tableHeaderCell(AppStrings.actionsHeader),
+            ],
+          ),
+          ...catalog.map((model) {
+            return TableRow(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
+                ),
+              ),
+              children: [
+                _tableCell(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        model.modelName,
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxs - 2),
+                      Text(
+                        model.manufacturer.toUpperCase(),
+                        style: AppTypography.badgeText.copyWith(
+                          color: AppTheme.textSecondary,
+                          fontSize: 9,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _tableCell(
+                  Text(
+                    model.type.replaceAll('_', ' ').toUpperCase(),
+                    style: AppTypography.badgeText.copyWith(
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ),
+                _tableCell(
+                  Text(
+                    '${model.rangeKm} KM',
+                    style: AppTypography.badgeText.copyWith(
+                      color: AppTheme.textPrimary,
+                      letterSpacing: 0.0,
+                    ),
+                  ),
+                ),
+                _tableCell(
+                  Text(
+                    '${model.capacity} PAX',
+                    style: AppTypography.badgeText.copyWith(
+                      color: AppTheme.textPrimary,
+                      letterSpacing: 0.0,
+                    ),
+                  ),
+                ),
+                _tableCell(
+                  Text(
+                    '${model.fuelBurnPerKm} L/KM',
+                    style: AppTypography.badgeText.copyWith(
+                      color: AppTheme.textPrimary,
+                      letterSpacing: 0.0,
+                    ),
+                  ),
+                ),
+                _tableCell(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Lease ${currencyFormat.format(model.leasePricePerMonth)}/mo',
+                        style: AppTypography.badgeText.copyWith(
+                          color: AppTheme.textPrimary,
+                          letterSpacing: 0.0,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        'Buy ${currencyFormat.format(model.purchasePrice)}',
+                        style: AppTypography.badgeText.copyWith(
+                          color: AppTheme.primary,
+                          letterSpacing: 0.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _tableCell(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AppTableIconAction(
+                        tooltip: AppStrings.leaseAircraftTooltip,
+                        icon: Icons.schedule,
+                        onPressed: isActionLoading
+                            ? null
+                            : () => _showAcquireSeatConfigDialog(
+                                context,
+                                model,
+                                userId,
+                                true,
+                              ),
+                      ),
+                      const SizedBox(width: 8),
+                      AppTableIconAction(
+                        tooltip: AppStrings.buyAircraftTooltip,
+                        icon: Icons.shopping_cart_checkout,
+                        onPressed: isActionLoading
+                            ? null
+                            : () => _showAcquireSeatConfigDialog(
+                                context,
+                                model,
+                                userId,
+                                false,
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCatalogCard(
+    BuildContext context,
+    AircraftModel model,
+    String userId,
+    NumberFormat currencyFormat,
+    bool isActionLoading,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        border: Border.all(color: AppTheme.surfaceSubtle, width: 1.0),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                model.type.replaceAll('_', ' ').toUpperCase(),
+                style: AppTypography.badgeText.copyWith(
+                  color: AppTheme.primary,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              Text(
+                '${model.fuelBurnPerKm} L/KM',
+                style: AppTypography.badgeText.copyWith(
+                  color: AppTheme.textSecondary,
+                  letterSpacing: 0.0,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(model.modelName, style: AppTypography.screenTitleMedium),
+          Text(
+            model.manufacturer.toUpperCase(),
+            style: AppTypography.badgeText.copyWith(
+              color: AppTheme.textSecondary,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              AppLabeledValue(
+                label: AppStrings.rangeHeader,
+                value: '${model.rangeKm} KM',
+              ),
+              AppLabeledValue(
+                label: AppStrings.capacitySubtitlePrefix,
+                value: '${model.capacity} PAX',
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Divider(color: AppTheme.surfaceSubtle),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildStatItem(
+                AppStrings.leaseRateLabel,
+                '${currencyFormat.format(model.leasePricePerMonth)}/mo',
+                isHighlight: true,
+              ),
+              _buildStatItem(
+                AppStrings.acquisitionValueLabel,
+                currencyFormat.format(model.purchasePrice),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: AppButton(
+                  text: AppStrings.confirmLease,
+                  onPressed: isActionLoading
+                      ? null
+                      : () => _showAcquireSeatConfigDialog(
+                          context,
+                          model,
+                          userId,
+                          true,
+                        ),
+                  type: AppButtonType.secondary,
+                  height: 44,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: AppButton(
+                  text: AppStrings.confirmBuy,
+                  onPressed: isActionLoading
+                      ? null
+                      : () => _showAcquireSeatConfigDialog(
+                          context,
+                          model,
+                          userId,
+                          false,
+                        ),
+                  type: AppButtonType.primary,
+                  height: 44,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ATOMIC SEAT CONFIGURATION AND ACQUISITION FLOW (Pillar 3, Item 3: No Naming prompt, Seat Config first)
+  void _showAcquireSeatConfigDialog(
+    BuildContext context,
+    AircraftModel model,
+    String userId,
+    bool isLease,
+  ) {
+    final fleetCubit = context.read<FleetCubit>();
+    final simCubit = context.read<SimulationCubit>();
+    int economy = model.capacity; // Default to max economy
+    int business = 0;
+    int firstClass = 0;
+    final int capacity = model.capacity;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final int occupiedSlots =
+                (economy * 1) + (business * 2) + (firstClass * 3);
+            final bool isValid = occupiedSlots <= capacity;
+            final int remainingSlots = capacity - occupiedSlots;
+
+            return AppDialogShell(
+              title: isLease
+                  ? AppStrings.leaseAirframeAndConfigureCabin
+                  : AppStrings.commissionAirframeAndConfigureCabin,
+              subtitle:
+                  '${AppStrings.aircraftSubtitlePrefix}: ${model.manufacturer.toUpperCase()} ${model.modelName} (${AppStrings.capacitySubtitlePrefix}: $capacity PAX)',
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isLease
+                        ? '${AppStrings.leaseDownPaymentPrefix}${_currencyFormat.format(model.leasePricePerMonth)}${AppStrings.leaseDownPaymentSuffix}'
+                        : '${AppStrings.purchaseDeductionPrefix}${_currencyFormat.format(model.purchasePrice)}${AppStrings.purchaseDeductionSuffix}',
+                    style: AppTypography.captionRegular.copyWith(
+                      color: AppTheme.textMuted,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Divider(color: AppTheme.surfaceSubtle),
+                  const SizedBox(height: AppSpacing.md),
+
+                  Text(
+                    AppStrings.realisticSpaceConfiguration.toUpperCase(),
+                    style: AppTypography.badgeText.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    AppStrings.realisticSpaceConfigurationDesc,
+                    style: AppTypography.captionRegular.copyWith(
+                      color: AppTheme.textMuted,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  _buildSeatAdjustmentRow(
+                    ctx,
+                    AppStrings.economyClassSlots,
+                    economy,
+                    (val) {
+                      setDialogState(() {
+                        economy = val;
+                      });
+                    },
+                    maxPossible: capacity,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSeatAdjustmentRow(
+                    ctx,
+                    AppStrings.businessClassSlots,
+                    business,
+                    (val) {
+                      setDialogState(() {
+                        business = val;
+                      });
+                    },
+                    maxPossible: (capacity / 2).floor(),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSeatAdjustmentRow(
+                    ctx,
+                    AppStrings.firstClassSlots,
+                    firstClass,
+                    (val) {
+                      setDialogState(() {
+                        firstClass = val;
+                      });
+                    },
+                    maxPossible: (capacity / 3).floor(),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Slots progress bar
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        AppStrings.totalSlotAllocation,
+                        style: AppTypography.badgeText.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        '$occupiedSlots / $capacity ${AppStrings.slotsSuffix}',
+                        style: AppTypography.badgeText.copyWith(
+                          color: isValid ? AppTheme.success : AppTheme.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 8,
+                    width: double.infinity,
+                    decoration: BoxDecoration(color: AppTheme.background),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: (occupiedSlots / capacity).clamp(0.0, 1.0),
+                      child: Container(
+                        color: isValid ? AppTheme.success : AppTheme.error,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (!isValid)
+                    Text(
+                      '${AppStrings.slotsExceededPrefix}${occupiedSlots - capacity}${AppStrings.slotsExceededSuffix}',
+                      style: AppTypography.badgeText.copyWith(
+                        color: AppTheme.error,
+                      ),
+                    )
+                  else
+                    Text(
+                      '${AppStrings.slotsRemainingPrefix}$remainingSlots${AppStrings.slotsRemainingSuffix}',
+                      style: AppTypography.badgeText.copyWith(
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                ],
+              ),
+              actions: Row(
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      text: AppStrings.cancelLabel,
+                      onPressed: () => Navigator.pop(dialogCtx),
+                      type: AppButtonType.secondary,
+                      height: 40,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: AppButton(
+                      text: isLease
+                          ? AppStrings.leaseAirframe
+                          : AppStrings.commissionAirframe,
+                      onPressed: !isValid
+                          ? null
+                          : () async {
+                              Navigator.pop(dialogCtx);
+                              if (isLease) {
+                                await fleetCubit.leaseAircraft(
+                                  userId: userId,
+                                  modelId: model.id,
+                                  nickname: model.modelName,
+                                  economy: economy,
+                                  business: business,
+                                  firstClass: firstClass,
+                                  onBalanceChanged: (newCash) {
+                                    simCubit.applyImmediateCashBalance(newCash);
+                                    final authState = context
+                                        .read<AuthCubit>()
+                                        .state;
+                                    if (authState is AuthAuthenticated) {
+                                      context
+                                          .read<AuthCubit>()
+                                          .updateActiveUser(
+                                            authState.user.copyWith(
+                                              cashBalance: newCash,
+                                            ),
+                                          );
+                                    }
+                                  },
+                                );
+                              } else {
+                                await fleetCubit.purchaseAircraft(
+                                  userId: userId,
+                                  modelId: model.id,
+                                  nickname: model.modelName,
+                                  economy: economy,
+                                  business: business,
+                                  firstClass: firstClass,
+                                  onBalanceChanged: (newCash) {
+                                    simCubit.applyImmediateCashBalance(newCash);
+                                    final authState = context
+                                        .read<AuthCubit>()
+                                        .state;
+                                    if (authState is AuthAuthenticated) {
+                                      context
+                                          .read<AuthCubit>()
+                                          .updateActiveUser(
+                                            authState.user.copyWith(
+                                              cashBalance: newCash,
+                                            ),
+                                          );
+                                    }
+                                  },
+                                );
+                              }
+                            },
+                      type: AppButtonType.primary,
+                      height: 40,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmRepair(
+    BuildContext context,
+    UserFleetAircraft aircraft,
+    String userId,
+    NumberFormat currencyFormat,
+  ) {
+    final simCubit = context.read<SimulationCubit>();
+    final fleetCubit = context.read<FleetCubit>();
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return AppDialogShell(
+          title: AppStrings.performMaintenance,
+          content: Text(
+            '${AppStrings.repairConfirmPrefix}${aircraft.tailNumber}${AppStrings.repairConfirmMiddle}${aircraft.model.modelName}${AppStrings.repairConfirmSuffix}${currencyFormat.format(aircraft.repairCost)}${AppStrings.repairConfirmCostSuffix}',
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          actions: Row(
+            children: [
+              Expanded(
+                child: AppButton(
+                  text: AppStrings.cancelLabel,
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  type: AppButtonType.secondary,
+                  height: 40,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: AppButton(
+                  text: AppStrings.performMaintenance,
+                  onPressed: () async {
+                    Navigator.pop(dialogCtx);
+                    await fleetCubit.repairAircraft(
+                      userId: userId,
+                      fleetId: aircraft.id,
+                      onBalanceChanged: (newCash) {
+                        simCubit.applyImmediateCashBalance(newCash);
+                        final authState = context.read<AuthCubit>().state;
+                        if (authState is AuthAuthenticated) {
+                          context.read<AuthCubit>().updateActiveUser(
+                            authState.user.copyWith(cashBalance: newCash),
+                          );
+                        }
+                      },
+                    );
+                  },
+                  type: AppButtonType.primary,
+                  height: 40,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDisposalIconAction({
+    required BuildContext context,
+    required UserFleetAircraft aircraft,
+    required String userId,
+    required NumberFormat currencyFormat,
+    required bool isAssigned,
+    required bool isActionLoading,
+  }) {
+    final isLease = aircraft.acquisitionType == 'lease';
+    return AppTableIconAction(
+      tooltip: isAssigned
+          ? AppStrings.disposeUnavailableTooltip
+          : (isLease
+                ? AppStrings.terminateLeaseTooltip
+                : AppStrings.sellAircraftTooltip),
+      icon: isLease ? Icons.assignment_return_outlined : Icons.sell_outlined,
+      onPressed: isActionLoading || isAssigned
+          ? null
+          : () => _confirmDisposal(
+              context,
+              aircraft,
+              userId,
+              currencyFormat,
+              isAssigned,
+            ),
+    );
+  }
+
+  void _confirmDisposal(
+    BuildContext context,
+    UserFleetAircraft aircraft,
+    String userId,
+    NumberFormat currencyFormat,
+    bool isAssigned,
+  ) {
+    if (isAssigned) {
+      AppSnackBar.showError(context, AppStrings.disposalAssignedWarning);
+      return;
+    }
+
+    final isLease = aircraft.acquisitionType == 'lease';
+    final simCubit = context.read<SimulationCubit>();
+    final fleetCubit = context.read<FleetCubit>();
+    final exposureAmount = isLease
+        ? aircraft.leaseTerminationFee
+        : aircraft.estimatedSaleValue;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return AppDialogShell(
+          title: isLease
+              ? AppStrings.terminateLeaseTitle
+              : AppStrings.sellAircraftTitle,
+          titleColor: isLease ? AppTheme.warning : AppTheme.primary,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isLease
+                    ? '${AppStrings.terminateLeaseConfirmPrefix}${aircraft.tailNumber}${AppStrings.terminateLeaseConfirmMiddle}${aircraft.model.modelName}${AppStrings.terminateLeaseConfirmSuffix}${currencyFormat.format(exposureAmount)}${AppStrings.disposalFinalLine}'
+                    : '${AppStrings.sellAircraftConfirmPrefix}${aircraft.tailNumber}${AppStrings.sellAircraftConfirmMiddle}${aircraft.model.modelName}${AppStrings.sellAircraftConfirmSuffix}${currencyFormat.format(exposureAmount)}${AppStrings.disposalFinalLine}',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              AppInfoStrip(
+                backgroundColor: AppTheme.background,
+                child: Wrap(
+                  spacing: AppSpacing.lg,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    AppLabeledValue(
+                      label: isLease
+                          ? AppStrings.terminationFeeLabel
+                          : AppStrings.saleProceedsLabel,
+                      value: currencyFormat.format(exposureAmount),
+                      valueColor: isLease ? AppTheme.warning : AppTheme.success,
+                    ),
+                    AppLabeledValue(
+                      label: AppStrings.assignedFleetLabel,
+                      value: AppStrings.idleFleetLabel,
+                      valueColor: AppTheme.success,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: Row(
+            children: [
+              Expanded(
+                child: AppButton(
+                  text: AppStrings.cancelLabel,
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  type: AppButtonType.secondary,
+                  height: 40,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: AppButton(
+                  text: isLease
+                      ? AppStrings.confirmLeaseTermination
+                      : AppStrings.confirmSale,
+                  onPressed: () async {
+                    Navigator.pop(dialogCtx);
+                    if (isLease) {
+                      await fleetCubit.terminateLease(
+                        userId: userId,
+                        fleetId: aircraft.id,
+                        onBalanceChanged: (newCash) {
+                          simCubit.applyImmediateCashBalance(newCash);
+                          final authState = context.read<AuthCubit>().state;
+                          if (authState is AuthAuthenticated) {
+                            context.read<AuthCubit>().updateActiveUser(
+                              authState.user.copyWith(cashBalance: newCash),
+                            );
+                          }
+                        },
+                      );
+                    } else {
+                      await fleetCubit.sellAircraft(
+                        userId: userId,
+                        fleetId: aircraft.id,
+                        onBalanceChanged: (newCash) {
+                          simCubit.applyImmediateCashBalance(newCash);
+                          final authState = context.read<AuthCubit>().state;
+                          if (authState is AuthAuthenticated) {
+                            context.read<AuthCubit>().updateActiveUser(
+                              authState.user.copyWith(cashBalance: newCash),
+                            );
+                          }
+                        },
+                      );
+                    }
+                  },
+                  type: AppButtonType.primary,
+                  height: 40,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // WIDGET HELPERS
+
+  Widget _buildAcquisitionBadge(String type) {
+    final isLease = type == 'lease';
+    return isLease
+        ? AppBadge.warning(label: AppStrings.leasedStatus)
+        : AppBadge.primary(label: AppStrings.ownedStatus);
+  }
+
+  Widget _buildWearConditionCell(double condition) {
+    Color barColor;
+    if (condition >= 75.0) {
+      barColor = AppTheme.success;
+    } else if (condition >= 50.0) {
+      barColor = AppTheme.warning;
+    } else {
+      barColor = AppTheme.error;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          '${condition.toStringAsFixed(1)}%',
+          style: AppTypography.badgeText.copyWith(
+            color: barColor,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          width: 72,
+          height: 3,
+          color: AppTheme.background,
+          alignment: Alignment.centerLeft,
+          child: Container(
+            width: 72 * (condition / 100.0),
+            height: 3,
+            color: barColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusBadge(String status, bool isGrounded) {
+    if (isGrounded) {
+      return AppBadge.error(label: AppStrings.groundedState);
+    } else if (status == 'active') {
+      return AppBadge.success(label: AppStrings.activeState);
+    } else {
+      return AppBadge.warning(label: AppStrings.maintenanceState);
+    }
+  }
+
+  Widget _buildStatItem(
+    String label,
+    String value, {
+    bool isHighlight = false,
+  }) {
+    return AppLabeledValue(label: label, value: value, emphasize: isHighlight);
+  }
+
+  // HELPER DATA EXTRACTIONS
+
+  bool _isEmptyState(FleetState state) {
+    if (state is FleetDataState) return state.fleet.isEmpty;
+    return true;
+  }
+
+  List<UserFleetAircraft> _getFleetList(FleetState state) {
+    if (state is FleetDataState) return state.fleet;
+    return [];
+  }
+
+  List<AircraftModel> _getCatalogList(FleetState state) {
+    if (state is FleetDataState) return state.catalog;
+    return [];
+  }
+
+  Widget _tableHeaderCell(String label) {
+    return AppTableHeaderCell(label: label, color: AppTheme.textSecondary);
+  }
+
+  Widget _tableCell(Widget child) {
+    return AppTableBodyCell(child: child);
+  }
+}
