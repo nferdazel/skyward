@@ -475,18 +475,11 @@ class _AuthenticatedDashboardShellState
             backgroundColor: AppTheme.surface,
             selectedItemColor: AppTheme.primary,
             unselectedItemColor: AppTheme.textSecondary,
-            selectedLabelStyle: AppTypography.badgeText.copyWith(
-              letterSpacing: 0.8,
-            ),
-            unselectedLabelStyle: AppTypography.badgeText.copyWith(
-              letterSpacing: 0.6,
-              fontWeight: FontWeight.normal,
-            ),
             items: List.generate(
               navItems.length,
               (index) => BottomNavigationBarItem(
                 icon: Icon(navIcons[index], size: 18),
-                label: navItems[index],
+                label: '',
               ),
             ),
           );
