@@ -177,7 +177,6 @@ class SimulationCubit extends Cubit<SimulationState>
       // 1. Ask Supabase to reconcile this actor to the shared world clock.
       final List<dynamic> response = await SupabaseManager.client.rpc(
         'process_simulation_delta',
-        params: {'p_user_id': userId},
       );
 
       double elapsedGameDays = 0.0;

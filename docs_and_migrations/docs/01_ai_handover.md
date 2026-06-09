@@ -54,8 +54,11 @@ Security migration note:
 - Security Phase 2 adds an `auth.users` bootstrap trigger and a server-side
   username registration surface that creates auto-confirmed synthetic-email
   auth identities.
-- The live Flutter/runtime flow still uses the custom session RPCs until the
-  later cutover phases complete.
+- Security Phase 3 switches the Flutter auth flow to Supabase Auth sessions,
+  while preserving the username-only UX through synthetic emails.
+- Security Phase 4 starts moving client-facing gameplay RPCs onto auth-bound
+  wrappers that resolve the player row from `auth.uid()` instead of trusting
+  `p_user_id` from the client.
 
 ## Current time authority
 

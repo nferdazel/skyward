@@ -329,10 +329,9 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
     }
   }
 
-  Future<Map<String, dynamic>> _fetchSnapshotMap(String userId) async {
+  Future<Map<String, dynamic>> _fetchSnapshotMap(String unusedUserId) async {
     final snapshotResponse = await SupabaseManager.client.rpc(
       'get_finance_snapshot',
-      params: {'p_id': userId, 'p_is_bot': false},
     );
     if (snapshotResponse is List<dynamic> && snapshotResponse.isNotEmpty) {
       return snapshotResponse.first as Map<String, dynamic>;

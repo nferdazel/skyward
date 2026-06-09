@@ -357,7 +357,6 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
       final List<dynamic> response = await SupabaseManager.client.rpc(
         'create_route',
         params: {
-          'p_user_id': userId,
           'p_origin_iata': originIata,
           'p_destination_iata': destinationIata,
           'p_distance_km': distanceKm,
@@ -491,7 +490,6 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
       final List<dynamic> response = await SupabaseManager.client.rpc(
         'assign_aircraft_to_route',
         params: {
-          'p_user_id': userId,
           'p_route_id': routeId,
           'p_aircraft_id': aircraftId,
         },
@@ -609,7 +607,6 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
       final List<dynamic> response = await SupabaseManager.client.rpc(
         'update_route_frequency_and_price',
         params: {
-          'p_user_id': userId,
           'p_route_id': routeId,
           'p_ticket_price': ticketPrice,
           'p_flights_per_week': flightsPerWeek,
@@ -717,7 +714,7 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
 
       final List<dynamic> response = await SupabaseManager.client.rpc(
         'delete_route',
-        params: {'p_user_id': userId, 'p_route_id': routeId},
+        params: {'p_route_id': routeId},
       );
 
       final result = response.isNotEmpty

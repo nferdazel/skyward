@@ -25,6 +25,9 @@ This is the live Flutter-to-Supabase contract surface.
 - current behavior:
   - validates the session token without mutating simulation time state
   - leaves world-clock reconciliation to backend tick/sync RPCs
+- transition note:
+  - legacy compatibility RPC retained in SQL, but no longer used by the
+    current Flutter auth flow after Security Phase 3
 
 `register_company`
 - caller: `AuthCubit.register()`
@@ -42,6 +45,7 @@ This is the live Flutter-to-Supabase contract surface.
     Auth cutover
   - Security Phase 2 added the backend auth bootstrap flow that will replace
     this RPC during the Flutter auth cutover
+  - Security Phase 3 no longer uses this RPC from Flutter
 
 `login_company`
 - caller: `AuthCubit.login()`
@@ -56,11 +60,11 @@ This is the live Flutter-to-Supabase contract surface.
   - creates a session token without mutating simulation time state
   - leaves world-clock reconciliation to backend tick/sync RPCs
 - transition note:
-  - still active today, but planned to be replaced by Supabase Auth sessions
-    tied to `users.auth_user_id`
+  - legacy compatibility RPC retained in SQL, but no longer used by the
+    current Flutter auth flow after Security Phase 3
 
 `register-with-username` Edge Function
-- caller: planned Flutter auth registration flow
+- caller: `AuthCubit.register()` through `SupabaseAuthGateway`
 - input body:
   - `username`
   - `password`
@@ -78,12 +82,14 @@ This is the live Flutter-to-Supabase contract surface.
 `process_simulation_delta`
 - caller: `SimulationCubit.syncWithDatabase()`
 - params:
-  - `p_user_id`
+  - none from Flutter after Security Phase 4
 - expected:
   - first row may include:
     - `elapsed_game_days`
     - `flights_run`
 - current behavior:
+  - Flutter now calls an auth-bound wrapper that resolves the player row from
+    `auth.uid()` and forwards to the legacy UUID-based implementation
   - compatibility sync surface for Flutter
   - ensures the active season clock is current
   - processes the player from `users.game_current_time` to
@@ -167,9 +173,9 @@ This is the live Flutter-to-Supabase contract surface.
 `get_finance_snapshot`
 - caller: `FinanceCubit.loadLedger()`
 - params:
-  - `p_id`
-  - `p_is_bot`
+  - none from Flutter after Security Phase 4
 - current behavior:
+  - Flutter now calls an auth-bound wrapper for the current human player
   - returns current balance-sheet values (`cash`, `net_worth`)
   - returns owned-aircraft asset value and leased monthly exposure
   - returns fleet count and deployed-route footprint

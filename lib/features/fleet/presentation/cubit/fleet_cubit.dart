@@ -228,7 +228,6 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
       final List<dynamic> response = await SupabaseManager.client.rpc(
         'purchase_aircraft',
         params: {
-          'p_user_id': userId,
           'p_model_id': modelId,
           'p_nickname': nickname,
           'p_economy_seats': economy,
@@ -382,7 +381,6 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
       final List<dynamic> response = await SupabaseManager.client.rpc(
         'lease_aircraft',
         params: {
-          'p_user_id': userId,
           'p_model_id': modelId,
           'p_nickname': nickname,
           'p_economy_seats': economy,
@@ -529,7 +527,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
 
       final List<dynamic> response = await SupabaseManager.client.rpc(
         'repair_aircraft',
-        params: {'p_user_id': userId, 'p_fleet_id': fleetId},
+        params: {'p_fleet_id': fleetId},
       );
 
       if (response.isNotEmpty) {
@@ -674,7 +672,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
 
       final List<dynamic> response = await SupabaseManager.client.rpc(
         'sell_aircraft',
-        params: {'p_user_id': userId, 'p_fleet_id': fleetId},
+        params: {'p_fleet_id': fleetId},
       );
 
       final result = response.isNotEmpty
@@ -799,7 +797,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
 
       final List<dynamic> response = await SupabaseManager.client.rpc(
         'terminate_aircraft_lease',
-        params: {'p_user_id': userId, 'p_fleet_id': fleetId},
+        params: {'p_fleet_id': fleetId},
       );
 
       final result = response.isNotEmpty
@@ -926,7 +924,6 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
       final List<dynamic> response = await SupabaseManager.client.rpc(
         'configure_aircraft_seats',
         params: {
-          'p_user_id': userId,
           'p_fleet_id': aircraftId,
           'p_economy_seats': economy,
           'p_business_seats': business,

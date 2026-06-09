@@ -128,7 +128,6 @@ class SettingsCubit extends Cubit<SettingsState> {
         final List<dynamic> response = await SupabaseManager.client.rpc(
           'save_airline_settings',
           params: {
-            'p_user_id': userId,
             'p_company_name': companyName,
             'p_auto_grounding_threshold': autoGroundingThreshold,
             'p_hq_airport_iata': hqAirportIata,
@@ -170,7 +169,6 @@ class SettingsCubit extends Cubit<SettingsState> {
       if (!DevModeManager.isDevMode) {
         final List<dynamic> response = await SupabaseManager.client.rpc(
           'reset_user_airline',
-          params: {'p_user_id': userId},
         );
         if (response.isNotEmpty) {
           final result = response[0] as Map<String, dynamic>;

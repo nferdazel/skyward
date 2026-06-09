@@ -82,6 +82,12 @@ Security Phase 2 note:
 - the planned username-only auth UX depends on synthetic auth emails and
   server-side auto-confirmed auth user creation
 
+Security Phase 3/4 note:
+- Flutter auth now restores and destroys real Supabase Auth sessions instead of
+  custom `sessions` tokens
+- client-facing gameplay and finance RPCs are moving to auth-bound wrappers
+  that resolve `public.users.id` from `auth.uid()`
+
 ### `sessions`
 Custom auth sessions used by the app login flow.
 
