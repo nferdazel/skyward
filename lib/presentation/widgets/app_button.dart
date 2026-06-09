@@ -32,7 +32,7 @@ class AppButton extends StatelessWidget {
     final isPrimary = type == AppButtonType.primary;
 
     Color getBgColor() {
-      if (!isEnabled) return AppTheme.surfaceSubtle;
+      if (!isEnabled) return AppTheme.border;
       return isPrimary ? AppTheme.primary : Colors.transparent;
     }
 
@@ -43,7 +43,7 @@ class AppButton extends StatelessWidget {
 
     Border? getBorder() {
       if (isPrimary) return null;
-      final borderColor = isEnabled ? AppTheme.primary : AppTheme.surfaceSubtle;
+      final borderColor = isEnabled ? AppTheme.primary : AppTheme.border;
       return Border.all(color: borderColor, width: 1.0);
     }
 
@@ -52,10 +52,15 @@ class AppButton extends StatelessWidget {
       height: height,
       child: InkWell(
         onTap: isEnabled ? onPressed : null,
+        borderRadius: BorderRadius.circular(4),
         child: Container(
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: getBgColor(), border: getBorder()),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: getBgColor(),
+            borderRadius: BorderRadius.circular(4),
+            border: getBorder(),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           child: isLoading
               ? SizedBox(
                   width: 20,
@@ -71,7 +76,7 @@ class AppButton extends StatelessWidget {
                   children: [
                     if (icon != null) ...[
                       Icon(icon, size: 18, color: getTextColor()),
-                      const SizedBox(width: AppSpacing.xs),
+                      const SizedBox(width: AppSpacing.sm),
                     ],
                     Flexible(
                       child: Text(

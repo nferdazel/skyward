@@ -271,7 +271,7 @@ class _AuthenticatedDashboardShellState
           Expanded(
             child: Row(
               children: [
-                DashboardSidebar(scale: scale),
+                const DashboardSidebar(),
                 Expanded(
                   child: Column(
                     children: [
@@ -288,7 +288,6 @@ class _AuthenticatedDashboardShellState
                             simState: simState,
                             currencyFormat: currencyFormat,
                             dateFormat: dateFormat,
-                            scale: scale,
                           );
                         },
                       ),

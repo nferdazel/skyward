@@ -12,18 +12,12 @@ import '../../../../presentation/widgets/app_card.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
 import '../../../finance/presentation/cubit/finance_cubit.dart';
-import '../../../finance/presentation/cubit/finance_state.dart';
-import '../../../fleet/domain/fleet_models.dart';
 import '../../../fleet/presentation/cubit/fleet_cubit.dart';
-import '../../../fleet/presentation/cubit/fleet_state.dart';
-import '../../../leaderboard/domain/leaderboard_models.dart';
 import '../../../leaderboard/presentation/cubit/leaderboard_cubit.dart';
-import '../../../leaderboard/presentation/cubit/leaderboard_state.dart';
-import '../../../routes/domain/route_models.dart';
 import '../../../routes/presentation/cubit/routes_cubit.dart';
-import '../../../routes/presentation/cubit/routes_state.dart';
 import '../../../simulation/presentation/cubit/simulation_cubit.dart';
 import '../../../simulation/presentation/cubit/simulation_state.dart';
+import '../../domain/overview_snapshot.dart';
 
 class OverviewTab extends StatelessWidget {
   final VoidCallback onNavigateToFleet;
@@ -55,404 +49,301 @@ class OverviewTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _OverviewHeaderSection(user: user, host: this, overview: overview),
+          // Region 1: Identity + Cash Band
+          _buildIdentityCashBand(context, user, simState, currencyFormat, overview),
           const SizedBox(height: AppSpacing.sectionGap),
-          _OverviewSummarySection(
-            currencyFormat: currencyFormat,
-            host: this,
-            simState: simState,
-            overview: overview,
-          ),
-          const SizedBox(height: AppSpacing.sectionGap),
+          // Region 2: Health KPIs + Risk Signals
           ResponsiveLayout(
             desktopBody: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: _OverviewRouteRiskSection(
-                    currencyFormat: currencyFormat,
-                    host: this,
-                    overview: overview,
-                  ),
+                  flex: 3,
+                  child: _buildHealthKPIs(context, overview),
                 ),
                 const SizedBox(width: AppSpacing.xl),
                 Expanded(
-                  child: _OverviewActionQueueSection(
-                    host: this,
-                    overview: overview,
-                  ),
+                  flex: 2,
+                  child: _buildRiskSignals(context, overview, currencyFormat),
                 ),
               ],
             ),
             mobileBody: Column(
               children: [
-                _OverviewRouteRiskSection(
-                  currencyFormat: currencyFormat,
-                  host: this,
-                  overview: overview,
-                ),
+                _buildHealthKPIs(context, overview),
                 const SizedBox(height: AppSpacing.sectionGap),
-                _OverviewActionQueueSection(host: this, overview: overview),
+                _buildRiskSignals(context, overview, currencyFormat),
               ],
             ),
           ),
+          const SizedBox(height: AppSpacing.sectionGap),
+          // Region 3: Quick Actions
+          _buildQuickActions(context),
         ],
       ),
     );
   }
 
-  Widget _buildCEOHeaderCard(
+  // Region 1: Identity + Cash Band
+  Widget _buildIdentityCashBand(
     BuildContext context,
     dynamic user,
-    _OverviewSnapshot overview,
-  ) {
-    return AppCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(user.companyName, style: AppTypography.screenTitleLarge),
-          Text(
-            '${AppStrings.ceoPrefix}: ${user.ceoName}',
-            style: AppTypography.captionRegular.copyWith(
-              color: AppTypography.textSecondary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.xxs,
-            children: [
-              _buildHeaderChip(
-                AppStrings.fleetReadyLabel,
-                '${overview.readyFleetCount}${AppStrings.airframesSuffix}',
-                AppTheme.success,
-              ),
-              _buildHeaderChip(
-                AppStrings.activeRoutesLabel,
-                '${overview.activeRoutes}${AppStrings.routesSuffix}',
-                AppTheme.primary,
-              ),
-              _buildHeaderChip(
-                AppStrings.weeklySlackHoursLabel,
-                '${overview.totalSlackHours.toStringAsFixed(1)}${AppStrings.hoursPerWeekSuffix}',
-                AppTheme.info,
-              ),
-              _buildHeaderChip(
-                AppStrings.operationalStatusLabel,
-                overview.operationalStatus,
-                overview.operationalStatusColor,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsSummaryGrid(
-    BuildContext context,
     SimulationState simState,
     NumberFormat currencyFormat,
-    _OverviewSnapshot overview,
-  ) {
-    return ResponsiveLayout(
-      desktopBody: Row(
-        children: [
-          Expanded(
-            child: _buildHUDMetricCard(
-              context,
-              AppStrings.liquidityPositionLabel,
-              currencyFormat.format(simState.cashBalance),
-              AppTheme.success,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.blockGap),
-          Expanded(
-            child: _buildHUDMetricCard(
-              context,
-              AppStrings.runwayEstimateLabel,
-              overview.runwayLabel,
-              overview.runwayColor,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.blockGap),
-          Expanded(
-            child: _buildHUDMetricCard(
-              context,
-              AppStrings.fleetReadyLabel,
-              '${overview.readyFleetCount}/${overview.totalFleetCount}',
-              AppTheme.info,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.blockGap),
-          Expanded(
-            child: _buildHUDMetricCard(
-              context,
-              AppStrings.networkPressureLabel,
-              '${overview.riskyRoutes}/${overview.activeRoutes}',
-              overview.riskyRoutes > 0 ? AppTheme.warning : AppTheme.success,
-            ),
-          ),
-        ],
-      ),
-      mobileBody: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildHUDMetricCard(
-            context,
-            AppStrings.liquidityPositionLabel,
-            currencyFormat.format(simState.cashBalance),
-            AppTheme.success,
-          ),
-          const SizedBox(height: AppSpacing.compactGap),
-          _buildHUDMetricCard(
-            context,
-            AppStrings.runwayEstimateLabel,
-            overview.runwayLabel,
-            overview.runwayColor,
-          ),
-          const SizedBox(height: AppSpacing.compactGap),
-          _buildHUDMetricCard(
-            context,
-            AppStrings.fleetReadyLabel,
-            '${overview.readyFleetCount}/${overview.totalFleetCount}',
-            AppTheme.info,
-          ),
-          const SizedBox(height: AppSpacing.compactGap),
-          _buildHUDMetricCard(
-            context,
-            AppStrings.networkPressureLabel,
-            '${overview.riskyRoutes}/${overview.activeRoutes}',
-            overview.riskyRoutes > 0 ? AppTheme.warning : AppTheme.success,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHUDMetricCard(
-    BuildContext context,
-    String label,
-    String value,
-    Color color,
+    OverviewSnapshot overview,
   ) {
     return AppCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: AppTypography.badgeText.copyWith(
-              color: AppTypography.textSecondary,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            value,
-            style: AppTypography.sectionHeaderLarge.copyWith(
-              color: color,
-              letterSpacing: 0.0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRouteRiskBoard(
-    BuildContext context,
-    _OverviewSnapshot overview,
-    NumberFormat currencyFormat,
-  ) {
-    return AppCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.route_outlined, color: AppTheme.warning, size: 16),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                AppStrings.routeRiskTitle,
-                style: AppTypography.badgeText.copyWith(
-                  color: AppTypography.textPrimary,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Divider(color: AppTheme.surfaceSubtle, height: 1),
-          const SizedBox(height: AppSpacing.md),
-          _buildAdviceItem(
-            context,
-            AppStrings.averageConditionLabel,
-            '${overview.averageCondition.toStringAsFixed(1)}% across active fleet',
-          ),
-          _buildAdviceItem(
-            context,
-            AppStrings.netYieldLabel,
-            currencyFormat.format(overview.netYield),
-          ),
-          _buildAdviceItem(
-            context,
-            AppStrings.idleFleetLabel,
-            '${overview.idleReadyFleetCount}${AppStrings.airframesSuffix} are ready but not assigned',
-          ),
-          _buildAdviceItem(
-            context,
-            AppStrings.topRouteRiskLabel,
-            overview.topRouteRiskLabel,
-          ),
-          _buildAdviceItem(
-            context,
-            AppStrings.competitiveGapLabel,
-            overview.leaderGapLabel,
-          ),
-          _buildAdviceItem(
-            context,
-            AppStrings.operationalStatusLabel,
-            overview.operationalStatus,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAdviceItem(BuildContext context, String topic, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 6,
-            height: 6,
-            margin: const EdgeInsets.only(top: 6, right: AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: AppTheme.primary,
-              shape: BoxShape.circle,
-            ),
-          ),
+          // Company identity
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(user.companyName, style: AppTypography.screenTitleLarge),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
-                  topic,
-                  style: AppTypography.badgeText.copyWith(
-                    color: AppTheme.primary,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  text,
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppTypography.textSecondary,
-                    height: 1.4,
+                  '${AppStrings.ceoPrefix}: ${user.ceoName}',
+                  style: AppTypography.captionRegular.copyWith(
+                    color: AppTheme.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
+          // Operational status chip
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: overview.operationalStatusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: overview.operationalStatusColor.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Text(
+              overview.operationalStatus.toUpperCase(),
+              style: AppTypography.microLabel.copyWith(
+                color: overview.operationalStatusColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xl),
+          // Cash position
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'CASH POSITION',
+                style: AppTypography.microLabel.copyWith(
+                  color: AppTheme.textMuted,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                currencyFormat.format(simState.cashBalance),
+                style: AppTypography.largeKpi.copyWith(
+                  color: AppTheme.success,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildActionQueue(BuildContext context, _OverviewSnapshot overview) {
+  // Region 2 Left: Operational Health KPIs
+  Widget _buildHealthKPIs(BuildContext context, OverviewSnapshot overview) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('OPERATIONAL HEALTH'),
+        const SizedBox(height: AppSpacing.md),
+        _buildKPIRow([
+          _buildKPICard(
+            'FLEET READY',
+            '${overview.readyFleetCount}/${overview.totalFleetCount}',
+            AppTheme.success,
+          ),
+          _buildKPICard(
+            'AVG CONDITION',
+            '${overview.averageCondition.toStringAsFixed(1)}%',
+            overview.averageCondition >= 70 ? AppTheme.success : AppTheme.warning,
+          ),
+          _buildKPICard(
+            'WEEKLY SLACK',
+            '${overview.totalSlackHours.toStringAsFixed(1)}h',
+            AppTheme.info,
+          ),
+        ]),
+        const SizedBox(height: AppSpacing.md),
+        _buildKPIRow([
+          _buildKPICard(
+            'ACTIVE ROUTES',
+            '${overview.activeRoutes}',
+            AppTheme.primary,
+          ),
+          _buildKPICard(
+            'NETWORK PRESSURE',
+            '${overview.riskyRoutes}/${overview.activeRoutes}',
+            overview.riskyRoutes > 0 ? AppTheme.warning : AppTheme.success,
+          ),
+          _buildKPICard(
+            'RUNWAY',
+            overview.runwayLabel,
+            overview.runwayColor,
+          ),
+        ]),
+      ],
+    );
+  }
+
+  // Region 2 Right: Risk & Competitive Signals
+  Widget _buildRiskSignals(
+    BuildContext context,
+    OverviewSnapshot overview,
+    NumberFormat currencyFormat,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('RISK & COMPETITIVE SIGNALS'),
+        const SizedBox(height: AppSpacing.md),
+        _buildSignalItem(
+          'COMPETITIVE GAP',
+          overview.leaderGapLabel,
+          overview.leaderGapColor,
+        ),
+        _buildSignalItem(
+          'TOP ROUTE RISK',
+          overview.topRouteRiskLabel,
+          AppTheme.warning,
+        ),
+        _buildSignalItem(
+          'NET YIELD',
+          currencyFormat.format(overview.netYield),
+          overview.netYield >= 0 ? AppTheme.success : AppTheme.error,
+        ),
+        _buildSignalItem(
+          'IDLE FLEET',
+          '${overview.idleReadyFleetCount} airframes',
+          overview.idleReadyFleetCount > 0 ? AppTheme.warning : AppTheme.success,
+        ),
+      ],
+    );
+  }
+
+  // Region 3: Quick Actions
+  Widget _buildQuickActions(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildActionButton(
+            context,
+            'Manage Fleet',
+            'View and manage your aircraft',
+            onNavigateToFleet,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: _buildActionButton(
+            context,
+            'Manage Routes',
+            'Plan and optimize your network',
+            onNavigateToRoutes,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: AppTypography.sectionHeaderMedium.copyWith(
+        letterSpacing: 0.08,
+      ),
+    );
+  }
+
+  Widget _buildKPIRow(List<Widget> children) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children
+          .expand((child) => [Expanded(child: child), const SizedBox(width: AppSpacing.md)])
+          .toList()
+        ..removeLast(),
+    );
+  }
+
+  Widget _buildKPICard(String label, String value, Color color) {
     return AppCard(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.directions_outlined,
-                color: AppTheme.primary,
-                size: 16,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                AppStrings.actionQueueTitle,
-                style: AppTypography.badgeText.copyWith(
-                  color: AppTypography.textPrimary,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Divider(color: AppTheme.surfaceSubtle, height: 1),
-          const SizedBox(height: AppSpacing.md),
-          if (overview.priorities.isEmpty)
-            Text(
-              AppStrings.noUrgentFailures,
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppTypography.textSecondary,
-                height: 1.5,
-              ),
-            )
-          else
-            ...overview.priorities.map(
-              (priority) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: _buildActionButton(
-                  context,
-                  priority.label,
-                  priority.description,
-                  priority.navigateToFleet
-                      ? onNavigateToFleet
-                      : onNavigateToRoutes,
-                ),
-              ),
+          Text(
+            label,
+            style: AppTypography.microLabel.copyWith(
+              color: AppTheme.textMuted,
             ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            value,
+            style: AppTypography.dataEmphasis.copyWith(
+              color: color,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildHeaderChip(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        border: Border.all(color: color.withValues(alpha: 0.16)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: AppTypography.captionLight.copyWith(
-              color: AppTypography.textSecondary,
-              letterSpacing: 0.4,
+  Widget _buildSignalItem(String label, String value, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: AppCard(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppTypography.microLabel.copyWith(
+                      color: AppTheme.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    value,
+                    style: AppTypography.hudValue.copyWith(
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            value,
-            style: AppTypography.badgeText.copyWith(
-              color: color,
-              letterSpacing: 0.0,
+            Container(
+              width: 4,
+              height: 32,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -465,12 +356,9 @@ class OverviewTab extends StatelessWidget {
   ) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
       child: AppCard(
-        backgroundColor: AppTheme.background,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.sm,
-        ),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Row(
           children: [
             Expanded(
@@ -479,459 +367,44 @@ class OverviewTab extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: AppTypography.badgeText.copyWith(
+                    style: AppTypography.bodyLarge.copyWith(
                       color: AppTheme.primary,
-                      letterSpacing: 0.4,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xs - AppSpacing.xxs),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     description,
                     style: AppTypography.captionRegular.copyWith(
-                      color: AppTypography.textSecondary,
-                      height: 1.4,
+                      color: AppTheme.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            Icon(Icons.arrow_right_alt, color: AppTheme.primary, size: 18),
+            Icon(Icons.arrow_right_alt, color: AppTheme.primary, size: 20),
           ],
         ),
       ),
     );
   }
-}
 
-class _OverviewHeaderSection extends StatelessWidget {
-  final dynamic user;
-  final OverviewTab host;
-  final _OverviewSnapshot overview;
-
-  const _OverviewHeaderSection({
-    required this.user,
-    required this.host,
-    required this.overview,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return host._buildCEOHeaderCard(context, user, overview);
-  }
-}
-
-class _OverviewSummarySection extends StatelessWidget {
-  final NumberFormat currencyFormat;
-  final OverviewTab host;
-  final SimulationState simState;
-  final _OverviewSnapshot overview;
-
-  const _OverviewSummarySection({
-    required this.currencyFormat,
-    required this.host,
-    required this.simState,
-    required this.overview,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return host._buildStatsSummaryGrid(
-      context,
-      simState,
-      currencyFormat,
-      overview,
+  OverviewSnapshot _selectOverviewSnapshot(BuildContext context, dynamic user) {
+    final simState = context.select((SimulationCubit cubit) => cubit.state);
+    final fleetState = context.select((FleetCubit cubit) => cubit.state);
+    final routesState = context.select((RoutesCubit cubit) => cubit.state);
+    final financeState = context.select((FinanceCubit cubit) => cubit.state);
+    final leaderboardState = context.select(
+      (LeaderboardCubit cubit) => cubit.state,
     );
-  }
-}
 
-class _OverviewRouteRiskSection extends StatelessWidget {
-  final NumberFormat currencyFormat;
-  final OverviewTab host;
-  final _OverviewSnapshot overview;
-
-  const _OverviewRouteRiskSection({
-    required this.currencyFormat,
-    required this.host,
-    required this.overview,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return host._buildRouteRiskBoard(context, overview, currencyFormat);
-  }
-}
-
-class _OverviewActionQueueSection extends StatelessWidget {
-  final OverviewTab host;
-  final _OverviewSnapshot overview;
-
-  const _OverviewActionQueueSection({
-    required this.host,
-    required this.overview,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return host._buildActionQueue(context, overview);
-  }
-}
-
-_OverviewSnapshot _selectOverviewSnapshot(BuildContext context, dynamic user) {
-  final simState = context.select((SimulationCubit cubit) => cubit.state);
-  final fleetState = context.select((FleetCubit cubit) => cubit.state);
-  final routesState = context.select((RoutesCubit cubit) => cubit.state);
-  final financeState = context.select((FinanceCubit cubit) => cubit.state);
-  final leaderboardState = context.select(
-    (LeaderboardCubit cubit) => cubit.state,
-  );
-
-  return _OverviewSnapshot.fromStates(
-    user: user,
-    simState: simState,
-    fleetState: fleetState,
-    routesState: routesState,
-    financeState: financeState,
-    leaderboardState: leaderboardState,
-  );
-}
-
-class _OverviewPriority {
-  final String label;
-  final String description;
-  final bool navigateToFleet;
-
-  const _OverviewPriority({
-    required this.label,
-    required this.description,
-    required this.navigateToFleet,
-  });
-}
-
-class _OverviewSnapshot {
-  final int totalFleetCount;
-  final int readyFleetCount;
-  final int groundedCount;
-  final int leasedCount;
-  final int activeRoutes;
-  final int riskyRoutes;
-  final double averageCondition;
-  final double totalSlackHours;
-  final double averageFlightsPerRoute;
-  final double leaseExposure;
-  final double netYield;
-  final bool hasExpenseHistory;
-  final bool revenueCoverageHealthy;
-  final String runwayLabel;
-  final Color runwayColor;
-  final String leaderGapLabel;
-  final Color leaderGapColor;
-  final String avgFlightsPerRouteLabel;
-  final String burnMixLabel;
-  final String operationalStatus;
-  final Color operationalStatusColor;
-  final int consecutiveNegativeDays;
-  final int recoveryStreakDays;
-  final String leadingBotArchetype;
-  final String leadingBotStatus;
-  final int leadingBotFleet;
-  final double leadingBotRevenue;
-  final int idleReadyFleetCount;
-  final int assignedFleetCount;
-  final String topRouteRiskLabel;
-  final String bestRouteYieldLabel;
-  final List<_OverviewPriority> priorities;
-
-  const _OverviewSnapshot({
-    required this.totalFleetCount,
-    required this.readyFleetCount,
-    required this.groundedCount,
-    required this.leasedCount,
-    required this.activeRoutes,
-    required this.riskyRoutes,
-    required this.averageCondition,
-    required this.totalSlackHours,
-    required this.averageFlightsPerRoute,
-    required this.leaseExposure,
-    required this.netYield,
-    required this.hasExpenseHistory,
-    required this.revenueCoverageHealthy,
-    required this.runwayLabel,
-    required this.runwayColor,
-    required this.leaderGapLabel,
-    required this.leaderGapColor,
-    required this.avgFlightsPerRouteLabel,
-    required this.burnMixLabel,
-    required this.operationalStatus,
-    required this.operationalStatusColor,
-    required this.consecutiveNegativeDays,
-    required this.recoveryStreakDays,
-    required this.leadingBotArchetype,
-    required this.leadingBotStatus,
-    required this.leadingBotFleet,
-    required this.leadingBotRevenue,
-    required this.idleReadyFleetCount,
-    required this.assignedFleetCount,
-    required this.topRouteRiskLabel,
-    required this.bestRouteYieldLabel,
-    required this.priorities,
-  });
-
-  static _OverviewSnapshot fromStates({
-    required dynamic user,
-    required SimulationState simState,
-    required FleetState fleetState,
-    required RoutesState routesState,
-    required FinanceState financeState,
-    required LeaderboardState leaderboardState,
-  }) {
-    final fleet = fleetState is FleetDataState
-        ? fleetState.fleet
-        : const <UserFleetAircraft>[];
-    final routes = routesState is RoutesDataState
-        ? routesState.routes
-        : const <UserRoute>[];
-    final finance = financeState is FinanceDataState ? financeState : null;
-    final rankings = leaderboardState is LeaderboardLoaded
-        ? leaderboardState.rankings
-        : const <LeaderboardEntry>[];
-
-    final readyFleet = fleet
-        .where(
-          (f) =>
-              f.status == 'active' &&
-              !f.isMaintenanceGrounded(user.autoGroundingThreshold),
-        )
-        .length;
-    final grounded = fleet
-        .where(
-          (f) =>
-              f.status == 'grounded' ||
-              f.isMaintenanceGrounded(user.autoGroundingThreshold),
-        )
-        .length;
-    final leased = fleet.where((f) => f.acquisitionType == 'lease').length;
-    final assignedFleetIds = routes
-        .map((route) => route.assignedAircraftId)
-        .whereType<String>()
-        .toSet();
-    final idleReadyFleet = fleet
-        .where(
-          (aircraft) =>
-              aircraft.status == 'active' &&
-              !aircraft.isMaintenanceGrounded(user.autoGroundingThreshold) &&
-              !assignedFleetIds.contains(aircraft.id),
-        )
-        .length;
-    final assignedFleetCount = assignedFleetIds.length;
-    final avgCondition = fleet.isEmpty
-        ? 100.0
-        : fleet.map((f) => f.condition).reduce((a, b) => a + b) / fleet.length;
-
-    double slackHours = 0.0;
-    int riskyRoutes = 0;
-    double totalFlights = 0.0;
-    UserRoute? topRiskRoute;
-    double topRiskScore = -1.0;
-    UserRoute? topYieldRoute;
-    double topYieldValue = -999999999.0;
-    for (final route in routes) {
-      totalFlights += route.flightsPerWeek;
-      final preview = route.buildMaintenancePreview(
-        user.autoGroundingThreshold,
-      );
-      final assessment = route.assignedAircraft == null
-          ? null
-          : UserRoute.buildPlanningAssessment(
-              origin: route.origin,
-              destination: route.destination,
-              distanceKm: route.distanceKm,
-              ticketPrice: route.ticketPrice,
-              flightsPerWeek: route.flightsPerWeek,
-              availableAircraft: [route.assignedAircraft!],
-              autoGroundingThreshold: user.autoGroundingThreshold,
-            );
-      if (!preview.requiresAircraftAssignment) {
-        slackHours += preview.maintenanceHoursPerWeek;
-        if (preview.isGrounded || preview.netHealthImpactPercent > 0.0) {
-          riskyRoutes += 1;
-        }
-      } else {
-        riskyRoutes += 1;
-      }
-
-      final riskScore =
-          (preview.requiresAircraftAssignment ? 200.0 : 0.0) +
-          (preview.isGrounded ? 150.0 : 0.0) +
-          preview.netHealthImpactPercent +
-          (route.assignedAircraft == null ? 50.0 : 0.0);
-      if (riskScore > topRiskScore) {
-        topRiskScore = riskScore;
-        topRiskRoute = route;
-      }
-      if (assessment != null && assessment.weeklyContribution > topYieldValue) {
-        topYieldValue = assessment.weeklyContribution;
-        topYieldRoute = route;
-      }
-    }
-
-    final avgFlightsPerRoute = routes.isEmpty
-        ? 0.0
-        : totalFlights / routes.length;
-    final totalExpense = finance?.totalExpense ?? 0.0;
-    final runwayDays = totalExpense > 0
-        ? simState.cashBalance / (totalExpense / 30.0)
-        : null;
-    final runwayLabel = runwayDays == null
-        ? AppStrings.runwayUnknown
-        : '${runwayDays.toStringAsFixed(1)}${AppStrings.daysSuffix}';
-    final runwayColor = runwayDays == null
-        ? AppTheme.info
-        : (runwayDays < 14
-              ? AppTheme.error
-              : (runwayDays < 45 ? AppTheme.warning : AppTheme.success));
-
-    final playerEntry = rankings
-        .where((r) => !r.isBot)
-        .cast<LeaderboardEntry?>()
-        .firstWhere((entry) => entry?.id == user.id, orElse: () => null);
-    final leader = rankings.isNotEmpty ? rankings.first : null;
-    final leaderGap = leader == null || playerEntry == null
-        ? null
-        : (leader.netWorth - playerEntry.netWorth);
-    final leaderGapLabel = leaderGap == null
-        ? AppStrings.loadingLabel
-        : (leaderGap <= 0
-              ? AppStrings.worldLeaderLabel
-              : NumberFormat.compactCurrency(symbol: '\$').format(leaderGap));
-    final leaderGapColor = leaderGap == null
-        ? AppTheme.info
-        : (leaderGap <= 0
-              ? AppTheme.success
-              : (leaderGap > 5000000 ? AppTheme.warning : AppTheme.primary));
-
-    final botLeader = rankings.where((r) => r.isBot).isEmpty
-        ? null
-        : rankings.where((r) => r.isBot).first;
-    final operationalStatus = user.operationalStatus;
-    final operationalStatusColor = switch (operationalStatus) {
-      'Distress' => AppTheme.error,
-      'Maintenance' => AppTheme.warning,
-      'Recovery' => AppTheme.info,
-      _ => AppTheme.success,
-    };
-
-    final priorities = <_OverviewPriority>[];
-    if (operationalStatus == 'Distress') {
-      priorities.add(
-        const _OverviewPriority(
-          label: AppStrings.overviewStabilizeCashAction,
-          description: AppStrings.overviewDistressWarning,
-          navigateToFleet: false,
-        ),
-      );
-    }
-    if (grounded > 0) {
-      priorities.add(
-        const _OverviewPriority(
-          label: AppStrings.overviewRepairFleetAction,
-          description: AppStrings.overviewGroundedWarning,
-          navigateToFleet: true,
-        ),
-      );
-    }
-    if (leased > 0 &&
-        finance != null &&
-        finance.totalLease > finance.totalTicketSales) {
-      priorities.add(
-        const _OverviewPriority(
-          label: AppStrings.overviewTightenLeaseAction,
-          description: AppStrings.overviewLeaseWarning,
-          navigateToFleet: false,
-        ),
-      );
-    }
-    if (riskyRoutes > 0) {
-      priorities.add(
-        const _OverviewPriority(
-          label: AppStrings.overviewReviewPricingAction,
-          description: AppStrings.overviewRouteWarning,
-          navigateToFleet: false,
-        ),
-      );
-    }
-    if (runwayDays != null && runwayDays < 45) {
-      priorities.add(
-        const _OverviewPriority(
-          label: AppStrings.overviewAssignFleetAction,
-          description: AppStrings.overviewRunwayWarning,
-          navigateToFleet: false,
-        ),
-      );
-    }
-    if (operationalStatus == 'Recovery') {
-      priorities.add(
-        const _OverviewPriority(
-          label: AppStrings.overviewProtectRecoveryAction,
-          description: AppStrings.overviewRecoveryWarning,
-          navigateToFleet: false,
-        ),
-      );
-    }
-    if (leaderGap != null && leaderGap > 5000000) {
-      priorities.add(
-        const _OverviewPriority(
-          label: AppStrings.overviewExpandAction,
-          description: AppStrings.overviewLeaderWarning,
-          navigateToFleet: false,
-        ),
-      );
-    }
-
-    final burnMixLabel = finance == null || finance.totalExpense <= 0
-        ? AppStrings.financeNoExpenseHistory
-        : '${((finance.totalLease / finance.totalExpense) * 100).toStringAsFixed(0)}% lease / ${((finance.totalOperations / finance.totalExpense) * 100).toStringAsFixed(0)}% ops';
-
-    return _OverviewSnapshot(
-      totalFleetCount: fleet.length,
-      readyFleetCount: readyFleet,
-      groundedCount: grounded,
-      leasedCount: leased,
-      activeRoutes: routes.length,
-      riskyRoutes: riskyRoutes,
-      averageCondition: avgCondition,
-      totalSlackHours: slackHours,
-      averageFlightsPerRoute: avgFlightsPerRoute,
-      leaseExposure: finance?.totalLease ?? 0.0,
-      netYield: finance?.netProfit ?? 0.0,
-      hasExpenseHistory: totalExpense > 0,
-      revenueCoverageHealthy:
-          finance == null || finance.totalRevenue >= totalExpense,
-      runwayLabel: runwayLabel,
-      runwayColor: runwayColor,
-      leaderGapLabel: leaderGapLabel,
-      leaderGapColor: leaderGapColor,
-      avgFlightsPerRouteLabel: routes.isEmpty
-          ? AppStrings.noRoutesCoverage
-          : '${avgFlightsPerRoute.toStringAsFixed(1)}${AppStrings.perWeekSuffix}',
-      burnMixLabel: burnMixLabel,
-      operationalStatus: operationalStatus,
-      operationalStatusColor: operationalStatusColor,
-      consecutiveNegativeDays: simState.consecutiveNegativeDays,
-      recoveryStreakDays: simState.recoveryStreakDays,
-      leadingBotArchetype: botLeader?.archetype ?? AppStrings.loadingLabel,
-      leadingBotStatus: botLeader?.status ?? AppStrings.loadingLabel,
-      leadingBotFleet: botLeader?.fleetSize ?? 0,
-      leadingBotRevenue: botLeader?.monthlyRevenue ?? 0.0,
-      idleReadyFleetCount: idleReadyFleet,
-      assignedFleetCount: assignedFleetCount,
-      topRouteRiskLabel: topRiskRoute == null
-          ? AppStrings.noRouteRiskLabel
-          : '${topRiskRoute.originIata} ${AppStrings.routeDividerGlyph} ${topRiskRoute.destinationIata}',
-      bestRouteYieldLabel: topYieldRoute == null
-          ? AppStrings.noYieldSignalLabel
-          : '${topYieldRoute.originIata} ${AppStrings.routeDividerGlyph} ${topYieldRoute.destinationIata}',
-      priorities: priorities.take(3).toList(),
+    return OverviewSnapshot.fromStates(
+      user: user,
+      simState: simState,
+      fleetState: fleetState,
+      routesState: routesState,
+      financeState: financeState,
+      leaderboardState: leaderboardState,
     );
   }
 }

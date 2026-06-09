@@ -31,7 +31,7 @@ class AppLabeledValue extends StatelessWidget {
             letterSpacing: 0.6,
           ),
         ),
-        const SizedBox(height: AppSpacing.xxs),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           value,
           style: AppTypography.badgeText.copyWith(

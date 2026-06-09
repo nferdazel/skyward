@@ -256,9 +256,9 @@ class FinanceView extends StatelessWidget {
     return AppCard(
       customBorder: Border(
         top: BorderSide(color: color, width: 2.0),
-        left: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
-        right: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
-        bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
+        left: BorderSide(color: AppTheme.border, width: 1.0),
+        right: BorderSide(color: AppTheme.border, width: 1.0),
+        bottom: BorderSide(color: AppTheme.border, width: 1.0),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -505,10 +505,7 @@ class FinanceView extends StatelessWidget {
   TableRow _buildTableHeaderRow() {
     return TableRow(
       decoration: BoxDecoration(
-        color: AppTheme.surface3,
-        border: Border(
-          bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
-        ),
+        color: AppTheme.surfaceRaised,
       ),
       children: [
         _buildHeaderCell(AppStrings.auditedCategoryHeader),
@@ -538,7 +535,7 @@ class FinanceView extends StatelessWidget {
     return TableRow(
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
+          bottom: BorderSide(color: AppTheme.border, width: 1.0),
         ),
       ),
       children: [
@@ -598,7 +595,7 @@ class FinanceView extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
+          bottom: BorderSide(color: AppTheme.border, width: 1.0),
         ),
       ),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -629,7 +626,7 @@ class FinanceView extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.schedule, size: 12, color: AppTheme.textMuted),
-              const SizedBox(width: AppSpacing.xxs),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 dateFormat.format(entry.gameDate),
                 style: AppTypography.badgeText.copyWith(

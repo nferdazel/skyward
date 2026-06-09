@@ -251,7 +251,7 @@ class _FleetViewState extends State<FleetView>
         children: [
           TableRow(
             decoration: BoxDecoration(
-              color: AppTheme.surfaceSubtle.withValues(alpha: 0.15),
+              color: AppTheme.surfaceRaised,
             ),
             children: [
               _tableHeaderCell(AppStrings.tailHeader),
@@ -271,7 +271,7 @@ class _FleetViewState extends State<FleetView>
             return TableRow(
               decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
+                  bottom: BorderSide(color: AppTheme.border, width: 1.0),
                 ),
               ),
               children: [
@@ -280,7 +280,7 @@ class _FleetViewState extends State<FleetView>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       AppBadge.primary(label: aircraft.tailNumber),
-                      const SizedBox(height: AppSpacing.xs - 2),
+                      const SizedBox(height: AppSpacing.sm - 2),
                       Text(
                         aircraft.nickname.toUpperCase(),
                         style: AppTypography.badgeText.copyWith(
@@ -304,7 +304,7 @@ class _FleetViewState extends State<FleetView>
                           color: AppTypography.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xxs - 2),
+                      const SizedBox(height: AppSpacing.xs - 2),
                       Text(
                         aircraft.model.manufacturer.toUpperCase(),
                         style: AppTypography.badgeText.copyWith(
@@ -313,7 +313,7 @@ class _FleetViewState extends State<FleetView>
                           letterSpacing: 0.5,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xxs),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         '${aircraft.model.capacity} ${AppStrings.capacityPaxSuffix}',
                         style: AppTypography.badgeText.copyWith(
@@ -348,7 +348,7 @@ class _FleetViewState extends State<FleetView>
                               letterSpacing: 0.0,
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.xxs),
+                          const SizedBox(height: AppSpacing.xs),
                           Text(
                             '$occupied / $capacity slots',
                             style: AppTypography.badgeText.copyWith(
@@ -441,7 +441,7 @@ class _FleetViewState extends State<FleetView>
     final isGrounded = aircraft.isMaintenanceGrounded(autoGroundingThreshold);
     final isAssigned = assignedFleetIds.contains(aircraft.id);
     return AppCard(
-      borderColor: isGrounded ? AppTheme.error : AppTheme.surfaceSubtle,
+      borderColor: isGrounded ? AppTheme.error : AppTheme.border,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -675,7 +675,7 @@ class _FleetViewState extends State<FleetView>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Divider(color: AppTheme.surfaceSubtle),
+                  Divider(color: AppTheme.border),
                   const SizedBox(height: AppSpacing.md),
 
                   Text(
@@ -684,7 +684,7 @@ class _FleetViewState extends State<FleetView>
                       color: AppTheme.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xxs),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     AppStrings.realisticSpaceConfigurationDesc,
                     style: AppTypography.captionRegular.copyWith(
@@ -858,7 +858,7 @@ class _FleetViewState extends State<FleetView>
                 data: SliderTheme.of(context).copyWith(
                   trackHeight: 2.0,
                   activeTrackColor: AppTheme.primary,
-                  inactiveTrackColor: AppTheme.surfaceSubtle,
+                  inactiveTrackColor: AppTheme.border,
                   thumbColor: AppTheme.primary,
                   overlayColor: AppTheme.primary.withValues(alpha: 0.1),
                   thumbShape: const RoundSliderThumbShape(
@@ -1039,7 +1039,7 @@ class _FleetViewState extends State<FleetView>
       margin: const EdgeInsets.only(bottom: AppSpacing.blockGap),
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        border: Border.all(color: AppTheme.surfaceSubtle, width: 1.0),
+        border: Border.all(color: AppTheme.border, width: 1.0),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1165,7 +1165,7 @@ class _FleetViewState extends State<FleetView>
         children: [
           TableRow(
             decoration: BoxDecoration(
-              color: AppTheme.surfaceSubtle.withValues(alpha: 0.15),
+              color: AppTheme.surfaceRaised,
             ),
             children: [
               _tableHeaderCell(AppStrings.aircraftHeader),
@@ -1181,7 +1181,7 @@ class _FleetViewState extends State<FleetView>
             return TableRow(
               decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
+                  bottom: BorderSide(color: AppTheme.border, width: 1.0),
                 ),
               ),
               children: [
@@ -1196,7 +1196,7 @@ class _FleetViewState extends State<FleetView>
                           color: AppTheme.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xxs - 2),
+                      const SizedBox(height: AppSpacing.xs - 2),
                       Text(
                         model.manufacturer.toUpperCase(),
                         style: AppTypography.badgeText.copyWith(
@@ -1267,7 +1267,7 @@ class _FleetViewState extends State<FleetView>
                           letterSpacing: 0.0,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xxs),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         'Buy ${currencyFormat.format(model.purchasePrice)}',
                         textAlign: TextAlign.right,
@@ -1329,7 +1329,7 @@ class _FleetViewState extends State<FleetView>
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        border: Border.all(color: AppTheme.surfaceSubtle, width: 1.0),
+        border: Border.all(color: AppTheme.border, width: 1.0),
       ),
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -1378,7 +1378,7 @@ class _FleetViewState extends State<FleetView>
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Divider(color: AppTheme.surfaceSubtle),
+          Divider(color: AppTheme.border),
           const SizedBox(height: AppSpacing.xs),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1479,7 +1479,7 @@ class _FleetViewState extends State<FleetView>
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  Divider(color: AppTheme.surfaceSubtle),
+                  Divider(color: AppTheme.border),
                   const SizedBox(height: AppSpacing.md),
 
                   Text(
@@ -1488,7 +1488,7 @@ class _FleetViewState extends State<FleetView>
                       color: AppTheme.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xxs),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     AppStrings.realisticSpaceConfigurationDesc,
                     style: AppTypography.captionRegular.copyWith(
@@ -1901,22 +1901,20 @@ class _FleetViewState extends State<FleetView>
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          '${condition.toStringAsFixed(1)}%',
+          '${condition.toStringAsFixed(0)}%',
           style: AppTypography.badgeText.copyWith(
             color: barColor,
             fontSize: 12,
           ),
         ),
-        const SizedBox(height: 4),
-        Container(
-          width: 72,
-          height: 3,
-          color: AppTheme.background,
-          alignment: Alignment.centerLeft,
-          child: Container(
-            width: 72 * (condition / 100.0),
-            height: 3,
-            color: barColor,
+        const SizedBox(height: AppSpacing.xs),
+        SizedBox(
+          width: 60,
+          child: LinearProgressIndicator(
+            value: condition / 100.0,
+            minHeight: 3,
+            backgroundColor: AppTheme.borderSubtle,
+            valueColor: AlwaysStoppedAnimation<Color>(barColor),
           ),
         ),
       ],

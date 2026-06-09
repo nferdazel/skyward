@@ -24,11 +24,13 @@ class AppTableIconAction extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         onTap: onPressed,
+        borderRadius: BorderRadius.circular(4),
         child: Container(
           width: 28,
           height: 28,
           decoration: BoxDecoration(
             color: foreground.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(4),
             border: Border.all(
               color: foreground.withValues(alpha: 0.24),
               width: 1.0,

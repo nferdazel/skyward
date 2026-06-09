@@ -20,6 +20,7 @@ authoritative simulation, economy, world time, and operational validation.
 - AI competitor leaderboard with Intel panel
 - backend world-tick simulation and actor reconciliation
 - owner/operator SQL tools for private admin use
+- dark tactical operations console UI with 4px border-radius design system
 
 ## Architecture
 
@@ -32,6 +33,12 @@ authoritative simulation, economy, world time, and operational validation.
 - production Flutter observes backend time; it does not locally advance
   authoritative game time
 - debug builds expose lightweight `[PERF]` instrumentation for load/reload audits
+
+Desktop shell layout:
+- ticker tape (28px scrolling operational broadcast)
+- sidebar (220px fixed width, icon+label nav with section grouping)
+- HUD bar (44px with pipe separators)
+- main content workspace via `IndexedStack`
 
 For the maintained backend/runtime record, use:
 - [docs_and_migrations/README.md](/home/sachiel/Projects/skyward/docs_and_migrations/README.md)

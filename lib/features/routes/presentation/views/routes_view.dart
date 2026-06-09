@@ -237,7 +237,7 @@ class _RoutesViewState extends State<RoutesView>
         children: [
           TableRow(
             decoration: BoxDecoration(
-              color: AppTheme.surfaceSubtle.withValues(alpha: 0.15),
+              color: AppTheme.surfaceRaised,
             ),
             children: [
               _routesTableHeaderCell(AppStrings.routeHeader),
@@ -267,7 +267,7 @@ class _RoutesViewState extends State<RoutesView>
             return TableRow(
               decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
+                  bottom: BorderSide(color: AppTheme.border, width: 1.0),
                 ),
               ),
               children: [
@@ -279,14 +279,14 @@ class _RoutesViewState extends State<RoutesView>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _buildIataBox(route.originIata),
-                          const SizedBox(width: AppSpacing.xxs),
+                          const SizedBox(width: AppSpacing.xs),
                           Text(
                             AppStrings.routeDividerGlyph,
                             style: AppTypography.badgeText.copyWith(
                               color: AppTheme.primary,
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.xxs),
+                          const SizedBox(width: AppSpacing.xs),
                           _buildIataBox(route.destinationIata),
                         ],
                       ),
@@ -299,7 +299,7 @@ class _RoutesViewState extends State<RoutesView>
                           color: AppTypography.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xxs - 2),
+                      const SizedBox(height: AppSpacing.xs - 2),
                       Text(
                         '${route.distanceKm.toStringAsFixed(0)} KM  •  ${route.flightsPerWeek} ${AppStrings.flightsPerWeekSuffix}',
                         style: AppTypography.captionLight.copyWith(
@@ -321,7 +321,7 @@ class _RoutesViewState extends State<RoutesView>
                           letterSpacing: 0.0,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xxs - 2),
+                      const SizedBox(height: AppSpacing.xs - 2),
                       Text(
                         '${AppStrings.maintenanceSlackLabel}: ${maintenance.maintenanceHoursPerWeek.toStringAsFixed(1)}H',
                         style: AppTypography.badgeText.copyWith(
@@ -331,7 +331,7 @@ class _RoutesViewState extends State<RoutesView>
                           letterSpacing: 0.0,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xxs - 2),
+                      const SizedBox(height: AppSpacing.xs - 2),
                       if (hasAircraft)
                         Text(
                           '${AppStrings.loadShortLabel} ${route.loadFactor.toStringAsFixed(1)}%',
@@ -455,7 +455,7 @@ class _RoutesViewState extends State<RoutesView>
       decoration: BoxDecoration(
         color: AppTheme.surface,
         border: Border.all(
-          color: isGrounded ? AppTheme.error : AppTheme.surfaceSubtle,
+          color: isGrounded ? AppTheme.error : AppTheme.border,
           width: 1.0,
         ),
       ),
@@ -469,14 +469,14 @@ class _RoutesViewState extends State<RoutesView>
               Row(
                 children: [
                   _buildIataBox(route.originIata),
-                  const SizedBox(width: AppSpacing.xs - 2),
+                  const SizedBox(width: AppSpacing.sm - 2),
                   Text(
                     AppStrings.routeDividerGlyph,
                     style: AppTypography.badgeText.copyWith(
                       color: AppTheme.primary,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.xs - 2),
+                  const SizedBox(width: AppSpacing.sm - 2),
                   _buildIataBox(route.destinationIata),
                 ],
               ),
@@ -492,7 +492,7 @@ class _RoutesViewState extends State<RoutesView>
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs - 2),
+          const SizedBox(height: AppSpacing.sm - 2),
           Text(
             '${route.origin.city} ${AppStrings.routeCitySeparator} ${route.destination.city}'
                 .toUpperCase(),
@@ -502,7 +502,7 @@ class _RoutesViewState extends State<RoutesView>
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Divider(color: AppTheme.surfaceSubtle),
+          Divider(color: AppTheme.border),
           const SizedBox(height: AppSpacing.xs),
           Wrap(
             spacing: AppSpacing.md,
@@ -642,7 +642,7 @@ class _RoutesViewState extends State<RoutesView>
                   color: AppTypography.textSecondary,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xxs),
+              const SizedBox(height: AppSpacing.xs),
               _buildAircraftDropdown(context, route, availableFleet, userId),
             ],
           ),
@@ -659,7 +659,7 @@ class _RoutesViewState extends State<RoutesView>
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.zero,
               ),
-              side: BorderSide(color: AppTheme.surfaceSubtle),
+              side: BorderSide(color: AppTheme.border),
             ),
             child: Text(
               'VIEW ROUTE DETAIL',
@@ -684,7 +684,7 @@ class _RoutesViewState extends State<RoutesView>
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.zero,
               ),
-              side: BorderSide(color: AppTheme.surfaceSubtle),
+              side: BorderSide(color: AppTheme.border),
             ),
             child: Text(
               AppStrings.adjustParametersButton,
@@ -782,10 +782,10 @@ class _RoutesViewState extends State<RoutesView>
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm - 2),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md - 2),
       decoration: BoxDecoration(
         color: AppTheme.background,
-        border: Border.all(color: AppTheme.surfaceSubtle),
+        border: Border.all(color: AppTheme.border),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String?>(
@@ -1007,8 +1007,8 @@ class _RoutesViewState extends State<RoutesView>
                     labelText: AppStrings.ticketPriceInputLabel,
                     labelStyle: AppTypography.captionRegular,
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm - 2,
-                      vertical: AppSpacing.sm - 2,
+                      horizontal: AppSpacing.md - 2,
+                      vertical: AppSpacing.md - 2,
                     ),
                     isDense: true,
                   ),
@@ -1041,7 +1041,7 @@ class _RoutesViewState extends State<RoutesView>
                         Container(
                           decoration: BoxDecoration(
                             color: AppTheme.background,
-                            border: Border.all(color: AppTheme.surfaceSubtle),
+                            border: Border.all(color: AppTheme.border),
                           ),
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.sm,
@@ -1319,7 +1319,7 @@ class _RoutesViewState extends State<RoutesView>
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
+        vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
         color: AppTheme.primary.withValues(alpha: 0.15),
@@ -1347,7 +1347,7 @@ class _RoutesViewState extends State<RoutesView>
       message: tooltipMessage,
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        border: Border.all(color: AppTheme.surfaceSubtle),
+        border: Border.all(color: AppTheme.border),
       ),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
@@ -1370,7 +1370,7 @@ class _RoutesViewState extends State<RoutesView>
             labelColor: AppTheme.textSecondary,
             valueColor: valueColor ?? AppTypography.textPrimary,
           ),
-          const SizedBox(width: AppSpacing.xxs),
+          const SizedBox(width: AppSpacing.xs),
           Icon(Icons.info_outline, size: 11, color: AppTheme.textMuted),
         ],
       ),

@@ -249,7 +249,7 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        border: Border.all(color: AppTheme.surfaceSubtle, width: 1.0),
+        border: Border.all(color: AppTheme.border, width: 1.0),
       ),
       padding: const EdgeInsets.all(AppSpacing.cardPadding),
       child: Form(
@@ -364,7 +364,7 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
                         ],
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      Divider(color: AppTheme.surfaceSubtle),
+                      Divider(color: AppTheme.border),
                       const SizedBox(height: AppSpacing.sm),
                       _buildRealtimeElasticityIndicator(
                         state.calculatedDistance,
@@ -431,7 +431,7 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.sm),
-                        Divider(color: AppTheme.surfaceSubtle),
+                        Divider(color: AppTheme.border),
                         const SizedBox(height: AppSpacing.sm),
                         Wrap(
                           spacing: AppSpacing.lg,
@@ -587,7 +587,7 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
             Container(
               decoration: BoxDecoration(
                 color: AppTheme.background,
-                border: Border.all(color: AppTheme.surfaceSubtle),
+                border: Border.all(color: AppTheme.border),
               ),
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.sm,
@@ -656,7 +656,7 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
             letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: AppSpacing.xxs),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           value,
           style: AppTypography.badgeText.copyWith(
@@ -760,7 +760,7 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
             ),
             Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs - 2,
+                horizontal: AppSpacing.sm - 2,
                 vertical: 2,
               ),
               decoration: BoxDecoration(

@@ -32,7 +32,8 @@ class AppDialogShell extends StatelessWidget {
       child: Material(
         color: AppTheme.surface,
         shape: RoundedRectangleBorder(
-          side: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
+          borderRadius: BorderRadius.circular(4),
+          side: BorderSide(color: AppTheme.border, width: 1.0),
         ),
         child: Container(
           constraints: BoxConstraints(maxWidth: maxWidth),
@@ -54,13 +55,13 @@ class AppDialogShell extends StatelessWidget {
                     ),
                   ),
                   if (headerTrailing != null) ...[
-                    const SizedBox(width: AppSpacing.sm),
+                    const SizedBox(width: AppSpacing.md),
                     headerTrailing!,
                   ],
                 ],
               ),
               if (subtitle != null) ...[
-                const SizedBox(height: AppSpacing.xxs),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   subtitle!,
                   style: AppTypography.captionRegular.copyWith(
@@ -68,7 +69,7 @@ class AppDialogShell extends StatelessWidget {
                   ),
                 ),
               ],
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.lg),
               content,
               if (actions != null) ...[
                 const SizedBox(height: AppSpacing.xl),

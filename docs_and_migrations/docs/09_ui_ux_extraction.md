@@ -1,6 +1,6 @@
 # Skyward UI/UX Extraction
 
-Last verified against code on 2026-06-09.
+Last verified against code on 2026-06-09 (post-redesign).
 
 This document extracts the current UI/UX structure, design language, and screen responsibilities from the live Flutter codebase so redesign work can stay grounded in the actual product.
 
@@ -36,11 +36,9 @@ The implemented interface reads as:
 
 ### Visual Direction
 
-The codebase already has a strong visual direction, so redesign work should preserve the identity unless a deliberate rebrand is intended.
-
 Current direction:
 - dark airline operations console
-- flat surfaces with sharp edges
+- flat surfaces with 4px border-radius
 - border-led hierarchy rather than shadow-led hierarchy
 - cold blue accenting over dark neutral surfaces
 - status colors used as operational signals
@@ -48,11 +46,18 @@ Current direction:
 Primary dark palette from [skyward_colors.dart](/home/sachiel/Projects/skyward/lib/core/theme/skyward_colors.dart:1):
 - background: `#0D1117`
 - surface: `#161B22`
+- surface raised: `#1C2128`
 - border: `#30363D`
+- border subtle: `#21262D`
 - primary accent: `#79C0FF`
+- primary accent subtle: `#1F3A5F`
 - success: `#3FB950`
+- success subtle: `#1A3A23`
 - danger: `#F85149`
+- danger subtle: `#3D1F1F`
 - warning: `#D29922`
+- warning subtle: `#3D2F0F`
+- neutral: `#6E7681`
 
 Runtime theme note:
 - a light theme token set exists
@@ -110,9 +115,9 @@ Post-auth flow:
 - if unauthenticated, show the auth screen
 
 Desktop navigation model:
-- left vertical sidebar
-- top system ticker strip
-- top HUD/status bar
+- left vertical sidebar (220px fixed width)
+- top system ticker strip (28px, scrolling)
+- top HUD/status bar (44px)
 - main content workspace rendered through an `IndexedStack`
 
 Mobile navigation model:
@@ -159,7 +164,7 @@ Dominant UI patterns:
 - compact forms
 - dialogs
 - read-heavy control surfaces
-- one interactive map
+- interactive world map (available for Routes view)
 
 This is not a high-whitespace marketing or editorial layout.
 
@@ -172,6 +177,9 @@ Primary role:
 - command-center home
 - health triage
 - action routing into Fleet and Routes
+
+Layout:
+- 3-region layout: identity+cash band, health KPIs + risk signals, quick actions
 
 Critical data that should remain easy to see:
 - company name
@@ -262,6 +270,9 @@ Primary role:
 - repair workflow
 - cabin configuration workflow
 
+Table columns:
+- Tail #, Model/Manufacturer, Type (OWNED/LEASED), Condition (progress bar + %), Status (READY/GROUNDED), Cabin Config, Actions
+
 Primary calls to action:
 - purchase aircraft
 - lease aircraft
@@ -274,7 +285,7 @@ Important visible data:
 - tail number
 - aircraft model and manufacturer
 - acquisition type
-- condition
+- condition (with color-coded progress bar)
 - grounded vs ready status
 - cabin configuration
 - assignment state
@@ -313,6 +324,12 @@ Primary role:
 - UI scale control
 - reset flow
 
+Sections:
+- Airline Profile (company name, HQ airport)
+- Operational Thresholds (auto-grounding)
+- Interface (UI scale)
+- Danger Zone (reset airline)
+
 Primary calls to action:
 - save settings
 - adjust grounding threshold
@@ -332,8 +349,8 @@ Important visible data:
 The dominant layout is a full-width fluid dashboard.
 
 Exceptions:
-- auth form is width-constrained on desktop
-- settings content is centered in a constrained content region
+- auth form is width-constrained on desktop (420px)
+- settings content is centered in a constrained content region (1080px)
 
 So the actual pattern is:
 - fluid shell
@@ -362,75 +379,86 @@ Not present in the current UX:
 - freeform canvas tools
 - visual automation builders
 
-### Design System Preferences Inferred From Code
+### Design System
 
-The current system is closest to:
-- flat operational UI
-- terminal-inspired dashboard UI
-- Material-adjacent interaction patterns without heavy Material 3 branding
+#### Color Tokens
 
-It is not currently:
-- glassmorphism
-- neobrutalism
-- soft consumer SaaS
-- highly rounded mobile-first design
+From [app_theme.dart](/home/sachiel/Projects/skyward/lib/core/theme/app_theme.dart:1):
 
-### Typography
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `primary` | `#79C0FF` | Accent, active states |
+| `accentSubtle` | `#1F3A5F` | Subtle accent backgrounds |
+| `background` | `#0D1117` | Page background |
+| `surface` | `#161B22` | Card/panel background |
+| `surfaceRaised` | `#1C2128` | Elevated surfaces, table headers |
+| `border` | `#30363D` | Borders, dividers |
+| `borderSubtle` | `#21262D` | Subtle backgrounds |
+| `success` | `#3FB950` | Positive states |
+| `error` | `#F85149` | Destructive, errors |
+| `warning` | `#D29922` | Caution states |
+| `neutral` | `#6E7681` | Muted elements |
+
+#### Spacing Tokens
+
+From [app_spacing.dart](/home/sachiel/Projects/skyward/lib/presentation/theme/app_spacing.dart:1):
+
+| Token | Value |
+|-------|-------|
+| `xs` | 4.0 |
+| `sm` | 6.0 |
+| `md` | 10.0 |
+| `lg` | 14.0 |
+| `xl` | 16.0 |
+| `xxl` | 20.0 |
+| `xxxl` | 24.0 |
+
+Semantic tokens:
+- `pagePadding`: 16
+- `cardPadding`: 12
+- `sectionGap`: 16
+- `blockGap`: 12
+- `compactGap`: 10
+- `microGap`: 6
+- `tabContentGap`: 12
+
+#### Typography
 
 Font family:
 - IBM Plex Sans via Google Fonts
 
-Current typographic behavior:
-- compact scale
-- strong use of semibold and bold for labels and data emphasis
-- badge-like labels often use uppercase or wide letter spacing
-
-Approximate hierarchy:
+Current typographic hierarchy:
 - screen titles: 15 to 17
-- section headers: 13 to 14
+- section headers: 13 to 14, UPPERCASE, letterSpacing +0.08em
 - body text: 13
 - captions and badges: 11 to 12
+- micro labels: 11px, UPPERCASE, letterSpacing +0.06em
+- HUD values: 13px, bold
+- data emphasis: 16px, bold
+- large KPI: 22px, bold
 
 References:
 - [app_theme.dart](/home/sachiel/Projects/skyward/lib/core/theme/app_theme.dart:1)
 - [app_typography.dart](/home/sachiel/Projects/skyward/lib/presentation/theme/app_typography.dart:1)
 
-### Spacing
-
-The spacing system is tight and systematic.
-
-Token values from [app_spacing.dart](/home/sachiel/Projects/skyward/lib/presentation/theme/app_spacing.dart:1):
-- `4`
-- `6`
-- `10`
-- `14`
-- `16`
-- `20`
-- `24`
-
-Common layout values:
-- page padding: `16`
-- card padding: `12`
-- section gap: `16`
-- block gap: `12`
-
-### Component Language
+#### Component Language
 
 Current shared primitives:
-- cards
-- buttons
-- badges
-- dialogs
+- cards (4px border-radius)
+- buttons (4px border-radius)
+- badges (4px border-radius)
+- dialogs (4px border-radius)
 - empty states
 - table shells and table cells
 - stat text
 - dropdown fields
 - labeled values
+- info strips
 
 Visual behavior of primitives:
-- cards are flat bordered blocks
-- buttons are square-edged and status-colored
-- inputs use filled dark surfaces with square outline borders
+- cards are flat bordered blocks with 4px radius
+- buttons have rounded corners and status colors
+- inputs use filled dark surfaces with rounded outline borders
 - emphasis is achieved through border, color, and type instead of depth
 
 References:
@@ -439,8 +467,6 @@ References:
 - [app_theme.dart](/home/sachiel/Projects/skyward/lib/core/theme/app_theme.dart:1)
 
 ## 5. Notable UI Signatures
-
-Several small patterns define the product identity and should be treated as part of the UX language, not as incidental decoration.
 
 ### Terminal Loader
 
@@ -455,7 +481,8 @@ Reference:
 ### Ticker Tape
 
 Desktop shell includes a top system ticker strip:
-- bright accent bar
+- 28px height, bright accent bar
+- scrolling animation
 - compressed operational copy
 - status-broadcast feeling
 
@@ -472,8 +499,22 @@ Desktop and mobile both prioritize a compact operational HUD showing:
 - fuel price
 - sync/live status
 
+44px height with pipe separators and UPPERCASE labels.
+
 Reference:
 - [top_hud.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/widgets/top_hud.dart:1)
+
+### Sidebar
+
+Desktop sidebar:
+- 220px fixed width
+- Icon + label navigation
+- Section grouping: OPERATIONS, ANALYTICS, SYSTEM
+- Active state with left accent border
+- "SKYWARD" wordmark at top
+
+Reference:
+- [dashboard_sidebar.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/widgets/dashboard_sidebar.dart:1)
 
 ### Tactical Labeling
 
@@ -483,7 +524,7 @@ The interface frequently uses:
 - badge-like numeric or status emphasis
 - operational language instead of playful copy
 
-This creates the “control room” feeling.
+This creates the "control room" feeling.
 
 ## 6. Practical Redesign Summary
 
@@ -517,4 +558,3 @@ If the UI is redesigned, the current product should be treated as:
 - over-rounding controls
 - replacing the tactical identity with soft marketing aesthetics
 - reducing critical data density so far that operational scanning gets slower
-

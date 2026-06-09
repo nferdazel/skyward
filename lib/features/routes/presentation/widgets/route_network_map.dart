@@ -106,9 +106,9 @@ class RouteNetworkMap extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: AppTheme.background,
-            border: Border.all(color: AppTheme.surfaceSubtle),
+            border: Border.all(color: AppTheme.border),
           ),
-          padding: EdgeInsets.all(compact ? AppSpacing.sm : AppSpacing.md),
+          padding: EdgeInsets.all(compact ? AppSpacing.md : AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -173,7 +173,7 @@ class RouteNetworkMap extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       color: AppTheme.surface,
-                      border: Border.all(color: AppTheme.surfaceSubtle),
+                      border: Border.all(color: AppTheme.border),
                     ),
                     clipBehavior: Clip.hardEdge,
                     child: Stack(
@@ -622,7 +622,7 @@ class _MapAttributionBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AppTheme.background.withValues(alpha: 0.78),
-        border: Border.all(color: AppTheme.surfaceSubtle),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Text(
         'CARTO / OSM',

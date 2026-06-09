@@ -35,7 +35,7 @@ class AppStatText extends StatelessWidget {
             letterSpacing: 0.4,
           ),
         ),
-        const SizedBox(height: AppSpacing.xxs),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           value,
           textAlign: textAlign,

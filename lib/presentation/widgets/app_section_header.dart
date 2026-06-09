@@ -36,7 +36,7 @@ class AppSectionHeader extends StatelessWidget {
           ],
         ),
         if (description != null) ...[
-          const SizedBox(height: AppSpacing.xxs),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             description!,
             style: AppTypography.captionRegular,

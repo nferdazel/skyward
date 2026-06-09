@@ -34,7 +34,7 @@ class AppControlLabel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Flexible(child: labelWidget),
-        const SizedBox(width: AppSpacing.xxs),
+        const SizedBox(width: AppSpacing.xs),
         Tooltip(
           message: tooltip!,
           child: Icon(

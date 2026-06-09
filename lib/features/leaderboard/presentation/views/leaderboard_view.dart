@@ -55,7 +55,7 @@ class LeaderboardView extends StatelessWidget {
 
         return AppCard(
           padding: EdgeInsets.all(
-            isMobile ? AppSpacing.sm : AppSpacing.cardPadding,
+            isMobile ? AppSpacing.md : AppSpacing.cardPadding,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,10 +143,7 @@ class LeaderboardView extends StatelessWidget {
           // Table Header
           TableRow(
             decoration: BoxDecoration(
-              color: AppTheme.surface3,
-              border: Border(
-                bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.5),
-              ),
+              color: AppTheme.surfaceRaised,
             ),
             children: [
               _buildTableHeaderCell(AppStrings.rankLabel),
@@ -172,7 +169,7 @@ class LeaderboardView extends StatelessWidget {
                           ? AppTheme.primary.withValues(alpha: 0.03)
                           : null),
                 border: Border(
-                  bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
+                  bottom: BorderSide(color: AppTheme.border, width: 1.0),
                 ),
               ),
               children:
@@ -208,7 +205,7 @@ class LeaderboardView extends StatelessWidget {
                               ],
                             ],
                           ),
-                          const SizedBox(height: AppSpacing.xxs),
+                          const SizedBox(height: AppSpacing.xs),
                           Text(
                             entry.ceoName,
                             style: AppTypography.captionRegular.copyWith(
@@ -339,7 +336,7 @@ class LeaderboardView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Divider(color: AppTheme.surfaceSubtle),
+          Divider(color: AppTheme.border),
           const SizedBox(height: 16),
 
           if (state.isLoadingInsights) ...[
@@ -384,7 +381,7 @@ class LeaderboardView extends StatelessWidget {
           if (currentLeader != null) ...[
             _buildGapProgress(liveCompetitor, currentLeader),
             const SizedBox(height: 20),
-            Divider(color: AppTheme.surfaceSubtle),
+            Divider(color: AppTheme.border),
             const SizedBox(height: 16),
           ],
 
@@ -430,7 +427,7 @@ class LeaderboardView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          Divider(color: AppTheme.surfaceSubtle),
+          Divider(color: AppTheme.border),
           const SizedBox(height: 16),
 
           Text(
@@ -485,7 +482,7 @@ class LeaderboardView extends StatelessWidget {
                   ),
           ),
           const SizedBox(height: 16),
-          Divider(color: AppTheme.surfaceSubtle),
+          Divider(color: AppTheme.border),
           const SizedBox(height: 16),
 
           Text(
@@ -596,7 +593,7 @@ class LeaderboardView extends StatelessWidget {
                                         ? AppTheme.primary.withValues(
                                             alpha: 0.15,
                                           )
-                                        : AppTheme.surfaceSubtle),
+                                        : AppTheme.border),
                             ),
                             child: Text(
                               '#$rank',
@@ -676,7 +673,7 @@ class LeaderboardView extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Divider(color: AppTheme.surfaceSubtle, height: 1),
+                Divider(color: AppTheme.border, height: 1),
                 const SizedBox(height: AppSpacing.sm),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -854,8 +851,8 @@ class LeaderboardView extends StatelessWidget {
           width: double.infinity,
           height: 12,
           decoration: BoxDecoration(
-            color: AppTheme.surface3,
-            border: Border.all(color: AppTheme.surfaceSubtle, width: 1.0),
+            color: AppTheme.borderSubtle,
+            border: Border.all(color: AppTheme.border, width: 1.0),
           ),
           alignment: Alignment.centerLeft,
           child: LayoutBuilder(
@@ -978,7 +975,7 @@ class LeaderboardView extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Divider(color: AppTheme.surfaceSubtle),
+                        Divider(color: AppTheme.border),
                         const SizedBox(height: AppSpacing.md),
 
                         Row(
@@ -1013,7 +1010,7 @@ class LeaderboardView extends StatelessWidget {
                             letterSpacing: 1.0,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xs + AppSpacing.xxs),
+                        const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
                         liveInsights.fleetBreakdown.isEmpty
                             ? Text(
                                 AppStrings.noAircraftInHangar,
@@ -1027,7 +1024,7 @@ class LeaderboardView extends StatelessWidget {
                                 ) {
                                   return AppCard(
                                     margin: const EdgeInsets.only(
-                                      bottom: AppSpacing.xxs + AppSpacing.xxs,
+                                      bottom: AppSpacing.xs + AppSpacing.xs,
                                     ),
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: AppSpacing.sm,
@@ -1069,7 +1066,7 @@ class LeaderboardView extends StatelessWidget {
                             letterSpacing: 1.0,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xs + AppSpacing.xxs),
+                        const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
                         liveInsights.networkRoutes.isEmpty
                             ? Text(
                                 AppStrings.noRoutesPlanned,
@@ -1161,7 +1158,7 @@ class LeaderboardView extends StatelessWidget {
                     color: AppTypography.textSecondary,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xxs),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   value,
                   style: AppTypography.badgeText.copyWith(

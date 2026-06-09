@@ -25,19 +25,29 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final decoration = BoxDecoration(
+      color: backgroundColor ?? AppTheme.surface,
+      border: customBorder ??
+          Border.all(
+            color: borderColor ?? AppTheme.border,
+            width: borderWidth,
+          ),
+    );
+
+    final card = Container(
       margin: margin,
       padding: padding,
-      decoration: BoxDecoration(
-        color: backgroundColor ?? AppTheme.surface,
-        border:
-            customBorder ??
-            Border.all(
-              color: borderColor ?? AppTheme.surfaceSubtle,
-              width: borderWidth,
+      decoration: customBorder != null
+          ? decoration
+          : decoration.copyWith(
+              borderRadius: BorderRadius.circular(4),
             ),
-      ),
       child: child,
     );
+
+    if (customBorder != null) {
+      return ClipRRect(borderRadius: BorderRadius.circular(4), child: card);
+    }
+    return card;
   }
 }

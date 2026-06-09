@@ -30,14 +30,16 @@ class AppMultiSelectField extends StatelessWidget {
 
     return InkWell(
       onTap: () => _showPicker(context),
+      borderRadius: BorderRadius.circular(4),
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
+          horizontal: AppSpacing.md,
           vertical: AppSpacing.xs,
         ),
         decoration: BoxDecoration(
           color: AppTheme.background,
-          border: Border.all(color: AppTheme.surfaceSubtle),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: AppTheme.border),
         ),
         child: Row(
           children: [
@@ -52,7 +54,7 @@ class AppMultiSelectField extends StatelessWidget {
                       color: AppTypography.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xxs),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     summary,
                     style: AppTypography.badgeText.copyWith(

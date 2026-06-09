@@ -94,7 +94,7 @@ class _SettingsViewState extends State<SettingsView> {
           width: double.infinity,
           decoration: BoxDecoration(
             color: AppTheme.surface,
-            border: Border.all(color: AppTheme.surfaceSubtle, width: 1.0),
+            border: Border.all(color: AppTheme.border, width: 1.0),
           ),
           padding: const EdgeInsets.all(AppSpacing.cardPadding),
           child: SingleChildScrollView(
@@ -296,7 +296,7 @@ class _SettingsViewState extends State<SettingsView> {
             data: SliderTheme.of(context).copyWith(
               trackHeight: 2.0,
               activeTrackColor: AppTheme.warning,
-              inactiveTrackColor: AppTheme.surfaceSubtle,
+              inactiveTrackColor: AppTheme.border,
               thumbColor: AppTheme.warning,
               overlayColor: AppTheme.warning.withValues(alpha: 0.1),
             ),
@@ -316,7 +316,7 @@ class _SettingsViewState extends State<SettingsView> {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Divider(color: AppTheme.surfaceSubtle),
+          Divider(color: AppTheme.border),
           const SizedBox(height: AppSpacing.lg),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,7 +332,7 @@ class _SettingsViewState extends State<SettingsView> {
                         letterSpacing: 0.0,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xxs),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       AppStrings.uiScalingDesc,
                       style: AppTypography.captionRegular.copyWith(
@@ -354,7 +354,7 @@ class _SettingsViewState extends State<SettingsView> {
             data: SliderTheme.of(context).copyWith(
               trackHeight: 2.0,
               activeTrackColor: AppTheme.primary,
-              inactiveTrackColor: AppTheme.surfaceSubtle,
+              inactiveTrackColor: AppTheme.border,
               thumbColor: AppTheme.primary,
               overlayColor: AppTheme.primary.withValues(alpha: 0.1),
             ),
@@ -425,7 +425,7 @@ class _SettingsViewState extends State<SettingsView> {
     dynamic user,
   ) {
     return AppCard(
-      backgroundColor: AppTheme.surface3,
+      backgroundColor: AppTheme.borderSubtle,
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,18 +437,18 @@ class _SettingsViewState extends State<SettingsView> {
           const SizedBox(height: AppSpacing.lg),
 
           _buildInfoRow(AppStrings.chiefExecutive, user.ceoName),
-          Divider(color: AppTheme.surfaceSubtle, height: 24),
+          Divider(color: AppTheme.border, height: 24),
           _buildInfoRow(
             AppStrings.companyRegistry,
             user.companyName.toUpperCase(),
           ),
-          Divider(color: AppTheme.surfaceSubtle, height: 24),
+          Divider(color: AppTheme.border, height: 24),
           _buildInfoRow(AppStrings.operationalBaseHq, user.hqAirportIata),
-          Divider(color: AppTheme.surfaceSubtle, height: 24),
+          Divider(color: AppTheme.border, height: 24),
           _buildInfoRow(AppStrings.accountIdentifier, user.id),
-          Divider(color: AppTheme.surfaceSubtle, height: 24),
+          Divider(color: AppTheme.border, height: 24),
           _buildInfoRow(AppStrings.registrationLevel, AppStrings.principalCeo),
-          Divider(color: AppTheme.surfaceSubtle, height: 24),
+          Divider(color: AppTheme.border, height: 24),
         ],
       ),
     );
@@ -460,7 +460,7 @@ class _SettingsViewState extends State<SettingsView> {
     String userId,
   ) {
     return AppCard(
-      backgroundColor: AppTheme.surface3,
+      backgroundColor: AppTheme.borderSubtle,
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

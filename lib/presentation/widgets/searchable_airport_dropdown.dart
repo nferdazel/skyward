@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../../core/constants/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/routes/domain/route_models.dart';
@@ -22,7 +23,8 @@ class SearchableAirportDropdown extends StatefulWidget {
   });
 
   @override
-  State<SearchableAirportDropdown> createState() => _SearchableAirportDropdownState();
+  State<SearchableAirportDropdown> createState() =>
+      _SearchableAirportDropdownState();
 }
 
 class _SearchableAirportDropdownState extends State<SearchableAirportDropdown> {
@@ -43,7 +45,8 @@ class _SearchableAirportDropdownState extends State<SearchableAirportDropdown> {
   @override
   void didUpdateWidget(SearchableAirportDropdown oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedValue != widget.selectedValue && !_focusNode.hasFocus) {
+    if (oldWidget.selectedValue != widget.selectedValue &&
+        !_focusNode.hasFocus) {
       _textController.text = _getDisplayText(widget.selectedValue);
     }
   }
@@ -79,7 +82,8 @@ class _SearchableAirportDropdownState extends State<SearchableAirportDropdown> {
 
   String _getDisplayText(Airport? airport) {
     if (airport == null) return '';
-    return '[${airport.iata}] ${airport.city} (${airport.country})'.toUpperCase();
+    return '[${airport.iata}] ${airport.city} (${airport.country})'
+        .toUpperCase();
   }
 
   List<Airport> _getFilteredAirports() {
@@ -95,9 +99,7 @@ class _SearchableAirportDropdownState extends State<SearchableAirportDropdown> {
 
   void _showOverlay() {
     _removeOverlay();
-    _overlayEntry = OverlayEntry(
-      builder: (context) => _buildOverlay(),
-    );
+    _overlayEntry = OverlayEntry(builder: (context) => _buildOverlay());
     Overlay.of(context).insert(_overlayEntry!);
   }
 
@@ -123,11 +125,21 @@ class _SearchableAirportDropdownState extends State<SearchableAirportDropdown> {
         style: AppTypography.bodyMedium.copyWith(color: AppTheme.textPrimary),
         decoration: InputDecoration(
           labelText: widget.label.toUpperCase(),
-          labelStyle: AppTypography.badgeText.copyWith(color: AppTheme.textSecondary),
-          prefixIcon: Icon(Icons.flight_takeoff, size: 20, color: AppTheme.primary),
+          labelStyle: AppTypography.badgeText.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+          prefixIcon: Icon(
+            Icons.flight_takeoff,
+            size: 20,
+            color: AppTheme.primary,
+          ),
           suffixIcon: _textController.text.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.clear, size: 18, color: AppTheme.textSecondary),
+                  icon: Icon(
+                    Icons.clear,
+                    size: 18,
+                    color: AppTheme.textSecondary,
+                  ),
                   onPressed: () {
                     _textController.clear();
                     widget.onSelected(null);
@@ -162,16 +174,17 @@ class _SearchableAirportDropdownState extends State<SearchableAirportDropdown> {
         offset: const Offset(0, 52),
         child: Material(
           elevation: 8,
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.circular(4),
           color: AppTheme.surface,
           child: Container(
             constraints: const BoxConstraints(maxHeight: 250),
             decoration: BoxDecoration(
-              border: Border.all(color: AppTheme.surfaceSubtle, width: 1.0),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: AppTheme.border, width: 1.0),
             ),
             child: filtered.isEmpty
                 ? Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     child: Text(
                       AppStrings.noMatchingAirports,
                       style: AppTypography.badgeText.copyWith(
@@ -186,25 +199,34 @@ class _SearchableAirportDropdownState extends State<SearchableAirportDropdown> {
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final airport = filtered[index];
-                      final isSelected = widget.selectedValue?.iata == airport.iata;
+                      final isSelected =
+                          widget.selectedValue?.iata == airport.iata;
                       return InkWell(
                         onTap: () => _selectAirport(airport),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.sm,
+                            horizontal: AppSpacing.lg,
+                            vertical: AppSpacing.md,
                           ),
-                          color: isSelected ? AppTheme.primary.withValues(alpha: 0.08) : null,
+                          color: isSelected
+                              ? AppTheme.primary.withValues(alpha: 0.08)
+                              : null,
                           child: Row(
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: AppSpacing.xs,
-                                  vertical: AppSpacing.xxs,
+                                  vertical: AppSpacing.xs,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primary.withValues(alpha: 0.1),
-                                  border: Border.all(color: AppTheme.primary, width: 1.0),
+                                  color: AppTheme.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: AppTheme.primary,
+                                    width: 1.0,
+                                  ),
                                 ),
                                 child: Text(
                                   airport.iata,
@@ -213,7 +235,7 @@ class _SearchableAirportDropdownState extends State<SearchableAirportDropdown> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: AppSpacing.sm),
+                              const SizedBox(width: AppSpacing.md),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,12 +247,13 @@ class _SearchableAirportDropdownState extends State<SearchableAirportDropdown> {
                                         color: AppTheme.textPrimary,
                                       ),
                                     ),
-                                    const SizedBox(height: AppSpacing.xxs),
+                                    const SizedBox(height: AppSpacing.xs),
                                     Text(
                                       airport.name,
-                                      style: AppTypography.captionLight.copyWith(
-                                        color: AppTheme.textSecondary,
-                                      ),
+                                      style: AppTypography.captionLight
+                                          .copyWith(
+                                            color: AppTheme.textSecondary,
+                                          ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),

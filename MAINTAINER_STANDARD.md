@@ -61,6 +61,41 @@ Use a blocking loading state only when:
 - the screen has no usable prior state yet, or
 - the action genuinely blocks the whole workflow
 
+## 5a. Design System Rules
+
+All UI code must use the design system tokens defined in the theme files.
+
+### Colors
+
+- Use `AppTheme.*` static getters for all colors (e.g., `AppTheme.primary`, `AppTheme.success`)
+- Use semantic variants for subtle backgrounds: `successSubtle`, `dangerSubtle`, `warningSubtle`
+- Use `surfaceRaised` for elevated surfaces (table headers, raised panels)
+- Use `borderSubtle` for subtle container backgrounds
+
+### Spacing
+
+- Use `AppSpacing.*` tokens only — never hardcode pixel values for spacing
+- Available tokens: `xs` (4), `sm` (6), `md` (10), `lg` (14), `xl` (16), `xxl` (20), `xxxl` (24)
+- Use semantic tokens for layout: `pagePadding`, `cardPadding`, `sectionGap`, `blockGap`
+
+### Typography
+
+- Use `AppTypography.*` styles for all text
+- UPPERCASE labels must use `microLabel` or explicit `letterSpacing: 0.06`
+- Data emphasis values use `hudValue`, `dataEmphasis`, or `largeKpi` as appropriate
+
+### Border Radius
+
+- All containers use `BorderRadius.circular(4)` maximum
+- Badges may use `BorderRadius.circular(6)` maximum
+- Never use `BorderRadius.circular(8)` or larger
+
+### Component Overrides
+
+- Prefer existing shared widgets (`AppCard`, `AppButton`, `AppBadge`) over custom containers
+- If `AppCard` needs a non-uniform border, pass `customBorder` (ClipRRect handles the radius automatically)
+- Table headers use `AppTheme.surfaceRaised` background
+
 ## 6. Change Workflow
 
 For every non-trivial change:

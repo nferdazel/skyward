@@ -14,7 +14,6 @@ class TopHud extends StatelessWidget {
   final SimulationState simState;
   final NumberFormat currencyFormat;
   final DateFormat dateFormat;
-  final double scale;
 
   const TopHud({
     super.key,
@@ -22,7 +21,6 @@ class TopHud extends StatelessWidget {
     required this.simState,
     required this.currencyFormat,
     required this.dateFormat,
-    required this.scale,
   });
 
   @override
@@ -30,151 +28,102 @@ class TopHud extends StatelessWidget {
     final user = authState.user;
 
     return Container(
-      height: 48 * scale,
+      height: 44,
       decoration: BoxDecoration(
         color: AppTheme.surface,
         border: Border(
-          bottom: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
+          bottom: BorderSide(color: AppTheme.border, width: 1.0),
         ),
       ),
       child: Row(
         children: [
-          _buildCompanyInfo(context, user),
-          Container(width: 1.0, color: AppTheme.surfaceSubtle),
-          _buildGameClock(context, simState, dateFormat),
-          Container(width: 1.0, color: AppTheme.surfaceSubtle),
-          _buildCashBalance(context, simState, currencyFormat),
-          Container(width: 1.0, color: AppTheme.surfaceSubtle),
-          _buildFuelPrice(context, simState),
-          Container(width: 1.0, color: AppTheme.surfaceSubtle),
+          _buildSection(
+            flex: 3,
+            label: null,
+            value: user.companyName,
+            valueStyle: AppTypography.hudValue.copyWith(
+              color: AppTheme.textPrimary,
+            ),
+            sublabel: user.ceoName,
+          ),
+          _buildSeparator(),
+          _buildSection(
+            flex: 2,
+            label: AppStrings.gameClockUtc.toUpperCase(),
+            value: dateFormat.format(simState.gameTime),
+            valueStyle: AppTypography.hudValue.copyWith(
+              color: AppTheme.primary,
+            ),
+          ),
+          _buildSeparator(),
+          _buildSection(
+            flex: 3,
+            label: AppStrings.cashBalanceLabel.toUpperCase(),
+            value: currencyFormat.format(simState.cashBalance),
+            valueStyle: AppTypography.hudValue.copyWith(
+              color: AppTheme.success,
+            ),
+          ),
+          _buildSeparator(),
+          _buildSection(
+            flex: 2,
+            label: AppStrings.fuelPriceLabel.toUpperCase(),
+            value: '\$${simState.fuelPricePerLiter.toStringAsFixed(2)}/L',
+            valueStyle: AppTypography.hudValue.copyWith(
+              color: AppTheme.warning,
+            ),
+          ),
+          _buildSeparator(),
           _buildLiveStatus(context, simState),
         ],
       ),
     );
   }
 
-  Widget _buildCompanyInfo(BuildContext context, dynamic user) {
+  Widget _buildSeparator() {
+    return Container(
+      width: 1,
+      color: AppTheme.border,
+    );
+  }
+
+  Widget _buildSection({
+    required int flex,
+    String? label,
+    required String value,
+    required TextStyle valueStyle,
+    String? sublabel,
+  }) {
     return Expanded(
-      flex: 3,
+      flex: flex,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            if (label != null) ...[
+              Text(
+                label,
+                style: AppTypography.microLabel.copyWith(
+                  color: AppTheme.textMuted,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+            ],
             Text(
-              user.companyName,
+              value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.sectionHeaderLarge.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
+              style: valueStyle,
             ),
-            Text(
-              user.ceoName,
-              style: AppTypography.captionRegular.copyWith(
-                color: AppTheme.textSecondary,
+            if (sublabel != null)
+              Text(
+                sublabel,
+                style: AppTypography.captionRegular.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGameClock(
-    BuildContext context,
-    SimulationState simState,
-    DateFormat dateFormat,
-  ) {
-    return Expanded(
-      flex: 2,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              AppStrings.gameClockUtc,
-              style: AppTypography.captionLight.copyWith(
-                color: AppTheme.textMuted,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              dateFormat.format(simState.gameTime),
-              style: AppTypography.badgeText.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.primary,
-                letterSpacing: 0.0,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCashBalance(
-    BuildContext context,
-    SimulationState simState,
-    NumberFormat currencyFormat,
-  ) {
-    return Expanded(
-      flex: 3,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              AppStrings.cashBalanceLabel,
-              style: AppTypography.captionLight.copyWith(
-                color: AppTheme.textMuted,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              currencyFormat.format(simState.cashBalance),
-              style: AppTypography.sectionHeaderMedium.copyWith(
-                fontFamily: AppTypography.badgeText.fontFamily,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.success,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFuelPrice(BuildContext context, SimulationState simState) {
-    return Expanded(
-      flex: 2,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              AppStrings.fuelPriceLabel,
-              style: AppTypography.captionLight.copyWith(
-                color: AppTheme.textMuted,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              '\$${simState.fuelPricePerLiter.toStringAsFixed(2)}/L',
-              style: AppTypography.badgeText.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.warning,
-                letterSpacing: 0.0,
-              ),
-            ),
           ],
         ),
       ),
@@ -185,21 +134,20 @@ class TopHud extends StatelessWidget {
     return Expanded(
       flex: 2,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             PulseDot(
               color: simState.isSyncing ? AppTheme.warning : AppTheme.success,
             ),
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: AppSpacing.sm),
             Text(
               simState.isSyncing
-                  ? AppStrings.syncingLabel
-                  : AppStrings.liveLabel,
-              style: AppTypography.badgeText.copyWith(
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.2,
+                  ? AppStrings.syncingLabel.toUpperCase()
+                  : AppStrings.liveLabel.toUpperCase(),
+              style: AppTypography.microLabel.copyWith(
+                fontWeight: FontWeight.w600,
                 color: simState.isSyncing ? AppTheme.warning : AppTheme.success,
               ),
             ),

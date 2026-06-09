@@ -79,7 +79,7 @@ class RankCell extends StatelessWidget {
         decoration: BoxDecoration(
           color: isHuman
               ? AppTheme.primary.withValues(alpha: 0.15)
-              : AppTheme.surfaceSubtle.withValues(alpha: 0.15),
+              : AppTheme.border.withValues(alpha: 0.15),
           shape: BoxShape.circle,
         ),
         child: Text(

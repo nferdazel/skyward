@@ -45,6 +45,8 @@ Use docs by question:
   Open [07_live_backend_audit_queries.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/07_live_backend_audit_queries.md)
 - "How does the private owner/operator optimizer work?"
   Open [08_owner_operator_tools.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/08_owner_operator_tools.md)
+- "What is the current UI/UX design system?"
+  Open [09_ui_ux_extraction.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/09_ui_ux_extraction.md)
 
 ## Documentation Set
 
@@ -58,6 +60,9 @@ Operational/reference docs:
 - `docs/06_simulation_troubleshooting.md`
 - `docs/07_live_backend_audit_queries.md`
 - `docs/08_owner_operator_tools.md`
+
+UI/UX docs:
+- `docs/09_ui_ux_extraction.md`
 
 ## Migration Bands
 

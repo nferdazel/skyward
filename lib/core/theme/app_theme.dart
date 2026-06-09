@@ -8,17 +8,22 @@ class AppTheme {
   // ── BACKWARDS COMPATIBILITY COLOR TOKENS (defaults to dark theme) ──
   // Prefer Theme.of(context).extension<AppThemeColors>()! for theme-aware colors
   static Color get primary => SkywardColors.darkAccent;
-  static Color get secondary => SkywardColors.darkAccentDim;
+  static Color get accentSubtle => SkywardColors.darkAccentSubtle;
   static Color get background => SkywardColors.darkBg;
   static Color get surface => SkywardColors.darkSurface;
-  static Color get surfaceSubtle => SkywardColors.darkBorder;
-  static Color get surface3 => SkywardColors.darkSurface3;
+  static Color get surfaceRaised => SkywardColors.darkSurface2;
+  static Color get border => SkywardColors.darkBorder;
+  static Color get borderSubtle => SkywardColors.darkSurface3;
 
   // ── FIXED SEMANTIC COLORS ──
   static Color get success => SkywardColors.darkGreen;
+  static Color get successSubtle => SkywardColors.darkGreenSubtle;
   static Color get error => SkywardColors.darkRed;
+  static Color get errorSubtle => SkywardColors.darkRedSubtle;
   static Color get warning => SkywardColors.darkAmber;
+  static Color get warningSubtle => SkywardColors.darkAmberSubtle;
   static Color get info => SkywardColors.blue;
+  static Color get neutral => SkywardColors.darkNeutral;
 
   // ── TEXT COLOR TOKENS ──
   static Color get textPrimary => SkywardColors.darkTextPri;
@@ -48,7 +53,7 @@ class AppTheme {
       extensions: [AppThemeColors.dark()],
       colorScheme: const ColorScheme.dark(
         primary: SkywardColors.darkAccent,
-        secondary: SkywardColors.darkAccentDim,
+        secondary: SkywardColors.darkAccentSubtle,
         surface: SkywardColors.darkSurface,
         error: SkywardColors.darkRed,
         onPrimary: Colors.black,
@@ -159,7 +164,7 @@ class AppTheme {
           backgroundColor: SkywardColors.darkAccent,
           foregroundColor: Colors.black,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           textStyle: GoogleFonts.ibmPlexSans(
             fontWeight: FontWeight.w600,
             fontSize: 14,
@@ -173,7 +178,7 @@ class AppTheme {
           foregroundColor: SkywardColors.darkAccent,
           side: const BorderSide(color: SkywardColors.darkAccent, width: 1.0),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           textStyle: GoogleFonts.ibmPlexSans(
             fontWeight: FontWeight.w600,
             fontSize: 14,
@@ -199,19 +204,19 @@ class AppTheme {
           letterSpacing: 0.1,
         ),
         enabledBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.all(Radius.circular(4)),
           borderSide: BorderSide(color: SkywardColors.darkBorder, width: 1.0),
         ),
         focusedBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.all(Radius.circular(4)),
           borderSide: BorderSide(color: SkywardColors.darkAccent, width: 1.0),
         ),
         errorBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.all(Radius.circular(4)),
           borderSide: BorderSide(color: SkywardColors.darkRed, width: 1.0),
         ),
         focusedErrorBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.all(Radius.circular(4)),
           borderSide: BorderSide(color: SkywardColors.darkRed, width: 1.0),
         ),
       ),
@@ -229,7 +234,7 @@ class AppTheme {
       extensions: [AppThemeColors.light()],
       colorScheme: const ColorScheme.light(
         primary: SkywardColors.lightAccent,
-        secondary: SkywardColors.lightAccentDim,
+        secondary: SkywardColors.lightAccentSubtle,
         surface: SkywardColors.lightSurface,
         error: SkywardColors.lightRed,
         onPrimary: Colors.white,
@@ -340,7 +345,7 @@ class AppTheme {
           backgroundColor: SkywardColors.lightAccent,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           textStyle: GoogleFonts.ibmPlexSans(
             fontWeight: FontWeight.w600,
             fontSize: 14,
@@ -354,7 +359,7 @@ class AppTheme {
           foregroundColor: SkywardColors.lightAccent,
           side: const BorderSide(color: SkywardColors.lightAccent, width: 1.0),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           textStyle: GoogleFonts.ibmPlexSans(
             fontWeight: FontWeight.w600,
             fontSize: 14,
@@ -380,19 +385,19 @@ class AppTheme {
           letterSpacing: 0.1,
         ),
         enabledBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.all(Radius.circular(4)),
           borderSide: BorderSide(color: SkywardColors.lightBorder, width: 1.0),
         ),
         focusedBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.all(Radius.circular(4)),
           borderSide: BorderSide(color: SkywardColors.lightAccent, width: 1.0),
         ),
         errorBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.all(Radius.circular(4)),
           borderSide: BorderSide(color: SkywardColors.lightRed, width: 1.0),
         ),
         focusedErrorBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.all(Radius.circular(4)),
           borderSide: BorderSide(color: SkywardColors.lightRed, width: 1.0),
         ),
       ),

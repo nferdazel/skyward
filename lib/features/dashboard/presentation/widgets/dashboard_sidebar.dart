@@ -9,8 +9,7 @@ import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../navigation/presentation/cubit/navigation_cubit.dart';
 
 class DashboardSidebar extends StatelessWidget {
-  final double scale;
-  const DashboardSidebar({super.key, required this.scale});
+  const DashboardSidebar({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -32,107 +31,196 @@ class DashboardSidebar extends StatelessWidget {
     ];
 
     return Container(
-      width: 68 * scale,
+      width: 220,
       decoration: BoxDecoration(
         color: AppTheme.surface,
         border: Border(
-          right: BorderSide(color: AppTheme.surfaceSubtle, width: 1.0),
+          right: BorderSide(color: AppTheme.border, width: 1.0),
         ),
       ),
       child: Column(
         children: [
-          const SizedBox(height: AppSpacing.lg),
-          RotatedBox(
-            quarterTurns: 3,
-            child: Text(
-              AppStrings.skyward,
-              style: AppTypography.screenTitleLarge.copyWith(
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                color: AppTheme.primary,
+          const SizedBox(height: AppSpacing.xl),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                AppStrings.skyward,
+                style: AppTypography.screenTitleLarge.copyWith(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                  color: AppTheme.primary,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.xxl - AppSpacing.xxs),
-          Divider(color: AppTheme.surfaceSubtle, height: 1),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xxxl),
+          Divider(color: AppTheme.border, height: 1),
+          const SizedBox(height: AppSpacing.md),
           Expanded(
             child: BlocBuilder<NavigationCubit, NavigationState>(
               builder: (context, state) {
-                return ListView.builder(
-                  itemCount: navItems.length,
-                  itemBuilder: (context, index) {
-                    final isActive = state.activeIndex == index;
-                    return Container(
-                      width: 44 * scale,
-                      height: 60 * scale,
-                      margin: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          InkWell(
-                            onTap: () => context
-                                .read<NavigationCubit>()
-                                .selectTab(index),
-                            child: Tooltip(
-                              message: navItems[index],
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    navIcons[index],
-                                    color: isActive
-                                        ? AppTheme.primary
-                                        : AppTheme.textSecondary,
-                                    size: 20 * scale,
-                                  ),
-                                  const SizedBox(height: AppSpacing.xxs),
-                                  Text(
-                                    navItems[index].substring(0, 3),
-                                    style: AppTypography.badgeText.copyWith(
-                                      letterSpacing: 0.5,
-                                      fontWeight: isActive
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                      color: isActive
-                                          ? AppTheme.primary
-                                          : AppTheme.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          if (isActive)
-                            Positioned(
-                              right: 0,
-                              child: Container(
-                                width: 3.0,
-                                height: 18.0 * scale,
-                                color: AppTheme.primary,
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
+                return ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                  children: [
+                    _buildSectionHeader('OPERATIONS'),
+                    _buildNavItem(
+                      context,
+                      navItems[0],
+                      navIcons[0],
+                      state.activeIndex == 0,
+                      () => context.read<NavigationCubit>().selectTab(0),
+                    ),
+                    _buildNavItem(
+                      context,
+                      navItems[1],
+                      navIcons[1],
+                      state.activeIndex == 1,
+                      () => context.read<NavigationCubit>().selectTab(1),
+                    ),
+                    _buildNavItem(
+                      context,
+                      navItems[2],
+                      navIcons[2],
+                      state.activeIndex == 2,
+                      () => context.read<NavigationCubit>().selectTab(2),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _buildSectionHeader('ANALYTICS'),
+                    _buildNavItem(
+                      context,
+                      navItems[3],
+                      navIcons[3],
+                      state.activeIndex == 3,
+                      () => context.read<NavigationCubit>().selectTab(3),
+                    ),
+                    _buildNavItem(
+                      context,
+                      navItems[4],
+                      navIcons[4],
+                      state.activeIndex == 4,
+                      () => context.read<NavigationCubit>().selectTab(4),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _buildSectionHeader('SYSTEM'),
+                    _buildNavItem(
+                      context,
+                      navItems[5],
+                      navIcons[5],
+                      state.activeIndex == 5,
+                      () => context.read<NavigationCubit>().selectTab(5),
+                    ),
+                  ],
                 );
               },
             ),
           ),
-          Divider(color: AppTheme.surfaceSubtle, height: 1),
-          Container(
-            width: 44 * scale,
-            height: 52 * scale,
-            alignment: Alignment.center,
-            child: IconButton(
-              icon: Icon(Icons.logout, color: AppTheme.error, size: 20),
-              tooltip: AppStrings.logoutOperations,
-              onPressed: () => context.read<AuthCubit>().logout(),
+          Divider(color: AppTheme.border, height: 1),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: SizedBox(
+              width: double.infinity,
+              child: InkWell(
+                onTap: () => context.read<AuthCubit>().logout(),
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout, color: AppTheme.error, size: 18),
+                      const SizedBox(width: AppSpacing.md),
+                      Text(
+                        AppStrings.logoutOperations.toUpperCase(),
+                        style: AppTypography.microLabel.copyWith(
+                          color: AppTheme.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: AppSpacing.md,
+        top: AppSpacing.md,
+        bottom: AppSpacing.sm,
+      ),
+      child: Text(
+        title,
+        style: AppTypography.microLabel.copyWith(
+          color: AppTheme.textMuted,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(
+    BuildContext context,
+    String label,
+    IconData icon,
+    bool isActive,
+    VoidCallback onTap,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Material(
+        color: isActive ? AppTheme.accentSubtle : Colors.transparent,
+        borderRadius: BorderRadius.circular(4),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(4),
+          hoverColor: AppTheme.primary.withValues(alpha: 0.06),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              border: isActive
+                  ? Border(
+                      left: BorderSide(
+                        color: AppTheme.primary,
+                        width: 3,
+                      ),
+                    )
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: isActive ? AppTheme.primary : AppTheme.textSecondary,
+                  size: 18,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: AppTypography.bodyLarge.copyWith(
+                      color: isActive ? AppTheme.primary : AppTheme.textSecondary,
+                      fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

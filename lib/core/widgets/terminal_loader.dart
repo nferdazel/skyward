@@ -32,7 +32,7 @@ class TerminalLoader extends StatelessWidget {
           height: 4,
           child: LinearProgressIndicator(
             color: AppTheme.primary,
-            backgroundColor: AppTheme.surface3,
+            backgroundColor: AppTheme.borderSubtle,
           ),
         ),
       ],

@@ -16,15 +16,19 @@ class SkywardColors {
   static const darkBorder    = Color(0xFF30363D);
   static const darkBorder2   = Color(0xFF3D444D);
   static const darkAccent    = Color(0xFF79C0FF);
-  static const darkAccentDim = Color(0xFF1A4A8A);
+  static const darkAccentSubtle = Color(0xFF1F3A5F);
   static const darkAccentBright = Color(0xFFCAE8FF);
   static const darkAccentGhost  = Color(0x1479C0FF); // rgba(121, 192, 255, 0.08)
   static const darkTextPri   = Color(0xFFE6EDF3);
   static const darkTextSec   = Color(0xFF8B949E);
   static const darkTextDim   = Color(0xFF484F58);
   static const darkGreen     = Color(0xFF3FB950);
+  static const darkGreenSubtle = Color(0xFF1A3A23);
   static const darkRed       = Color(0xFFF85149);
+  static const darkRedSubtle = Color(0xFF3D1F1F);
   static const darkAmber     = Color(0xFFD29922);
+  static const darkAmberSubtle = Color(0xFF3D2F0F);
+  static const darkNeutral   = Color(0xFF6E7681);
 
   // Light mode
   static const lightBg       = Color(0xFFF6F8FA);
@@ -34,15 +38,19 @@ class SkywardColors {
   static const lightBorder   = Color(0xFFD0D7DE);
   static const lightBorder2  = Color(0xFFAFB8C1);
   static const lightAccent   = Color(0xFF0550AE);
-  static const lightAccentDim= Color(0xFFDFF0FF);
+  static const lightAccentSubtle = Color(0xFFDFF0FF);
   static const lightAccentBright = Color(0xFF033D8B);
   static const lightAccentGhost  = Color(0x0D0550AE); // rgba(5, 80, 174, 0.05)
   static const lightTextPri  = Color(0xFF24292F);
   static const lightTextSec  = Color(0xFF57606A);
   static const lightTextDim  = Color(0xFF8C959F);
   static const lightGreen    = Color(0xFF1A7F37);
+  static const lightGreenSubtle = Color(0xFFDAFBE1);
   static const lightRed      = Color(0xFFCF222E);
+  static const lightRedSubtle = Color(0xFFFFEBE9);
   static const lightAmber    = Color(0xFF9A6700);
+  static const lightAmberSubtle = Color(0xFFFFF8C5);
+  static const lightNeutral  = Color(0xFF6E7681);
 
   // Common/Fixed informational Blue (derived from Primer)
   static const blue = Color(0xFF388BFD);

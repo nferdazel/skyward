@@ -34,7 +34,8 @@ class AppDropdownField<T> extends StatelessWidget {
           padding: contentPadding,
           decoration: BoxDecoration(
             color: AppTheme.background,
-            border: Border.all(color: AppTheme.surfaceSubtle),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: AppTheme.border),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<T>(
@@ -68,7 +69,7 @@ class AppDropdownField<T> extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AppControlLabel(label: label!, tooltip: tooltip, color: AppTheme.primary),
-        const SizedBox(height: AppSpacing.xxs),
+        const SizedBox(height: AppSpacing.xs),
         dropdown,
       ],
     );
