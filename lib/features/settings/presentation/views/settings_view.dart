@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/database/supabase_client.dart';
-import '../../../../core/utils/dev_mode_manager.dart';
-import '../../../../presentation/theme/app_spacing.dart';
-import '../../../../presentation/widgets/searchable_airport_dropdown.dart';
-import '../../../../presentation/widgets/app_card.dart';
-import '../../../../presentation/widgets/app_button.dart';
-import '../../../../presentation/widgets/app_dialog_shell.dart';
-import '../../../../presentation/widgets/app_labeled_value.dart';
-import '../../../../presentation/widgets/app_snackbar.dart';
-import '../../../../presentation/theme/app_typography.dart';
-import '../../../../presentation/widgets/app_section_header.dart';
+
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/game_constants.dart';
+import '../../../../core/database/supabase_client.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/dev_mode_manager.dart';
+import '../../../../presentation/theme/app_spacing.dart';
+import '../../../../presentation/theme/app_typography.dart';
+import '../../../../presentation/widgets/app_button.dart';
+import '../../../../presentation/widgets/app_card.dart';
+import '../../../../presentation/widgets/app_dialog_shell.dart';
+import '../../../../presentation/widgets/app_labeled_value.dart';
+import '../../../../presentation/widgets/app_section_header.dart';
+import '../../../../presentation/widgets/app_snackbar.dart';
+import '../../../../presentation/widgets/searchable_airport_dropdown.dart';
 import '../../../auth/domain/user_model.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
-import '../../../routes/domain/route_models.dart';
-import '../../../simulation/presentation/cubit/simulation_cubit.dart';
 import '../../../fleet/presentation/cubit/fleet_cubit.dart';
+import '../../../routes/domain/route_models.dart';
 import '../../../routes/presentation/cubit/routes_cubit.dart';
+import '../../../simulation/presentation/cubit/simulation_cubit.dart';
 import '../cubit/settings_cubit.dart';
 
 class SettingsView extends StatefulWidget {
