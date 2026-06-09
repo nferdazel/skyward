@@ -14,7 +14,7 @@ void main() {
       final content = await sqlFile.readAsString();
       expect(content, contains('BEGIN;'));
       expect(content, contains('ROLLBACK;'));
-      expect(content, contains('register_company'));
+      expect(content, contains('INSERT INTO users'));
       expect(content, contains('purchase_aircraft'));
       expect(content, contains('process_simulation_delta'));
     });

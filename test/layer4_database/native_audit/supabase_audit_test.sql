@@ -11,12 +11,8 @@ BEGIN;
 DO $$
 DECLARE
   v_user_id UUID;
-  v_session_token VARCHAR;
   v_reg_success BOOLEAN;
   v_reg_message VARCHAR;
-  v_login_success BOOLEAN;
-  v_login_message VARCHAR;
-  v_valid_session BOOLEAN;
   
   v_model_id UUID;
   v_fleet_id UUID;
@@ -49,47 +45,40 @@ BEGIN
   ON CONFLICT (iata) DO NOTHING;
 
   -- ==========================================================================
-  -- 2. TEST: register_company RPC
+  -- 2. TEST: direct player bootstrap for gameplay RPC audit
   -- ==========================================================================
   
   -- Clean existing test user if any residual exists
   DELETE FROM users WHERE username = 'audit_chief';
 
-  SELECT success, message, user_id INTO v_reg_success, v_reg_message, v_user_id
-  FROM register_company('audit_chief', 'securepwd123', 'Audit Chief Airlines', 'Audit CEO');
+  INSERT INTO users (
+    username,
+    password_hash,
+    company_name,
+    ceo_name,
+    cash,
+    net_worth,
+    last_active_at
+  )
+  VALUES (
+    'audit_chief',
+    'phase6-legacy-auth-removed',
+    'Audit Chief Airlines',
+    'Audit CEO',
+    COALESCE((SELECT starting_cash FROM global_game_settings LIMIT 1), 15000000.00),
+    COALESCE((SELECT starting_cash FROM global_game_settings LIMIT 1), 15000000.00),
+    NOW()
+  )
+  RETURNING id INTO v_user_id;
 
-  ASSERT v_reg_success = TRUE, 'Failed to register company: ' || COALESCE(v_reg_message, 'no message');
-  ASSERT v_user_id IS NOT NULL, 'User ID was not returned upon registration';
+  ASSERT v_user_id IS NOT NULL, 'Direct audit user bootstrap failed.';
 
   -- Verify starting cash
   SELECT cash INTO v_starting_balance FROM users WHERE id = v_user_id;
   ASSERT v_starting_balance = (SELECT COALESCE(starting_cash, 15000000.00) FROM global_game_settings LIMIT 1), 'Starting cash balance should match global settings starting cash';
 
   -- ==========================================================================
-  -- 3. TEST: login_company RPC
-  -- ==========================================================================
-  
-  -- Test invalid password fails
-  SELECT success, message INTO v_login_success, v_login_message
-  FROM login_company('audit_chief', 'wrongpwd');
-  ASSERT v_login_success = FALSE, 'Login should have failed for wrong password';
-
-  -- Test valid login
-  SELECT success, session_token INTO v_login_success, v_session_token
-  FROM login_company('audit_chief', 'securepwd123');
-  ASSERT v_login_success = TRUE, 'Failed valid login: ' || COALESCE(v_login_message, 'no message');
-  ASSERT v_session_token IS NOT NULL, 'Session token was not returned upon successful login';
-
-  -- ==========================================================================
-  -- 4. TEST: validate_session RPC
-  -- ==========================================================================
-  
-  SELECT success INTO v_valid_session
-  FROM validate_session(v_session_token);
-  ASSERT v_valid_session = TRUE, 'Session token should be valid';
-
-  -- ==========================================================================
-  -- 5. TEST: purchase_aircraft RPC & BUY MATH
+  -- 3. TEST: purchase_aircraft RPC & BUY MATH
   -- ==========================================================================
   
   -- Set user's cash balance to afford the purchase
@@ -113,7 +102,7 @@ BEGIN
   ASSERT v_ledger_count = 1, 'Ledger entry should be created for aircraft purchase';
 
   -- ==========================================================================
-  -- 6. TEST: lease_aircraft RPC & LEASE MATH
+  -- 4. TEST: lease_aircraft RPC & LEASE MATH
   -- ==========================================================================
   
   SELECT success, message INTO v_reg_success, v_reg_message
@@ -125,7 +114,7 @@ BEGIN
   ASSERT EXISTS(SELECT 1 FROM user_fleet WHERE user_id = v_user_id AND nickname = 'Audit Tail 2'), 'Leased aircraft not found in user fleet';
 
   -- ==========================================================================
-  -- 7. TEST: process_simulation_delta RPC
+  -- 5. TEST: process_simulation_delta RPC
   -- ==========================================================================
   
   -- Route creation connecting SIN & CGK
@@ -152,7 +141,7 @@ BEGIN
   ASSERT v_sim_success = TRUE, 'process_simulation_delta threw an exception: ' || v_sim_message;
 
   -- ==========================================================================
-  -- 8. TEST: RECONCILE NET WORTH TRIGGERS
+  -- 6. TEST: RECONCILE NET WORTH TRIGGERS
   -- ==========================================================================
   
   -- Assert net worth recalculation triggers successfully if calculate_user_net_worth is installed
@@ -166,7 +155,7 @@ BEGIN
   END IF;
 
   -- ==========================================================================
-  -- 9. SUCCESS CONFIRMATION
+  -- 7. SUCCESS CONFIRMATION
   -- ==========================================================================
   RAISE NOTICE 'ALL SKYWARD RELATIONAL RPC AND DATABASE TRIGGERS AUDITED SUCCESSFULLY!';
 END $$;

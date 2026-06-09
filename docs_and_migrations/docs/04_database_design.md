@@ -94,12 +94,9 @@ Security Phase 5 note:
   callers no longer need direct table write privileges
 - legacy custom-session auth RPCs are no longer part of the client runtime path
 
-### `sessions`
-Custom auth sessions used by the app login flow.
-
-Security transition note:
-- `sessions` is now a legacy compatibility table slated for retirement once the
-  Supabase Auth cutover is complete
+Security Phase 6 note:
+- the legacy `sessions` table and the custom-session auth functions have been
+  removed from the live runtime model
 
 ### `global_game_settings`
 Global game configuration used by nearly every simulation RPC.

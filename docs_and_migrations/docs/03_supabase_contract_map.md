@@ -15,57 +15,6 @@ This is the live Flutter-to-Supabase contract surface.
 
 ### Auth
 
-`validate_session`
-- caller: `AuthCubit.autoLogin()`
-- params:
-  - `p_token`
-- expected:
-  - first row contains `success`
-  - on success also returns the user payload consumed by `User.fromMap`
-- current behavior:
-  - validates the session token without mutating simulation time state
-  - leaves world-clock reconciliation to backend tick/sync RPCs
-- transition note:
-  - legacy compatibility RPC retained in SQL, but no longer used by the
-    current Flutter auth flow after Security Phase 3
-  - Security Phase 5 retires client-role execute access
-
-`register_company`
-- caller: `AuthCubit.register()`
-- params:
-  - `p_username`
-  - `p_password`
-  - `p_company_name`
-  - `p_ceo_name`
-- expected:
-  - first row contains `success`
-  - `message` on failure
-- transition note:
-  - Security Phase 1 introduced shared SQL helpers for username normalization
-    and synthetic-email derivation ahead of the planned username-only Supabase
-    Auth cutover
-  - Security Phase 2 added the backend auth bootstrap flow that will replace
-    this RPC during the Flutter auth cutover
-  - Security Phase 3 no longer uses this RPC from Flutter
-  - Security Phase 5 retires client-role execute access
-
-`login_company`
-- caller: `AuthCubit.login()`
-- params:
-  - `p_username`
-  - `p_password`
-- expected:
-  - first row contains `success`
-  - `message` on failure
-  - on success returns `session_token` plus the user payload for `User.fromMap`
-- current behavior:
-  - creates a session token without mutating simulation time state
-  - leaves world-clock reconciliation to backend tick/sync RPCs
-- transition note:
-  - legacy compatibility RPC retained in SQL, but no longer used by the
-    current Flutter auth flow after Security Phase 3
-  - Security Phase 5 retires client-role execute access
-
 `register-with-username` Edge Function
 - caller: `AuthCubit.register()` through `SupabaseAuthGateway`
 - input body:
@@ -79,6 +28,9 @@ This is the live Flutter-to-Supabase contract surface.
   - creates an auto-confirmed Supabase Auth user through admin auth APIs
   - relies on the `auth.users` bootstrap trigger to create the matching
     `public.users` actor row
+- phase note:
+  - Security Phase 6 removed the legacy `register_company`, `login_company`,
+    and `validate_session` RPCs entirely
 
 ### Simulation
 

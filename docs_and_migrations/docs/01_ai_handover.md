@@ -62,6 +62,8 @@ Security migration note:
 - Security Phase 5 enables RLS on the app-facing read surface, converts the
   auth-bound wrappers to security-definer execution, and retires client access
   to the legacy custom-session RPCs.
+- Security Phase 6 removes the legacy custom-session database functions and the
+  `sessions` table entirely.
 
 ## Current time authority
 
