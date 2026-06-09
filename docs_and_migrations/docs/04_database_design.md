@@ -1,6 +1,6 @@
 # Skyward Database Design
 
-Last verified against code and migration history on 2026-06-07.
+Last verified against code and migration history on 2026-06-09.
 
 This is the current high-level database design record.
 It replaces older raw-schema walkthroughs that no longer matched the live app.
@@ -62,6 +62,7 @@ Company profile and simulation anchor.
 
 Important fields used by Flutter:
 - identity/session-linked profile data
+- `auth_user_id` as the future Supabase Auth linkage column
 - `company_name`
 - `ceo_name`
 - `cash` or compatibility-mapped cash payload
@@ -69,8 +70,18 @@ Important fields used by Flutter:
 - `season_id`
 - HQ/grounding-related settings fields
 
+Security Phase 1 note:
+- `auth_user_id` is now the forward path for binding authenticated callers to
+  gameplay rows through `auth.uid()`
+- the runtime still uses custom session RPCs until the auth cutover phases are
+  completed
+
 ### `sessions`
 Custom auth sessions used by the app login flow.
+
+Security transition note:
+- `sessions` is now a legacy compatibility table slated for retirement once the
+  Supabase Auth cutover is complete
 
 ### `global_game_settings`
 Global game configuration used by nearly every simulation RPC.

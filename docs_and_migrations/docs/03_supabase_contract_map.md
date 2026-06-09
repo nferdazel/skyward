@@ -1,6 +1,6 @@
 # Skyward Supabase Contract Map
 
-Last verified against code on 2026-06-07.
+Last verified against code on 2026-06-09.
 
 This is the live Flutter-to-Supabase contract surface.
 
@@ -36,6 +36,10 @@ This is the live Flutter-to-Supabase contract surface.
 - expected:
   - first row contains `success`
   - `message` on failure
+- transition note:
+  - Security Phase 1 introduced shared SQL helpers for username normalization
+    and synthetic-email derivation ahead of the planned username-only Supabase
+    Auth cutover
 
 `login_company`
 - caller: `AuthCubit.login()`
@@ -49,6 +53,9 @@ This is the live Flutter-to-Supabase contract surface.
 - current behavior:
   - creates a session token without mutating simulation time state
   - leaves world-clock reconciliation to backend tick/sync RPCs
+- transition note:
+  - still active today, but planned to be replaced by Supabase Auth sessions
+    tied to `users.auth_user_id`
 
 ### Simulation
 
@@ -208,6 +215,29 @@ This is the live Flutter-to-Supabase contract surface.
 - current behavior:
   - assigns the active season when `season_id` is missing
   - starts newly inserted actors at the active season game time
+
+`normalize_username`
+- caller: planned auth bootstrap / future username-only auth flow
+- params:
+  - `p_username`
+- current behavior:
+  - converts a user-facing username into a deterministic lowercase slug-safe
+    identifier for future auth ownership workflows
+
+`build_synthetic_auth_email`
+- caller: planned auth bootstrap / future username-only auth flow
+- params:
+  - `p_username`
+- current behavior:
+  - derives the synthetic `@skyward.sachiel.id` auth email for username-based
+    sign-in UX
+
+`get_user_id_for_auth_uid`
+- caller: planned authenticated gameplay RPCs
+- params:
+  - `p_auth_user_id` optional, defaults to `auth.uid()`
+- current behavior:
+  - resolves the future Supabase Auth identity anchor to `public.users.id`
 
 ### Fleet
 

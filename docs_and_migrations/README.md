@@ -1,6 +1,6 @@
 # Skyward Docs And Migrations
 
-Last verified on 2026-06-07.
+Last verified on 2026-06-09.
 
 This folder is the maintenance record for Skyward's Supabase-backed runtime.
 
@@ -42,6 +42,8 @@ Phase 9 implementation note:
 
 Current next major backend step:
 - Phase 16 foundation: player activity tracking and inactive-player policy
+- Security Phase 1 foundation: Supabase Auth identity linkage ahead of the
+  username-only auth cutover and RLS hardening
 
 ## Documentation Index
 
@@ -64,6 +66,7 @@ Current next major backend step:
   deterministic daily segmentation
 - `46`: database size reporting and retention policy foundation
 - `47`-`61`: table-size permission hardening, world-tick and ledger compaction foundations, finance snapshot RPC, route/cabin contract hardening, fleet disposal/operator tooling, and owner-optimizer hardening/refinement
+- `62+`: security hardening, Supabase Auth identity foundation, planned RLS rollout, and gameplay RPC auth binding
 
 ## Current Time Authority
 

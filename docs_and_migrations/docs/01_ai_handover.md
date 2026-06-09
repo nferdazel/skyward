@@ -1,6 +1,6 @@
 # Skyward AI Handover
 
-Last verified against code on 2026-06-08.
+Last verified against code on 2026-06-09.
 
 ## Current shape
 
@@ -47,6 +47,12 @@ See:
 - [03_supabase_contract_map.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/03_supabase_contract_map.md)
 - [04_database_design.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/04_database_design.md)
 - [../README.md](/home/sachiel/Projects/skyward/docs_and_migrations/README.md)
+
+Security migration note:
+- Security Phase 1 adds `users.auth_user_id` plus shared username/email helper
+  functions as the foundation for the planned Supabase Auth cutover.
+- The live Flutter/runtime flow still uses the custom session RPCs until the
+  later cutover phases complete.
 
 ## Current time authority
 
@@ -120,3 +126,6 @@ audits when you need real operational state.
 10. Finance now separates current balance-sheet state from rolling 30-day ledger
    analytics. The backend contract for both human players and bots is
    `get_finance_snapshot()`.
+11. Security hardening is now an active backend track. Do not add new client
+    RPCs that trust caller-supplied `p_user_id`; future work will bind gameplay
+    access to `auth.uid()` and RLS.
