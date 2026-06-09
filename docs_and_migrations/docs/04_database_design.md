@@ -76,6 +76,12 @@ Security Phase 1 note:
 - the runtime still uses custom session RPCs until the auth cutover phases are
   completed
 
+Security Phase 2 note:
+- new users can now be bootstrapped from `auth.users` into `public.users`
+  through an insert trigger
+- the planned username-only auth UX depends on synthetic auth emails and
+  server-side auto-confirmed auth user creation
+
 ### `sessions`
 Custom auth sessions used by the app login flow.
 

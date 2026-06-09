@@ -51,6 +51,9 @@ See:
 Security migration note:
 - Security Phase 1 adds `users.auth_user_id` plus shared username/email helper
   functions as the foundation for the planned Supabase Auth cutover.
+- Security Phase 2 adds an `auth.users` bootstrap trigger and a server-side
+  username registration surface that creates auto-confirmed synthetic-email
+  auth identities.
 - The live Flutter/runtime flow still uses the custom session RPCs until the
   later cutover phases complete.
 

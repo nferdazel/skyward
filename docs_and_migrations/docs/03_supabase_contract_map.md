@@ -40,6 +40,8 @@ This is the live Flutter-to-Supabase contract surface.
   - Security Phase 1 introduced shared SQL helpers for username normalization
     and synthetic-email derivation ahead of the planned username-only Supabase
     Auth cutover
+  - Security Phase 2 added the backend auth bootstrap flow that will replace
+    this RPC during the Flutter auth cutover
 
 `login_company`
 - caller: `AuthCubit.login()`
@@ -56,6 +58,20 @@ This is the live Flutter-to-Supabase contract surface.
 - transition note:
   - still active today, but planned to be replaced by Supabase Auth sessions
     tied to `users.auth_user_id`
+
+`register-with-username` Edge Function
+- caller: planned Flutter auth registration flow
+- input body:
+  - `username`
+  - `password`
+  - `companyName`
+  - `ceoName`
+- current behavior:
+  - normalizes the username
+  - derives the synthetic `@skyward.sachiel.id` auth email
+  - creates an auto-confirmed Supabase Auth user through admin auth APIs
+  - relies on the `auth.users` bootstrap trigger to create the matching
+    `public.users` actor row
 
 ### Simulation
 
@@ -238,6 +254,14 @@ This is the live Flutter-to-Supabase contract surface.
   - `p_auth_user_id` optional, defaults to `auth.uid()`
 - current behavior:
   - resolves the future Supabase Auth identity anchor to `public.users.id`
+
+`handle_new_auth_user`
+- caller: trigger on `auth.users`
+- current behavior:
+  - validates synthetic-email/metadata bootstrap assumptions
+  - creates the matching `public.users` row with future auth ownership linkage
+  - leaves season bootstrap and actor-start-time enforcement to existing
+    `users` insert triggers
 
 ### Fleet
 
