@@ -92,11 +92,80 @@ class OverviewTab extends StatelessWidget {
     NumberFormat currencyFormat,
     OverviewSnapshot overview,
   ) {
+    final isMobile = MediaQuery.of(context).size.width < 950;
+
+    if (isMobile) {
+      return AppCard(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(user.companyName, style: AppTypography.screenTitleLarge),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        '${AppStrings.ceoPrefix}: ${user.ceoName}',
+                        style: AppTypography.captionRegular.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: overview.operationalStatusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: overview.operationalStatusColor.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Text(
+                    overview.operationalStatus.toUpperCase(),
+                    style: AppTypography.microLabel.copyWith(
+                      color: overview.operationalStatusColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Text(
+                  'CASH POSITION',
+                  style: AppTypography.microLabel.copyWith(
+                    color: AppTheme.textMuted,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  currencyFormat.format(simState.cashBalance),
+                  style: AppTypography.largeKpi.copyWith(
+                    color: AppTheme.success,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
     return AppCard(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Row(
         children: [
-          // Company identity
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,7 +181,6 @@ class OverviewTab extends StatelessWidget {
               ],
             ),
           ),
-          // Operational status chip
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
@@ -134,7 +202,6 @@ class OverviewTab extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.xl),
-          // Cash position
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -160,6 +227,8 @@ class OverviewTab extends StatelessWidget {
 
   // Region 2 Left: Operational Health KPIs
   Widget _buildHealthKPIs(BuildContext context, OverviewSnapshot overview) {
+    final isMobile = MediaQuery.of(context).size.width < 950;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -181,7 +250,7 @@ class OverviewTab extends StatelessWidget {
             '${overview.totalSlackHours.toStringAsFixed(1)}h',
             AppTheme.info,
           ),
-        ]),
+        ], wrap: isMobile),
         const SizedBox(height: AppSpacing.md),
         _buildKPIRow([
           _buildKPICard(
@@ -199,7 +268,7 @@ class OverviewTab extends StatelessWidget {
             overview.runwayLabel,
             overview.runwayColor,
           ),
-        ]),
+        ], wrap: isMobile),
       ],
     );
   }
@@ -241,6 +310,28 @@ class OverviewTab extends StatelessWidget {
 
   // Region 3: Quick Actions
   Widget _buildQuickActions(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 950;
+
+    if (isMobile) {
+      return Column(
+        children: [
+          _buildActionButton(
+            context,
+            'Manage Fleet',
+            'View and manage your aircraft',
+            onNavigateToFleet,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _buildActionButton(
+            context,
+            'Manage Routes',
+            'Plan and optimize your network',
+            onNavigateToRoutes,
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
         Expanded(
@@ -273,7 +364,17 @@ class OverviewTab extends StatelessWidget {
     );
   }
 
-  Widget _buildKPIRow(List<Widget> children) {
+  Widget _buildKPIRow(List<Widget> children, {bool wrap = false}) {
+    if (wrap) {
+      return Wrap(
+        spacing: AppSpacing.md,
+        runSpacing: AppSpacing.md,
+        children: children.map((child) => SizedBox(
+          width: 140,
+          child: child,
+        )).toList(),
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: children
