@@ -1,0 +1,520 @@
+# Skyward UI/UX Extraction
+
+Last verified against code on 2026-06-09.
+
+This document extracts the current UI/UX structure, design language, and screen responsibilities from the live Flutter codebase so redesign work can stay grounded in the actual product.
+
+## 1. The Vision & Identity
+
+### Core Purpose
+
+The one thing this app must do perfectly is provide a clear operational command center for running an airline simulation.
+
+The UI is not optimized for storytelling, browsing, or passive consumption. It is optimized for:
+- monitoring operational health
+- spotting pressure and risk quickly
+- taking corrective or growth actions
+- seeing backend-authoritative outcomes reflected back into the interface
+
+### Target Audience
+
+The current product is best understood as targeting:
+- simulation and management-game players
+- users comfortable with dashboards, tables, KPIs, and operational workflows
+- desktop-first users who value information density over decorative whitespace
+
+This is not currently designed like a casual consumer app or a lightweight content experience.
+
+### Brand Personality
+
+The implemented interface reads as:
+- tactical
+- operational
+- high-tech
+- disciplined
+- dense but controlled
+
+### Visual Direction
+
+The codebase already has a strong visual direction, so redesign work should preserve the identity unless a deliberate rebrand is intended.
+
+Current direction:
+- dark airline operations console
+- flat surfaces with sharp edges
+- border-led hierarchy rather than shadow-led hierarchy
+- cold blue accenting over dark neutral surfaces
+- status colors used as operational signals
+
+Primary dark palette from [skyward_colors.dart](/home/sachiel/Projects/skyward/lib/core/theme/skyward_colors.dart:1):
+- background: `#0D1117`
+- surface: `#161B22`
+- border: `#30363D`
+- primary accent: `#79C0FF`
+- success: `#3FB950`
+- danger: `#F85149`
+- warning: `#D29922`
+
+Runtime theme note:
+- a light theme token set exists
+- the app currently boots with `AppTheme.darkTheme`
+
+References:
+- [main.dart](/home/sachiel/Projects/skyward/lib/main.dart:1)
+- [app_theme.dart](/home/sachiel/Projects/skyward/lib/core/theme/app_theme.dart:1)
+- [skyward_colors.dart](/home/sachiel/Projects/skyward/lib/core/theme/skyward_colors.dart:1)
+
+## 2. Application Architecture
+
+### Sitemap
+
+Current major screens and views:
+
+1. Auth
+2. Dashboard Shell
+3. Overview
+4. Fleet
+5. Routes
+6. Finance
+7. Leaderboard
+8. Settings
+
+Sub-views:
+
+- Auth
+  - Login
+  - Register
+- Fleet
+  - Active Fleet
+  - Acquire Aircraft
+- Routes
+  - Flight Connections
+  - Blueprint Network
+
+References:
+- [auth_screen.dart](/home/sachiel/Projects/skyward/lib/features/auth/presentation/views/auth_screen.dart:1)
+- [dashboard_screen.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/views/dashboard_screen.dart:1)
+- [overview_tab.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/views/overview_tab.dart:1)
+- [fleet_view.dart](/home/sachiel/Projects/skyward/lib/features/fleet/presentation/views/fleet_view.dart:1)
+- [routes_view.dart](/home/sachiel/Projects/skyward/lib/features/routes/presentation/views/routes_view.dart:1)
+- [finance_view.dart](/home/sachiel/Projects/skyward/lib/features/finance/presentation/views/finance_view.dart:1)
+- [leaderboard_view.dart](/home/sachiel/Projects/skyward/lib/features/leaderboard/presentation/views/leaderboard_view.dart:1)
+- [settings_view.dart](/home/sachiel/Projects/skyward/lib/features/settings/presentation/views/settings_view.dart:1)
+
+### Navigation Logic
+
+The app is dashboard-centric rather than route-centric.
+
+Post-auth flow:
+- if auth is loading, show a terminal-style loader
+- if authenticated, enter a single dashboard shell
+- if unauthenticated, show the auth screen
+
+Desktop navigation model:
+- left vertical sidebar
+- top system ticker strip
+- top HUD/status bar
+- main content workspace rendered through an `IndexedStack`
+
+Mobile navigation model:
+- app bar with company and CEO info
+- compact HUD strip in the app bar bottom area
+- bottom navigation bar
+
+Within sections:
+- Fleet uses a 2-tab internal workspace
+- Routes uses a 2-tab internal workspace
+
+Lazy loading:
+- top-level tabs are lazily activated
+- Fleet and Routes internal tabs are also lazily activated
+
+References:
+- [main.dart](/home/sachiel/Projects/skyward/lib/main.dart:1)
+- [dashboard_sidebar.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/widgets/dashboard_sidebar.dart:1)
+- [top_hud.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/widgets/top_hud.dart:1)
+- [ticker_tape.dart](/home/sachiel/Projects/skyward/lib/core/widgets/ticker_tape.dart:1)
+
+### User Roles
+
+The UI does not currently branch into significantly different interfaces for different human roles such as Admin vs Viewer.
+
+Current model:
+- one authenticated player
+- AI competitors appear as data surfaces, not alternate UI roles
+
+Result:
+- the interface is player-state-driven, not role-driven
+
+## 3. Functional Requirements
+
+### Overall Complexity Level
+
+This is a high-density data application.
+
+Dominant UI patterns:
+- tables
+- KPI cards
+- badges
+- status chips
+- compact forms
+- dialogs
+- read-heavy control surfaces
+- one interactive map
+
+This is not a high-whitespace marketing or editorial layout.
+
+### Screen 1: Overview
+
+Reference:
+- [overview_tab.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/views/overview_tab.dart:1)
+
+Primary role:
+- command-center home
+- health triage
+- action routing into Fleet and Routes
+
+Critical data that should remain easy to see:
+- company name
+- CEO name
+- cash or liquidity position
+- runway estimate
+- fleet readiness
+- active routes
+- network pressure
+- operational status
+- weekly slack hours
+- average condition
+- top route risk
+- competitive gap to the leader
+
+Primary calls to action:
+- navigate to Fleet
+- navigate to Routes
+
+### Screen 2: Routes
+
+References:
+- [routes_view.dart](/home/sachiel/Projects/skyward/lib/features/routes/presentation/views/routes_view.dart:1)
+- [blueprint_planner_form.dart](/home/sachiel/Projects/skyward/lib/features/routes/presentation/widgets/blueprint_planner_form.dart:1)
+- [route_network_map.dart](/home/sachiel/Projects/skyward/lib/features/routes/presentation/widgets/route_network_map.dart:1)
+
+Primary role:
+- strategic network planning
+- active route management
+- maintenance-pressure awareness
+
+Critical data that should remain easy to see:
+- route origin and destination
+- city pair
+- distance
+- flights per week
+- ticket price
+- load factor
+- demand multiplier
+- maintenance slack
+- assigned aircraft status
+- route preview on the world map
+- planning assessment and recommended route viability signals
+
+Primary calls to action:
+- create route
+- assign aircraft
+- update route schedule and price
+- delete route
+
+### Screen 3: Finance
+
+Reference:
+- [finance_view.dart](/home/sachiel/Projects/skyward/lib/features/finance/presentation/views/finance_view.dart:1)
+
+Primary role:
+- executive audit and cash diagnostics
+
+Critical data that should remain easy to see:
+- cash
+- net worth
+- owned asset value
+- monthly lease exposure
+- fleet composition
+- ledger window
+- rolling revenue
+- rolling expense
+- rolling net
+- cash runway
+- burn ratio and operating signals
+- category analytics
+- audited transaction logs
+
+Primary calls to action:
+- mostly analytical, not mutation-heavy
+- this screen informs decisions taken elsewhere
+
+### Additional Main Screens
+
+#### Fleet
+
+Reference:
+- [fleet_view.dart](/home/sachiel/Projects/skyward/lib/features/fleet/presentation/views/fleet_view.dart:1)
+
+Primary role:
+- active fleet management
+- acquisition workflow
+- repair workflow
+- cabin configuration workflow
+
+Primary calls to action:
+- purchase aircraft
+- lease aircraft
+- repair aircraft
+- configure seats
+- sell aircraft
+- terminate lease
+
+Important visible data:
+- tail number
+- aircraft model and manufacturer
+- acquisition type
+- condition
+- grounded vs ready status
+- cabin configuration
+- assignment state
+
+#### Leaderboard
+
+Reference:
+- [leaderboard_view.dart](/home/sachiel/Projects/skyward/lib/features/leaderboard/presentation/views/leaderboard_view.dart:1)
+
+Primary role:
+- ranking surface
+- competitor intelligence surface
+
+Primary calls to action:
+- select competitor
+- inspect competitor intel
+
+Important visible data:
+- rank
+- company and CEO
+- cash
+- net worth
+- fleet size
+- monthly revenue
+- selected competitor insights
+
+#### Settings
+
+Reference:
+- [settings_view.dart](/home/sachiel/Projects/skyward/lib/features/settings/presentation/views/settings_view.dart:1)
+
+Primary role:
+- airline profile management
+- HQ management
+- operational safety threshold management
+- UI scale control
+- reset flow
+
+Primary calls to action:
+- save settings
+- adjust grounding threshold
+- reset airline
+
+Important visible data:
+- company name
+- HQ airport
+- auto-grounding threshold
+- UI scale
+- dangerous irreversible actions
+
+## 4. Technical & Design Constraints
+
+### Layout Style
+
+The dominant layout is a full-width fluid dashboard.
+
+Exceptions:
+- auth form is width-constrained on desktop
+- settings content is centered in a constrained content region
+
+So the actual pattern is:
+- fluid shell
+- constrained forms where needed
+
+Breakpoint logic:
+- desktop at `>= 950px`
+- mobile below `950px`
+
+Reference:
+- [responsive_layout.dart](/home/sachiel/Projects/skyward/lib/core/widgets/responsive_layout.dart:1)
+
+### Interactive Elements
+
+The current app contains several non-trivial interactive components:
+- interactive world map using `flutter_map`
+- route blueprint planner
+- searchable airport dropdown
+- lazy-loaded tab workspaces
+- modal dialogs for operational actions
+- sliders
+- dense tables with row-level actions
+
+Not present in the current UX:
+- drag-and-drop builders
+- freeform canvas tools
+- visual automation builders
+
+### Design System Preferences Inferred From Code
+
+The current system is closest to:
+- flat operational UI
+- terminal-inspired dashboard UI
+- Material-adjacent interaction patterns without heavy Material 3 branding
+
+It is not currently:
+- glassmorphism
+- neobrutalism
+- soft consumer SaaS
+- highly rounded mobile-first design
+
+### Typography
+
+Font family:
+- IBM Plex Sans via Google Fonts
+
+Current typographic behavior:
+- compact scale
+- strong use of semibold and bold for labels and data emphasis
+- badge-like labels often use uppercase or wide letter spacing
+
+Approximate hierarchy:
+- screen titles: 15 to 17
+- section headers: 13 to 14
+- body text: 13
+- captions and badges: 11 to 12
+
+References:
+- [app_theme.dart](/home/sachiel/Projects/skyward/lib/core/theme/app_theme.dart:1)
+- [app_typography.dart](/home/sachiel/Projects/skyward/lib/presentation/theme/app_typography.dart:1)
+
+### Spacing
+
+The spacing system is tight and systematic.
+
+Token values from [app_spacing.dart](/home/sachiel/Projects/skyward/lib/presentation/theme/app_spacing.dart:1):
+- `4`
+- `6`
+- `10`
+- `14`
+- `16`
+- `20`
+- `24`
+
+Common layout values:
+- page padding: `16`
+- card padding: `12`
+- section gap: `16`
+- block gap: `12`
+
+### Component Language
+
+Current shared primitives:
+- cards
+- buttons
+- badges
+- dialogs
+- empty states
+- table shells and table cells
+- stat text
+- dropdown fields
+- labeled values
+
+Visual behavior of primitives:
+- cards are flat bordered blocks
+- buttons are square-edged and status-colored
+- inputs use filled dark surfaces with square outline borders
+- emphasis is achieved through border, color, and type instead of depth
+
+References:
+- [app_card.dart](/home/sachiel/Projects/skyward/lib/presentation/widgets/app_card.dart:1)
+- [app_button.dart](/home/sachiel/Projects/skyward/lib/presentation/widgets/app_button.dart:1)
+- [app_theme.dart](/home/sachiel/Projects/skyward/lib/core/theme/app_theme.dart:1)
+
+## 5. Notable UI Signatures
+
+Several small patterns define the product identity and should be treated as part of the UX language, not as incidental decoration.
+
+### Terminal Loader
+
+The app uses a terminal-style loader for auth restore and bootstrapping:
+- all-caps operational messaging
+- thin progress indicator
+- blue accent on dark background
+
+Reference:
+- [terminal_loader.dart](/home/sachiel/Projects/skyward/lib/core/widgets/terminal_loader.dart:1)
+
+### Ticker Tape
+
+Desktop shell includes a top system ticker strip:
+- bright accent bar
+- compressed operational copy
+- status-broadcast feeling
+
+Reference:
+- [ticker_tape.dart](/home/sachiel/Projects/skyward/lib/core/widgets/ticker_tape.dart:1)
+
+### HUD Bar
+
+Desktop and mobile both prioritize a compact operational HUD showing:
+- company identity
+- CEO
+- game time
+- cash balance
+- fuel price
+- sync/live status
+
+Reference:
+- [top_hud.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/widgets/top_hud.dart:1)
+
+### Tactical Labeling
+
+The interface frequently uses:
+- uppercase micro-labels
+- compact abbreviations
+- badge-like numeric or status emphasis
+- operational language instead of playful copy
+
+This creates the “control room” feeling.
+
+## 6. Practical Redesign Summary
+
+If the UI is redesigned, the current product should be treated as:
+
+- product type: desktop-first airline operations simulator
+- UX archetype: command center
+- visual archetype: dark tactical operations console
+- information model: tabbed workspace with dense operational panels
+- interaction model: inspect, decide, act, verify
+
+### Preserve
+
+- strong command-center identity
+- desktop-first dense dashboard shell
+- overview as triage surface
+- visible HUD for time, cash, fuel, and sync state
+- route map and planner as strategic surfaces
+- data-dense Fleet, Routes, and Finance tabs
+
+### Improve
+
+- consistency across spacing and section framing
+- clarity of action hierarchy in table-heavy screens
+- mobile compression of dense tables and analytics
+- stronger distinction between summary metrics and actionable controls
+
+### Avoid
+
+- redesigning into a generic SaaS dashboard
+- over-rounding controls
+- replacing the tactical identity with soft marketing aesthetics
+- reducing critical data density so far that operational scanning gets slower
+
