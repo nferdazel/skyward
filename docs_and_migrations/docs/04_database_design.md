@@ -88,6 +88,12 @@ Security Phase 3/4 note:
 - client-facing gameplay and finance RPCs are moving to auth-bound wrappers
   that resolve `public.users.id` from `auth.uid()`
 
+Security Phase 5 note:
+- Row Level Security is enabled on the app-facing read tables
+- auth-bound client wrappers now execute as security definers so authenticated
+  callers no longer need direct table write privileges
+- legacy custom-session auth RPCs are no longer part of the client runtime path
+
 ### `sessions`
 Custom auth sessions used by the app login flow.
 

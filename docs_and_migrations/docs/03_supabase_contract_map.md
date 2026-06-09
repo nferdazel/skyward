@@ -28,6 +28,7 @@ This is the live Flutter-to-Supabase contract surface.
 - transition note:
   - legacy compatibility RPC retained in SQL, but no longer used by the
     current Flutter auth flow after Security Phase 3
+  - Security Phase 5 retires client-role execute access
 
 `register_company`
 - caller: `AuthCubit.register()`
@@ -46,6 +47,7 @@ This is the live Flutter-to-Supabase contract surface.
   - Security Phase 2 added the backend auth bootstrap flow that will replace
     this RPC during the Flutter auth cutover
   - Security Phase 3 no longer uses this RPC from Flutter
+  - Security Phase 5 retires client-role execute access
 
 `login_company`
 - caller: `AuthCubit.login()`
@@ -62,6 +64,7 @@ This is the live Flutter-to-Supabase contract surface.
 - transition note:
   - legacy compatibility RPC retained in SQL, but no longer used by the
     current Flutter auth flow after Security Phase 3
+  - Security Phase 5 retires client-role execute access
 
 `register-with-username` Edge Function
 - caller: `AuthCubit.register()` through `SupabaseAuthGateway`
@@ -274,35 +277,38 @@ This is the live Flutter-to-Supabase contract surface.
 `purchase_aircraft`
 - caller: `FleetCubit.purchaseAircraft()`
 - params:
-  - `p_user_id`
   - `p_model_id`
   - `p_nickname`
   - `p_economy_seats`
   - `p_business_seats`
   - `p_first_class_seats`
 - current behavior:
+  - Flutter now calls an auth-bound wrapper that resolves the player row from
+    `auth.uid()`
   - catches up simulation before purchase
   - validates seat-slot capacity inside the purchase transaction
 
 `lease_aircraft`
 - caller: `FleetCubit.leaseAircraft()`
 - params:
-  - `p_user_id`
   - `p_model_id`
   - `p_nickname`
   - `p_economy_seats`
   - `p_business_seats`
   - `p_first_class_seats`
 - current behavior:
+  - Flutter now calls an auth-bound wrapper that resolves the player row from
+    `auth.uid()`
   - catches up simulation before lease
   - validates seat-slot capacity inside the lease transaction
 
 `repair_aircraft`
 - caller: `FleetCubit.repairAircraft()`
 - params:
-  - `p_user_id`
   - `p_fleet_id`
 - current behavior:
+  - Flutter now calls an auth-bound wrapper that resolves the player row from
+    `auth.uid()`
   - restores the airframe to 100%
   - repair pricing now matches the client display model
   - leased and owned aircraft use different cost bases
@@ -310,9 +316,10 @@ This is the live Flutter-to-Supabase contract surface.
 `sell_aircraft`
 - caller: `FleetCubit.sellAircraft()`
 - params:
-  - `p_user_id`
   - `p_fleet_id`
 - current behavior:
+  - Flutter now calls an auth-bound wrapper that resolves the player row from
+    `auth.uid()`
   - catches up simulation before sale
   - requires an owned aircraft
   - blocks disposal while the aircraft is still assigned
@@ -323,9 +330,10 @@ This is the live Flutter-to-Supabase contract surface.
 `terminate_aircraft_lease`
 - caller: `FleetCubit.terminateLease()`
 - params:
-  - `p_user_id`
   - `p_fleet_id`
 - current behavior:
+  - Flutter now calls an auth-bound wrapper that resolves the player row from
+    `auth.uid()`
   - catches up simulation before termination
   - requires a leased aircraft
   - blocks disposal while the aircraft is still assigned
@@ -336,12 +344,13 @@ This is the live Flutter-to-Supabase contract surface.
 `configure_aircraft_seats`
 - caller: `FleetCubit.configureSeats()`
 - params:
-  - `p_user_id`
   - `p_fleet_id`
   - `p_economy_seats`
   - `p_business_seats`
   - `p_first_class_seats`
 - current behavior:
+  - Flutter now calls an auth-bound wrapper that resolves the player row from
+    `auth.uid()`
   - catches up simulation before seat changes
   - validates seat-slot capacity server-side
 
@@ -350,23 +359,25 @@ This is the live Flutter-to-Supabase contract surface.
 `create_route`
 - caller: `RoutesCubit.createRoute()`
 - params:
-  - `p_user_id`
   - `p_origin_iata`
   - `p_destination_iata`
   - `p_distance_km`
   - `p_ticket_price`
   - `p_flights_per_week`
 - current behavior:
+  - Flutter now calls an auth-bound wrapper that resolves the player row from
+    `auth.uid()`
   - catches up simulation before creating the route
   - stores blueprint economics before any aircraft is assigned
 
 `assign_aircraft_to_route`
 - caller: `RoutesCubit.assignAircraft()`
 - params:
-  - `p_user_id`
   - `p_route_id`
   - `p_aircraft_id`
 - current behavior:
+  - Flutter now calls an auth-bound wrapper that resolves the player row from
+    `auth.uid()`
   - catches up simulation before changing assignment
   - validates ownership, safety threshold, route range fit, weekly schedule fit,
     and single-route assignment server-side
@@ -374,11 +385,12 @@ This is the live Flutter-to-Supabase contract surface.
 `update_route_frequency_and_price`
 - caller: `RoutesCubit.updateRouteFrequencyAndPrice()`
 - params:
-  - `p_user_id`
   - `p_route_id`
   - `p_ticket_price`
   - `p_flights_per_week`
 - current behavior:
+  - Flutter now calls an auth-bound wrapper that resolves the player row from
+    `auth.uid()`
   - catches up simulation before changing fare or schedule
   - enforces assigned-aircraft weekly schedule limits server-side
 
@@ -402,9 +414,10 @@ This is the live Flutter-to-Supabase contract surface.
 `delete_route`
 - caller: `RoutesCubit.deleteRoute()`
 - params:
-  - `p_user_id`
   - `p_route_id`
 - current behavior:
+  - Flutter now calls an auth-bound wrapper that resolves the player row from
+    `auth.uid()`
   - catches up simulation before closing the route
   - grounds the assigned aircraft before deleting the route
 
@@ -414,6 +427,7 @@ This is the live Flutter-to-Supabase contract surface.
 - caller: `LeaderboardCubit.loadRankings()`
 - params: none
 - current client behavior:
+  - executes through a security-definer read surface after Security Phase 5
   - rankings are always presented by net worth
   - client-side sort controls were removed
   - overview consumes this feed for competitor-gap and leading-bot signals
@@ -426,6 +440,7 @@ This is the live Flutter-to-Supabase contract surface.
   - `p_id`
   - `p_is_bot`
 - current client behavior:
+  - executes through a security-definer read surface after Security Phase 5
   - bot intelligence is loaded from the live RPC, not synthetic client fallback
   - competitor dialogs reflect the live backend status surface (`Active`, `Distress`, `Maintenance`, `Recovery`, `Bankrupt`)
 
@@ -433,17 +448,17 @@ This is the live Flutter-to-Supabase contract surface.
 
 `reset_user_airline`
 - caller: `SettingsCubit.resetAirline()`
-- params:
-  - `p_user_id`
+- params: none from Flutter after Security Phase 4
 
 `save_airline_settings`
 - caller: `SettingsCubit.saveSettings()`
 - params:
-  - `p_user_id`
   - `p_company_name`
   - `p_auto_grounding_threshold`
   - `p_hq_airport_iata`
 - current behavior:
+  - Flutter now calls an auth-bound wrapper that resolves the player row from
+    `auth.uid()`
   - catches up simulation before saving settings
   - validates safety threshold and HQ airport server-side
 

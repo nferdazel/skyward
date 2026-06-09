@@ -59,6 +59,9 @@ Security migration note:
 - Security Phase 4 starts moving client-facing gameplay RPCs onto auth-bound
   wrappers that resolve the player row from `auth.uid()` instead of trusting
   `p_user_id` from the client.
+- Security Phase 5 enables RLS on the app-facing read surface, converts the
+  auth-bound wrappers to security-definer execution, and retires client access
+  to the legacy custom-session RPCs.
 
 ## Current time authority
 
