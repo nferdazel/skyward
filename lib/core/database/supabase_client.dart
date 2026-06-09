@@ -12,16 +12,29 @@ class SupabaseManager {
 
   static String _supabaseUrl = AppEnv.supabaseUrl;
   static String _supabaseAnonKey = AppEnv.supabaseAnonKey;
+  static bool _isInitialized = false;
 
   static SupabaseClient? _mockClient;
-  static set mockClient(SupabaseClient? mock) => _mockClient = mock;
+  static set mockClient(SupabaseClient? mock) {
+    _mockClient = mock;
+  }
   static bool get hasMockClient => _mockClient != null;
+  static bool get isInitialized => _mockClient != null || _isInitialized;
 
   static String get supabaseUrl => _supabaseUrl;
   static set supabaseUrl(String value) => _supabaseUrl = value;
   static String get supabaseAnonKey => _supabaseAnonKey;
   static set supabaseAnonKey(String value) => _supabaseAnonKey = value;
   static SupabaseClient get client => _mockClient ?? Supabase.instance.client;
+  static SupabaseClient? get maybeClient {
+    if (_mockClient != null) {
+      return _mockClient;
+    }
+    if (!_isInitialized) {
+      return null;
+    }
+    return Supabase.instance.client;
+  }
 
   static bool get isDevMode =>
       _supabaseUrl == devModeUrl || _supabaseAnonKey == devModeKey;
@@ -63,6 +76,7 @@ class SupabaseManager {
       publishableKey: _supabaseAnonKey,
       debug: false,
     );
+    _isInitialized = true;
   }
 
   // Centrally log Supabase client network/execution exceptions

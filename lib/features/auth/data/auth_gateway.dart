@@ -40,7 +40,12 @@ class SupabaseAuthGateway implements AuthGateway {
 
   @override
   Future<AuthSessionPayload?> restoreSession() async {
-    final session = SupabaseManager.client.auth.currentSession;
+    final client = SupabaseManager.maybeClient;
+    if (client == null) {
+      return null;
+    }
+
+    final session = client.auth.currentSession;
     final authUserId = session?.user.id;
     if (session == null || authUserId == null) {
       return null;
@@ -107,7 +112,11 @@ class SupabaseAuthGateway implements AuthGateway {
 
   @override
   Future<void> logout() {
-    return SupabaseManager.client.auth.signOut();
+    final client = SupabaseManager.maybeClient;
+    if (client == null) {
+      return Future.value();
+    }
+    return client.auth.signOut();
   }
 
   Future<User> _loadUserProfile(String authUserId) async {
