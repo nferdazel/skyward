@@ -36,6 +36,26 @@ function buildSyntheticAuthEmail(username: string): string {
   return `${normalizeUsername(username)}@skyward.sachiel.id`;
 }
 
+function resolveServiceRoleKey(): string | null {
+  const explicitServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (explicitServiceRoleKey) {
+    return explicitServiceRoleKey;
+  }
+
+  const bundledSecretKeys = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (!bundledSecretKeys) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(bundledSecretKeys) as Record<string, string>;
+    const firstSecretKey = Object.values(parsed).find((value) => !!value);
+    return firstSecretKey ?? null;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -49,12 +69,12 @@ Deno.serve(async (request) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const serviceRoleKey = resolveServiceRoleKey();
 
   if (!supabaseUrl || !serviceRoleKey) {
     return jsonResponse(500, {
       success: false,
-      message: "Supabase server credentials are not configured.",
+      message: "Supabase server credentials are not configured for this function.",
     });
   }
 

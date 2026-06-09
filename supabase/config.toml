@@ -1,0 +1,4 @@
+project_id = "REDACTED_PROJECT_ID"
+
+[functions.register-with-username]
+verify_jwt = false
