@@ -134,8 +134,8 @@ This is expected with the current rules, not a bug in the operator tool.
 ## 7. Disposal RPCs
 
 These are normal gameplay RPCs used by Flutter:
-- `sell_aircraft(p_user_id, p_fleet_id)`
-- `terminate_aircraft_lease(p_user_id, p_fleet_id)`
+- `sell_aircraft(p_fleet_id)`
+- `terminate_aircraft_lease(p_fleet_id)`
 
 Rules:
 - the airframe must belong to the player
@@ -148,7 +148,6 @@ Direct SQL examples:
 ```sql
 select *
 from sell_aircraft(
-  'REDACTED_USER_ID',
   '<fleet_id>'
 );
 ```
@@ -156,7 +155,10 @@ from sell_aircraft(
 ```sql
 select *
 from terminate_aircraft_lease(
-  'REDACTED_USER_ID',
   '<fleet_id>'
 );
 ```
+
+These player-facing wrappers now resolve the actor from `auth.uid()`.
+If you are operating through SQL Editor or service-role scripts and need the
+legacy UUID-explicit form, use the older two-argument signatures instead.

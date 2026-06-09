@@ -3,84 +3,92 @@
 Last verified on 2026-06-09.
 
 This folder is the maintenance record for Skyward's Supabase-backed runtime.
+Use it as an operator guide, not as a chronological diary.
+
+## Start Here
+
+If you only open four files, open these:
+
+1. [01_ai_handover.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/01_ai_handover.md)
+2. [03_supabase_contract_map.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/03_supabase_contract_map.md)
+3. [04_database_design.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/04_database_design.md)
+4. [07_live_backend_audit_queries.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/07_live_backend_audit_queries.md)
+
+## Current Runtime State
+
+Backend/runtime milestones already in place:
+- shared season-clock world time
+- deterministic daily simulation segmentation
+- realtime UI reflection for `users`, `user_fleet`, `user_routes`, and `financial_ledger`
+- finance snapshot RPC and retention/compaction audit surfaces
+- owner/operator optimizer tooling
+- Supabase Auth username-only flow via synthetic emails
+- auth-bound gameplay RPC wrappers
+- RLS on the app-facing read surface
+- removal of the legacy custom-session auth system
+
+Current major next step:
+- Phase 16 foundation: player activity tracking and inactive-player policy
 
 ## How To Use This Folder
 
-1. Apply SQL migrations in numeric order from `migrations/`.
-2. Use `docs/01_ai_handover.md` for current project state before making changes.
-3. Use `docs/03_supabase_contract_map.md` before changing Flutter-to-Supabase flows.
-4. Use `docs/07_live_backend_audit_queries.md` for live Supabase checks.
+Use docs by question:
+- "What is the app/backend shape right now?"
+  Open [01_ai_handover.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/01_ai_handover.md)
+- "What RPCs or direct table reads does Flutter rely on?"
+  Open [03_supabase_contract_map.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/03_supabase_contract_map.md)
+- "What is the current database/security model?"
+  Open [04_database_design.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/04_database_design.md)
+- "How do I troubleshoot suspicious simulation behavior?"
+  Open [06_simulation_troubleshooting.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/06_simulation_troubleshooting.md)
+- "What SQL should I run against live Supabase?"
+  Open [07_live_backend_audit_queries.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/07_live_backend_audit_queries.md)
+- "How does the private owner/operator optimizer work?"
+  Open [08_owner_operator_tools.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/08_owner_operator_tools.md)
 
-## Current Runtime Status
+## Documentation Set
 
-Completed world-time phases:
-- Phase 1: RPC write boundary
-- Phase 2: season clock foundation
-- Phase 3: world tick RPC foundation
-- Phase 4: scheduler wiring
-- Phase 4.1: scheduler health permission fix
-- Phase 5: world actor tick foundation
-- Phase 5.1: actor tick bootstrap fix
-- Phase 6: Flutter observes backend world time
-- Phase 7: live soak audit
-- Phase 8: legacy time cleanup
-- Phase 9: deterministic daily simulation engine
-- Phase 10-lite: realtime refresh hardening
-- Phase 11-lite: world-time guardrail report
-- Phase 12: database size audit RPCs
-- Phase 13: retention policy config foundation
-- Phase 14: world-tick log compaction dry-run foundation
-- Phase 15: financial ledger compaction dry-run foundation
-- Phase 15.1: route contract and cabin-capacity hardening
-- Phase 15.2: fleet disposal and owner operator tools
-- Phase 15.2.1: owner optimizer hardening and refinement
+Core maintenance docs:
+- `docs/01_ai_handover.md`
+- `docs/02_architecture_baseline.md`
+- `docs/03_supabase_contract_map.md`
+- `docs/04_database_design.md`
 
-Phase 9 implementation note:
-- existing economy formulas are preserved as segment processors
-- player and bot catch-up now runs through deterministic game-day boundaries
-- multi-day catch-up can flush ledger/streak effects per crossed game day
-
-Current next major backend step:
-- Phase 16 foundation: player activity tracking and inactive-player policy
-- Security Phase 1 foundation: Supabase Auth identity linkage ahead of the
-  username-only auth cutover and RLS hardening
-- Security Phase 2 bootstrap: auth.users to public.users trigger plus
-  server-side username registration using synthetic auth emails
-
-## Documentation Index
-
-- `docs/01_ai_handover.md`: current handoff and maintenance priorities
-- `docs/02_architecture_baseline.md`: Flutter/backend architecture baseline
-- `docs/03_supabase_contract_map.md`: active RPC and table-read contracts
-- `docs/04_database_design.md`: high-level database design and phase history
-- `docs/05_enforcement_backlog.md`: enforcement priorities and docs index
-- `docs/06_simulation_troubleshooting.md`: simulation debugging notes
-- `docs/07_live_backend_audit_queries.md`: live Supabase audit queries
-- `docs/08_owner_operator_tools.md`: private owner/operator SQL surfaces
+Operational/reference docs:
+- `docs/06_simulation_troubleshooting.md`
+- `docs/07_live_backend_audit_queries.md`
+- `docs/08_owner_operator_tools.md`
 
 ## Migration Bands
 
-- `01`-`18`: initial schema, auth, economy, reset, bots, maintenance
-- `19`-`24`: regression audits and bot hardening
-- `25`-`35`: realtime, balancing, replenishment, leaderboard fixes
-- `36`-`37`: offline-anchor fix and RPC write boundary
-- `38`-`45`: world-clock foundation, scheduler, actor ticks, guardrails,
-  deterministic daily segmentation
-- `46`: database size reporting and retention policy foundation
-- `47`-`61`: table-size permission hardening, world-tick and ledger compaction foundations, finance snapshot RPC, route/cabin contract hardening, fleet disposal/operator tooling, and owner-optimizer hardening/refinement
-- `62+`: security hardening, Supabase Auth identity foundation, auth bootstrap trigger/server registration, planned RLS rollout, and gameplay RPC auth binding
+Apply migrations in numeric order.
+
+High-level grouping:
+- `01`-`18`
+  Foundation schema, legacy auth, economy, reset, bots, maintenance
+- `19`-`24`
+  Regression audits and bot hardening
+- `25`-`37`
+  Realtime, balancing, replenishment, leaderboard fixes, offline-anchor fix,
+  RPC write-boundary work
+- `38`-`45`
+  Season clock, scheduler, actor tick, world guardrails, deterministic daily simulation
+- `46`-`61`
+  Capacity/retention audits, compaction foundations, finance snapshot,
+  route/cabin hardening, fleet disposal, owner/operator optimizer
+- `62`-`68`
+  Security hardening: Supabase Auth identity, auth bootstrap, RPC auth binding,
+  RLS, and legacy custom-session removal
 
 ## Current Time Authority
 
 Supabase owns production game time.
 
-- `season_clock.current_game_time` is the shared season time.
-- `users.game_current_time` and `ai_competitors.game_current_time` are actor
-  progress cursors.
-- `process_world_tick()` advances the season and actors.
+- `season_clock.current_game_time` is the shared season time
+- `users.game_current_time` and `ai_competitors.game_current_time` are actor progress cursors
+- `process_world_tick()` advances the season and actors
 - Flutter observes backend time through realtime and `process_simulation_delta()`
-  compatibility reconciliation.
-- Production Flutter does not locally advance game time.
+- production Flutter does not locally advance game time
 
 ## Standard Verification
 
@@ -91,14 +99,10 @@ flutter test
 
 ## Standard Live Checks
 
-World-clock guardrail:
-
 ```sql
 select *
 from get_world_tick_guardrail_report();
 ```
-
-Database capacity:
 
 ```sql
 select *
@@ -111,14 +115,10 @@ from get_table_size_report()
 limit 20;
 ```
 
-World-tick log compaction audit:
-
 ```sql
 select *
 from get_world_tick_log_compaction_report();
 ```
-
-Ledger compaction audit:
 
 ```sql
 select *

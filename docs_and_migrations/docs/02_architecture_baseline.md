@@ -7,12 +7,13 @@ Last verified against code on 2026-06-08.
 Skyward is a single-user airline-tycoon simulation with a Flutter frontend and a Supabase/Postgres backend.
 
 The Flutter app is responsible for:
-- authentication flow and local session token storage
+- Supabase Auth session flow and username-only auth UX
 - dashboard shell and navigation
 - rendering fleet, routes, finance, leaderboard, and settings surfaces
 - dispatching user actions to Cubits
 
 The backend is responsible for:
+- authenticated identity ownership through `auth.uid()` and RLS-backed reads
 - authoritative economy and simulation outcomes
 - transactional validation
 - leaderboard payloads
@@ -70,6 +71,14 @@ Realtime is used to reflect database writes into Cubit state faster.
 It does not replace authoritative SQL simulation or periodic reconciliation.
 `FinanceCubit` now uses simulation sync to refresh the current snapshot, while
 full ledger reloads stay on finance-related realtime events.
+
+## Auth and security model
+
+- user-facing login remains `username + password`
+- the backend maps usernames to synthetic auth emails
+- Supabase Auth is the source of session truth
+- client-facing gameplay RPCs resolve the actor row from `auth.uid()`
+- app-facing direct reads are protected by RLS
 
 ## UI system
 
