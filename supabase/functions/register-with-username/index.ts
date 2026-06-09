@@ -141,10 +141,22 @@ Deno.serve(async (request) => {
   });
 
   if (error) {
+    console.error("register-with-username createUser failed", {
+      message: error.message,
+      name: error.name,
+      status: error.status ?? null,
+      code: "code" in error ? error.code : null,
+      cause: "cause" in error ? error.cause : null,
+    });
     const status = /already|registered|exists/i.test(error.message) ? 409 : 400;
     return jsonResponse(status, {
       success: false,
       message: error.message,
+      debug: {
+        name: error.name,
+        status: error.status ?? null,
+        code: "code" in error ? error.code : null,
+      },
     });
   }
 
