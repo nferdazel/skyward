@@ -11,12 +11,20 @@ class AppTableShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       padding: EdgeInsets.zero,
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: child,
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SizedBox(
+            width: double.infinity,
+            height: constraints.hasBoundedHeight ? constraints.maxHeight : null,
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: child,
+              ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -28,127 +28,124 @@ class TopHud extends StatelessWidget {
     final user = authState.user;
 
     return Container(
-      height: 44,
+      height: 40,
       decoration: BoxDecoration(
         color: AppTheme.surface,
         border: Border(
-          bottom: BorderSide(color: AppTheme.border, width: 1.0),
+          bottom: BorderSide(color: AppTheme.border, width: 0.5),
         ),
       ),
       child: Row(
         children: [
-          _buildSection(
-            flex: 3,
-            label: null,
-            value: user.companyName,
-            valueStyle: AppTypography.hudValue.copyWith(
-              color: AppTheme.textPrimary,
-            ),
-            sublabel: user.ceoName,
+          // Company name
+          _buildPill(
+            label: user.companyName.toUpperCase(),
+            value: user.ceoName,
+            color: AppTheme.textPrimary,
           ),
-          _buildSeparator(),
-          _buildSection(
-            flex: 2,
+          _buildDivider(),
+          // Game clock
+          _buildPill(
             label: AppStrings.gameClockUtc.toUpperCase(),
             value: dateFormat.format(simState.gameTime),
-            valueStyle: AppTypography.hudValue.copyWith(
-              color: AppTheme.primary,
-            ),
+            color: AppTheme.primary,
+            isMono: true,
           ),
-          _buildSeparator(),
-          _buildSection(
-            flex: 3,
+          _buildDivider(),
+          // Cash balance
+          _buildPill(
             label: AppStrings.cashBalanceLabel.toUpperCase(),
             value: currencyFormat.format(simState.cashBalance),
-            valueStyle: AppTypography.hudValue.copyWith(
-              color: AppTheme.success,
-            ),
+            color: AppTheme.success,
+            isMono: true,
           ),
-          _buildSeparator(),
-          _buildSection(
-            flex: 2,
+          _buildDivider(),
+          // Fuel price
+          _buildPill(
             label: AppStrings.fuelPriceLabel.toUpperCase(),
             value: '\$${simState.fuelPricePerLiter.toStringAsFixed(2)}/L',
-            valueStyle: AppTypography.hudValue.copyWith(
-              color: AppTheme.warning,
-            ),
+            color: AppTheme.warning,
+            isMono: true,
           ),
-          _buildSeparator(),
-          _buildLiveStatus(context, simState),
+          _buildDivider(),
+          // Live status
+          _buildLiveStatus(simState),
         ],
       ),
     );
   }
 
-  Widget _buildSeparator() {
+  Widget _buildDivider() {
     return Container(
       width: 1,
+      height: 24,
       color: AppTheme.border,
     );
   }
 
-  Widget _buildSection({
-    required int flex,
-    String? label,
+  Widget _buildPill({
+    required String label,
     required String value,
-    required TextStyle valueStyle,
-    String? sublabel,
+    required Color color,
+    bool isMono = false,
   }) {
     return Expanded(
-      flex: flex,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (label != null) ...[
-              Text(
-                label,
-                style: AppTypography.microLabel.copyWith(
-                  color: AppTheme.textMuted,
-                ),
+            Text(
+              label,
+              style: AppTypography.microLabel.copyWith(
+                color: AppTheme.textMuted,
               ),
-              const SizedBox(height: AppSpacing.xs),
-            ],
+            ),
+            const SizedBox(height: 1),
             Text(
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: valueStyle,
-            ),
-            if (sublabel != null)
-              Text(
-                sublabel,
-                style: AppTypography.captionRegular.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+              style: (isMono ? AppTypography.monoValue : AppTypography.bodyLarge)
+                  .copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
               ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLiveStatus(BuildContext context, SimulationState simState) {
+  Widget _buildLiveStatus(SimulationState simState) {
+    final isLive = !simState.isSyncing;
+    final statusColor = isLive ? AppTheme.success : AppTheme.warning;
+    final statusText = isLive
+        ? AppStrings.liveLabel.toUpperCase()
+        : AppStrings.syncingLabel.toUpperCase();
+
     return Expanded(
-      flex: 2,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            PulseDot(
-              color: simState.isSyncing ? AppTheme.warning : AppTheme.success,
-            ),
+            PulseDot(color: statusColor, size: 6),
             const SizedBox(width: AppSpacing.sm),
-            Text(
-              simState.isSyncing
-                  ? AppStrings.syncingLabel.toUpperCase()
-                  : AppStrings.liveLabel.toUpperCase(),
-              style: AppTypography.microLabel.copyWith(
-                fontWeight: FontWeight.w600,
-                color: simState.isSyncing ? AppTheme.warning : AppTheme.success,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: Text(
+                statusText,
+                style: AppTypography.badgeText.copyWith(
+                  color: statusColor,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

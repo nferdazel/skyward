@@ -70,6 +70,12 @@ class _FleetViewState extends State<FleetView>
     super.dispose();
   }
 
+  void _onTabTap(int index) {
+    if (_tabController.index != index) {
+      _tabController.animateTo(index);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = context.read<AuthCubit>().state;
@@ -94,26 +100,18 @@ class _FleetViewState extends State<FleetView>
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TabBar(
-                controller: _tabController,
-                isScrollable: false,
-                labelColor: AppTheme.primary,
-                unselectedLabelColor: AppTheme.textSecondary,
-                indicatorColor: AppTheme.primary,
-                indicatorWeight: 2,
-                indicatorSize: TabBarIndicatorSize.tab,
-                tabs: [
-                  Tab(
-                    child: Text(
-                      AppStrings.activeFleetTab,
-                      style: AppTypography.sectionHeaderMedium,
-                    ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTabItem(
+                    label: AppStrings.activeFleetTab,
+                    index: 0,
                   ),
-                  Tab(
-                    child: Text(
-                      AppStrings.acquireAircraftTab,
-                      style: AppTypography.sectionHeaderMedium,
-                    ),
+                  const SizedBox(width: 24),
+                  _buildTabItem(
+                    label: AppStrings.acquireAircraftTab,
+                    index: 1,
                   ),
                 ],
               ),
@@ -146,6 +144,33 @@ class _FleetViewState extends State<FleetView>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTabItem({
+    required String label,
+    required int index,
+  }) {
+    final isActive = _tabController.index == index;
+    return GestureDetector(
+      onTap: () => _onTabTap(index),
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            label,
+            style: AppTypography.sectionHeaderMedium.copyWith(
+              color: isActive ? AppTheme.primary : AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            height: 2,
+            color: isActive ? AppTheme.primary : Colors.transparent,
+          ),
+        ],
       ),
     );
   }

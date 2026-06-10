@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'skyward_colors.dart';
 
-/// Theme extension for Skyward-specific colors.
-/// Access via `Theme.of(context).extension<AppThemeColors>()!`
 class AppThemeColors extends ThemeExtension<AppThemeColors> {
   final Color primary;
   final Color accentSubtle;
@@ -57,14 +55,14 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
       surface: SkywardColors.darkSurface,
       surfaceRaised: SkywardColors.darkSurface2,
       border: SkywardColors.darkBorder,
-      borderSubtle: SkywardColors.darkSurface3,
+      borderSubtle: SkywardColors.darkBorder2,
       success: SkywardColors.darkGreen,
       successSubtle: SkywardColors.darkGreenSubtle,
       error: SkywardColors.darkRed,
       errorSubtle: SkywardColors.darkRedSubtle,
       warning: SkywardColors.darkAmber,
       warningSubtle: SkywardColors.darkAmberSubtle,
-      info: SkywardColors.blue,
+      info: SkywardColors.darkAccent,
       neutral: SkywardColors.darkNeutral,
       textPrimary: SkywardColors.darkTextPri,
       textSecondary: SkywardColors.darkTextSec,
@@ -82,14 +80,14 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
       surface: SkywardColors.lightSurface,
       surfaceRaised: SkywardColors.lightSurface2,
       border: SkywardColors.lightBorder,
-      borderSubtle: SkywardColors.lightSurface3,
+      borderSubtle: SkywardColors.lightBorder2,
       success: SkywardColors.lightGreen,
       successSubtle: SkywardColors.lightGreenSubtle,
       error: SkywardColors.lightRed,
       errorSubtle: SkywardColors.lightRedSubtle,
       warning: SkywardColors.lightAmber,
       warningSubtle: SkywardColors.lightAmberSubtle,
-      info: SkywardColors.blue,
+      info: SkywardColors.lightAccent,
       neutral: SkywardColors.lightNeutral,
       textPrimary: SkywardColors.lightTextPri,
       textSecondary: SkywardColors.lightTextSec,

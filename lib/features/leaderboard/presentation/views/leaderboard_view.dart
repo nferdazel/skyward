@@ -53,21 +53,25 @@ class LeaderboardView extends StatelessWidget {
         final cubit = context.read<LeaderboardCubit>();
         final isMobile = MediaQuery.of(context).size.width < 600;
 
-        return AppCard(
-          padding: EdgeInsets.all(
-            isMobile ? AppSpacing.md : AppSpacing.cardPadding,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const AppSectionHeader(title: AppStrings.globalRankingsTitle),
-              const SizedBox(height: AppSpacing.blockGap),
-              Expanded(
-                child: RepaintBoundary(
-                  child: _buildRankingsContent(context, state, cubit),
+        return SizedBox(
+          width: double.infinity,
+          height: double.infinity,
+          child: AppCard(
+            padding: EdgeInsets.all(
+              isMobile ? AppSpacing.md : AppSpacing.cardPadding,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const AppSectionHeader(title: AppStrings.globalRankingsTitle),
+                const SizedBox(height: AppSpacing.blockGap),
+                Expanded(
+                  child: RepaintBoundary(
+                    child: _buildRankingsContent(context, state, cubit),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

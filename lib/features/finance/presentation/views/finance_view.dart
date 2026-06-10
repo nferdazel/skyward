@@ -255,10 +255,10 @@ class FinanceView extends StatelessWidget {
   ) {
     return AppCard(
       customBorder: Border(
-        top: BorderSide(color: color, width: 2.0),
-        left: BorderSide(color: AppTheme.border, width: 1.0),
-        right: BorderSide(color: AppTheme.border, width: 1.0),
-        bottom: BorderSide(color: AppTheme.border, width: 1.0),
+        top: BorderSide(color: color, width: 1.5),
+        left: BorderSide(color: AppTheme.border, width: 0.5),
+        right: BorderSide(color: AppTheme.border, width: 0.5),
+        bottom: BorderSide(color: AppTheme.border, width: 0.5),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -269,16 +269,14 @@ class FinanceView extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: AppTypography.badgeText.copyWith(
-                    color: AppTypography.textSecondary,
-                    letterSpacing: 1.0,
+                  style: AppTypography.microLabel.copyWith(
+                    color: AppTheme.textMuted,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   value,
-                  style: AppTypography.screenTitleMedium.copyWith(
-                    fontFamily: AppTypography.badgeText.fontFamily,
+                  style: AppTypography.dataEmphasis.copyWith(
                     color: color,
                   ),
                 ),
@@ -286,15 +284,12 @@ class FinanceView extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.08),
-              border: Border.all(
-                color: color.withValues(alpha: 0.2),
-                width: 1.0,
-              ),
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(4),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: 20),
           ),
         ],
       ),

@@ -1,23 +1,25 @@
 # SKYWARD Big-Bang UI/UX Redesign — Implementation Plan
 
 **Date:** 2026-06-09
-**Status:** COMPLETED
+**Status:** COMPLETED (v4 "Skyward Ops")
 **Approach:** Single-pass (big bang), UI implementation first
-**Scope:** Complete visual redesign per Master UI/UX Redesign Prompt v2
+**Scope:** Complete visual redesign per Master UI/UX Redesign Prompt v4
 
 ---
 
 ## Executive Summary
 
-This plan covered a complete visual transformation of the Skyward Flutter application. The redesign preserves the existing architecture (Cubit-only state, Supabase backend, feature-first modules) while elevating the visual system to match the authoritative design tokens specified in the Master Redesign Prompt.
+This plan covered a complete visual transformation of the Skyward Flutter application. The redesign preserves the existing architecture (Cubit-only state, Supabase backend, feature-first modules) while elevating the visual system to match the authoritative design tokens specified in the Master Redesign Prompt v4.
 
 **Key decisions:**
 - Dark-only mode (keep static getters, no Theme.of(context) refactor)
 - Global spacing token rename across 1242+ usage sites
 - World map integration for Routes view (flutter_map)
 - Extract _OverviewSnapshot to separate file
-- 4px border-radius on all containers (max 6px for badges)
-- IBM Plex Sans throughout, tactical labeling language
+- 4px border-radius on all containers (3px for badges)
+- Inter for body/UI text, IBM Plex Mono for all data/labels
+- 44px icon-only sidebar, 40px status bar with pill indicators
+- Pulse animation on live status dots (radar ping every 2s)
 
 ---
 
@@ -25,25 +27,30 @@ This plan covered a complete visual transformation of the Skyward Flutter applic
 
 ### 1.1 `lib/core/theme/skyward_colors.dart`
 
-Added new tokens:
-- `darkAccentSubtle` = `#1F3A5F`
-- `darkGreenSubtle` = `#1A3A23`
-- `darkRedSubtle` = `#3D1F1F`
-- `darkAmberSubtle` = `#3D2F0F`
-- `darkNeutral` = `#6E7681`
-- Light-mode equivalents for all new tokens
+v4 palette:
+- `background` = `#0A0C0F` (near-black base)
+- `surface` = `#111318` (card backgrounds)
+- `surfaceRaised` = `#181C22` (raised elements)
+- `success` = `#00E676` (operational green)
+- `warning` = `#FFB300` (caution amber)
+- `error` = `#FF3D00` (critical red)
+- `info` = `#448AFF` (information blue)
+- `textMuted` = `#6B7280` (muted text)
+- `border` = `#3A3F4A` (borders)
+- `textPrimary` = `#E6EDF3` (primary text)
+- `textSecondary` = `#8B949E` (secondary text)
 
 ### 1.2 `lib/core/theme/app_theme_colors.dart`
 
-Added new fields: `successSubtle`, `dangerSubtle`, `warningSubtle`, `neutral`, `border`, `borderSubtle`, `surfaceRaised`
-
-Updated `copyWith()`, `lerp()`, and factory constructors.
+ThemeExtension rewritten to match v4 palette.
 
 ### 1.3 `lib/core/theme/app_theme.dart`
 
-Added static getters: `accentSubtle`, `border`, `borderSubtle`, `surfaceRaised`, `successSubtle`, `dangerSubtle`, `warningSubtle`, `neutral`
-
-Updated component themes to use `BorderRadius.circular(4)`.
+Updated with:
+- New color tokens matching v4 palette
+- Inter textTheme for body text
+- IBM Plex Mono for labels, headings, data
+- Updated button/input themes
 
 ### 1.4 `lib/presentation/theme/app_spacing.dart`
 
@@ -60,9 +67,9 @@ Semantic tokens unchanged: `pagePadding`, `cardPadding`, `sectionGap`, `blockGap
 
 ### 1.5 `lib/presentation/theme/app_typography.dart`
 
-Added new styles: `microLabel` (11px), `hudValue` (13px w700), `dataEmphasis` (16px w700), `largeKpi` (22px w700)
-
-Fixed `buttonText` to use `AppTheme.primary`.
+Rewritten with:
+- Inter for body text (bodyLarge, bodyMedium, captionRegular, captionLight)
+- IBM Plex Mono for data/labels (microLabel, badgeText, hudValue, dataEmphasis, largeKpi, telemetry, monoValue, monoLabel)
 
 ---
 
@@ -71,46 +78,43 @@ Fixed `buttonText` to use `AppTheme.primary`.
 ### 2.1 Widgets Updated (10)
 
 All widgets now use `BorderRadius.circular(4)`:
-- `AppCard` — added borderRadius, ClipRRect fallback for non-uniform custom borders
-- `AppButton` — radius added to decoration + InkWell
-- `AppDialogShell` — radius on `RoundedRectangleBorder`
-- `AppBadge` — radius added to decoration
-- `AppSnackBar` — `BorderRadius.circular(4)` replacing `.zero`
-- `AppDropdownField` — radius added to decoration
-- `AppMultiSelectField` — radius on trigger decoration
-- `AppTableIconAction` — radius on decoration + InkWell
-- `AppInfoStrip` — radius added to decoration
-- `SearchableAirportDropdown` — radius on popup + IATA badge
+- `AppCard` — v4 spec: #111318 bg, 0.5px border, 4px radius, header/body split
+- `AppBadge` — v4 spec: 3px radius, rgba bg at 0.12 alpha, dot indicator
+- `SegmentedProgressBar` — v4 spec: 3px height, 20 segments, 1px gaps
+- `PulseDot` — radar ping animation (2s cycle)
 
 ### 2.2 Widgets Unchanged (12)
 
-No container changes needed: `AppControlLabel`, `AppEmptyState`, `AppLabeledValue`, `AppSectionHeader`, `AppStatText`, `AppTableHeaderCell`, `AppTableBodyCell`, `AppTableShell`, `PulseDot`, `ResponsiveLayout`, `TerminalLoader`, `TickerTape`
+No container changes needed: `AppControlLabel`, `AppEmptyState`, `AppLabeledValue`, `AppSectionHeader`, `AppStatText`, `AppTableHeaderCell`, `AppTableBodyCell`, `AppTableShell`, `ResponsiveLayout`, `TerminalLoader`
 
 ---
 
 ## Phase 3: Desktop Shell Layout — COMPLETED
 
 ### 3.1 Ticker Tape
-- Height: 28px
+- Height: 24px (bottom position)
 - Scrolling animation with `AnimationController`
-- UPPERCASE text, 11px, medium weight, letter-spacing +0.06em
-- Background: `accent`, text: `bg`
+- UPPERCASE text, 10px, IBM Plex Mono, letter-spacing +0.1em
+- Background: `surface`, text: `textMuted`
+- Top border: 0.5px
 
 ### 3.2 Dashboard Sidebar
-- Width: 220px fixed (removed uiScale dependency)
-- Section grouping: OPERATIONS, ANALYTICS, SYSTEM
-- Icon + label nav items
-- Active state: `accentSubtle` background, `accent` left border (3px)
-- "SKYWARD" text logo at top
+- Width: 44px icon-only (no labels)
+- Logo mark at top (28px square)
+- Icons only, 32px tap targets
+- Active state: `accentSubtle` background, `accent` border (0.5px)
+- Logout icon at bottom (error color)
 
-### 3.3 Top HUD
-- Height: 44px (removed uiScale dependency)
+### 3.3 Status Bar (TopHud)
+- Height: 40px
+- Pill indicators with labels
+- Monospace font for values
+- Pulse dot for live status
 - Pipe separators between items
-- UPPERCASE labels
 
 ### 3.4 Dashboard Screen
-- Desktop layout dimensions updated to match new spec
-- Ticker 28px + sidebar 220px + HUD 44px + content
+- Desktop layout: sidebar (44px) + status bar (40px) + content + ticker (24px)
+- Ticker at bottom position
 
 ---
 
@@ -124,17 +128,24 @@ No container changes needed: `AppControlLabel`, `AppEmptyState`, `AppLabeledValu
 ### 4.2 Overview Tab
 - Extracted `_OverviewSnapshot` to `lib/features/dashboard/domain/overview_snapshot.dart`
 - 3-region layout: identity+cash, health KPIs, risk signals/quick actions
+- Monospace font for metric values
+- AppBadge with dot indicator for status
 
 ### 4.3 Fleet View
 - Table headers updated with `surfaceRaised` background
+- Tab bar: 1.5px indicator weight
 - Condition cell uses `LinearProgressIndicator` (was manual Container)
 
 ### 4.4 Routes View
 - Table headers updated with `surfaceRaised` background
 - Map removed from flight connections tab (available in `route_network_map.dart` if needed)
+- IATA boxes: 3px radius, monoLabel font
+- Borders: 0.5px throughout
 
 ### 4.5 Finance View
 - Ledger table header updated with `surfaceRaised` background
+- Summary cards: 1.5px top border accent
+- Icons: 8px padding, 4px radius
 
 ### 4.6 Leaderboard View
 - Rankings table header updated with `surfaceRaised` background
@@ -173,4 +184,4 @@ Post-implementation:
 
 *Plan created: 2026-06-09*
 *Completed: 2026-06-09*
-*Source: Master UI/UX Redesign Prompt v2*
+*Source: Master UI/UX Redesign Prompt v4*

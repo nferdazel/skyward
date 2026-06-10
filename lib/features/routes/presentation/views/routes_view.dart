@@ -1,32 +1,32 @@
 // ignore_for_file: deprecated_member_use
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
+
+import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/game_constants.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/lazy_tab_cubit.dart';
-import '../../../../core/utils/perf_debug.dart';
-import '../../../../core/widgets/responsive_layout.dart';
+import '../../../../core/widgets/pulse_dot.dart';
 import '../../../../presentation/theme/app_spacing.dart';
+import '../../../../presentation/theme/app_typography.dart';
 import '../../../../presentation/widgets/app_button.dart';
 import '../../../../presentation/widgets/app_dialog_shell.dart';
+import '../../../../presentation/widgets/app_empty_state.dart';
 import '../../../../presentation/widgets/app_info_strip.dart';
 import '../../../../presentation/widgets/app_labeled_value.dart';
 import '../../../../presentation/widgets/app_snackbar.dart';
 import '../../../../presentation/widgets/app_stat_text.dart';
-import '../../../../presentation/theme/app_typography.dart';
-import '../../../../presentation/widgets/app_empty_state.dart';
-import '../../../../presentation/widgets/app_table_icon_action.dart';
-import '../../../../presentation/widgets/app_table_cells.dart';
-import '../../../../presentation/widgets/app_table_shell.dart';
-import '../../../../core/constants/app_strings.dart';
-import '../../../../core/constants/game_constants.dart';
+import '../../../../presentation/widgets/searchable_airport_dropdown.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
+import '../../../fleet/domain/fleet_models.dart';
+import '../../domain/route_models.dart';
 import '../cubit/routes_cubit.dart';
 import '../cubit/routes_state.dart';
-import '../../domain/route_models.dart';
-import '../../../fleet/domain/fleet_models.dart';
-import '../widgets/blueprint_planner_form.dart';
 
 class RoutesView extends StatefulWidget {
   const RoutesView({super.key});
@@ -35,35 +35,22 @@ class RoutesView extends StatefulWidget {
   State<RoutesView> createState() => _RoutesViewState();
 }
 
-class _RoutesViewState extends State<RoutesView>
-    with SingleTickerProviderStateMixin {
+class _RoutesViewState extends State<RoutesView> {
   static final _currencyFormat = NumberFormat.currency(
     symbol: '\$',
     decimalDigits: 0,
   );
-  late final TabController _tabController;
-  late final LazyTabCubit _lazyTabCubit;
 
-  @override
-  void initState() {
-    super.initState();
-    _lazyTabCubit = LazyTabCubit();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) return;
-      final index = _tabController.index;
-      if (!_lazyTabCubit.state.loadedIndexes.contains(index)) {
-        PerfDebug.event('routes.tab_init', fields: {'tab': index});
-      }
-      PerfDebug.event('routes.tab_switch', fields: {'tab': index});
-      _lazyTabCubit.activate(index);
-    });
-  }
+  String? _selectedRouteId;
+  Airport? _plannerOrigin;
+  Airport? _plannerDestination;
+  double _plannerDistance = 0.0;
+  final _priceController = TextEditingController();
+  final _plannerFormKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _lazyTabCubit.close();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -76,78 +63,8 @@ class _RoutesViewState extends State<RoutesView>
 
     final userId = authState.user.id;
     final autoGroundingThreshold = authState.user.autoGroundingThreshold;
-    return BlocProvider<LazyTabCubit>.value(
-      value: _lazyTabCubit,
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TabBar(
-              controller: _tabController,
-              isScrollable: false,
-              labelColor: AppTheme.primary,
-              unselectedLabelColor: AppTheme.textSecondary,
-              indicatorColor: AppTheme.primary,
-              indicatorWeight: 2,
-              indicatorSize: TabBarIndicatorSize.tab,
-              tabs: [
-                Tab(
-                  child: Text(
-                    AppStrings.flightConnectionsTab,
-                    style: AppTypography.sectionHeaderMedium,
-                  ),
-                ),
-                Tab(
-                  child: Text(
-                    AppStrings.blueprintNetworkTab,
-                    style: AppTypography.sectionHeaderMedium,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.tabContentGap),
-            Expanded(
-              child: BlocBuilder<LazyTabCubit, LazyTabState>(
-                builder: (context, tabState) {
-                  return IndexedStack(
-                    index: tabState.activeIndex,
-                    children: [
-                      RepaintBoundary(
-                        child: tabState.loadedIndexes.contains(0)
-                            ? _buildConnectionsTab(
-                                userId,
-                                _currencyFormat,
-                                autoGroundingThreshold,
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                      RepaintBoundary(
-                        child: tabState.loadedIndexes.contains(1)
-                            ? _buildBlueprintTab(
-                                userId,
-                                _currencyFormat,
-                                authState.user.autoGroundingThreshold,
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    final homeAirport = _resolveHomeAirport(authState.user.hqAirportIata);
 
-  // FLIGHT CONNECTIONS TAB VIEW
-  Widget _buildConnectionsTab(
-    String userId,
-    NumberFormat currencyFormat,
-    double autoGroundingThreshold,
-  ) {
     return BlocConsumer<RoutesCubit, RoutesState>(
       listener: (context, state) {
         if (state is RoutesActionSuccess) {
@@ -156,539 +73,603 @@ class _RoutesViewState extends State<RoutesView>
           AppSnackBar.showError(context, state.message);
         }
       },
-      buildWhen: (previous, current) => current is! RoutesActionSuccess,
+      buildWhen: (prev, cur) => cur is! RoutesActionSuccess,
       builder: (context, state) {
         if (state is RoutesLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 
         final routes = _getRoutes(state);
+        final airports = _getAirports(state);
         final availableFleet = _getAvailableFleet(state);
 
-        if (routes.isEmpty) {
-          return _buildEmptyConnectionsView();
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        return Stack(
           children: [
-            Expanded(
-              child: RepaintBoundary(
-                child: ResponsiveLayout(
-                  desktopBody: _buildConnectionsTable(
-                    context,
-                    routes,
-                    availableFleet,
-                    userId,
-                    currencyFormat,
-                    autoGroundingThreshold,
-                  ),
-                  mobileBody: ListView.builder(
-                    itemCount: routes.length,
-                    physics: const BouncingScrollPhysics(),
-                    itemBuilder: (context, index) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: _buildConnectionCard(
-                        context,
-                        routes[index],
-                        availableFleet,
-                        userId,
-                        currencyFormat,
-                        autoGroundingThreshold,
-                      ),
-                    ),
+            // ── Base Layer: Full-screen Map ──
+            Positioned.fill(
+              child: _buildFullMap(routes, homeAirport),
+            ),
+
+            // ── Left: Route List Panel ──
+            if (routes.isNotEmpty)
+              Positioned(
+                top: 0,
+                bottom: 0,
+                left: 0,
+                child: _buildRouteListPanel(
+                  context,
+                  routes,
+                  availableFleet,
+                  userId,
+                  autoGroundingThreshold,
+                ),
+              ),
+
+            // ── Top-Right: System Monitor ──
+            Positioned(
+              top: AppSpacing.xl,
+              right: AppSpacing.xl,
+              child: _buildSystemMonitor(routes, availableFleet),
+            ),
+
+            // ── Bottom: Blueprint Planner Panel ──
+            Positioned(
+              bottom: 0,
+              left: routes.isNotEmpty ? 260 : 0,
+              right: 0,
+              child: _buildBlueprintPlannerPanel(
+                context,
+                airports,
+                routes,
+                availableFleet,
+                userId,
+                autoGroundingThreshold,
+              ),
+            ),
+
+            // ── Empty State Overlay ──
+            if (routes.isEmpty)
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.xxxl),
+                  child: AppEmptyState(
+                    icon: Icons.map_outlined,
+                    title: AppStrings.noActiveConnections,
+                    description: AppStrings.noActiveConnectionsDesc,
                   ),
                 ),
               ),
-            ),
           ],
         );
       },
     );
   }
 
-  Widget _buildEmptyConnectionsView() {
-    return const Center(
-      child: AppEmptyState(
-        icon: Icons.map_outlined,
-        title: AppStrings.noActiveConnections,
-        description: AppStrings.noActiveConnectionsDesc,
+  // ══════════════════════════════════════════════
+  // FULL MAP (Base Layer)
+  // ══════════════════════════════════════════════
+
+  Widget _buildFullMap(List<UserRoute> routes, Airport? homeAirport) {
+    final connectedAirports = <String, Airport>{
+      for (final r in routes) r.origin.iata: r.origin,
+      for (final r in routes) r.destination.iata: r.destination,
+    };
+
+    final highlightedRoute = _selectedRouteId != null
+        ? routes.where((r) => r.id == _selectedRouteId).firstOrNull
+        : null;
+
+    final mapRoutes = <_MapRoute>[
+      ...routes.map((r) => _MapRoute(
+        origin: r.origin,
+        destination: r.destination,
+        highlighted: false,
+      )),
+    ];
+    if (highlightedRoute != null) {
+      mapRoutes.add(_MapRoute(
+        origin: highlightedRoute.origin,
+        destination: highlightedRoute.destination,
+        highlighted: true,
+      ));
+    }
+
+    final denseNetwork = routes.length >= 8 || connectedAirports.length >= 14;
+    final ultraDense = routes.length >= 16 || connectedAirports.length >= 24;
+    final arcSteps = ultraDense ? 4 : (denseNetwork ? 6 : 18);
+
+    final viewport = _MapViewport.fromRoutes(
+      routes: mapRoutes,
+      fallbackCenter: homeAirport != null
+          ? LatLng(homeAirport.latitude, homeAirport.longitude)
+          : const LatLng(12.0, 108.0),
+      preferredCenter: highlightedRoute == null && homeAirport != null
+          ? LatLng(homeAirport.latitude, homeAirport.longitude)
+          : null,
+    );
+
+    return Container(
+      color: AppTheme.background,
+      child: FlutterMap(
+        options: MapOptions(
+          initialCenter: viewport.center,
+          initialZoom: viewport.zoom,
+          minZoom: 1.5,
+          maxZoom: 8.5,
+          interactionOptions: const InteractionOptions(
+            flags: InteractiveFlag.drag |
+                InteractiveFlag.pinchZoom |
+                InteractiveFlag.doubleTapZoom |
+                InteractiveFlag.flingAnimation |
+                InteractiveFlag.scrollWheelZoom,
+          ),
+        ),
+        children: [
+          TileLayer(
+            urlTemplate:
+                'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+            subdomains: const ['a', 'b', 'c', 'd'],
+            userAgentPackageName: 'skyward',
+            retinaMode: !denseNetwork,
+            panBuffer: 1,
+          ),
+          PolylineLayer(
+            polylines: [
+              for (final route in mapRoutes.where((r) => !r.highlighted))
+                Polyline(
+                  points: [
+                    LatLng(route.origin.latitude, route.origin.longitude),
+                    ..._buildGreatCircleArc(
+                      route.origin,
+                      route.destination,
+                      steps: arcSteps,
+                    ),
+                    LatLng(
+                      route.destination.latitude,
+                      route.destination.longitude,
+                    ),
+                  ],
+                  strokeWidth: ultraDense ? 1.5 : (denseNetwork ? 2 : 3),
+                  color: AppTheme.info.withValues(alpha: 0.72),
+                  borderStrokeWidth: ultraDense ? 0 : (denseNetwork ? 3 : 7),
+                  borderColor: AppTheme.info.withValues(alpha: 0.16),
+                ),
+              if (highlightedRoute != null)
+                Polyline(
+                  points: [
+                    LatLng(
+                      highlightedRoute.origin.latitude,
+                      highlightedRoute.origin.longitude,
+                    ),
+                    ..._buildGreatCircleArc(
+                      highlightedRoute.origin,
+                      highlightedRoute.destination,
+                      steps: arcSteps,
+                    ),
+                    LatLng(
+                      highlightedRoute.destination.latitude,
+                      highlightedRoute.destination.longitude,
+                    ),
+                  ],
+                  strokeWidth: ultraDense ? 2.5 : (denseNetwork ? 3 : 4),
+                  color: AppTheme.primary,
+                  borderStrokeWidth: ultraDense ? 0 : (denseNetwork ? 4 : 9),
+                  borderColor: AppTheme.primary.withValues(alpha: 0.22),
+                ),
+            ],
+          ),
+          CircleLayer(
+            circles: [
+              for (final airport in connectedAirports.values)
+                CircleMarker(
+                  point: LatLng(airport.latitude, airport.longitude),
+                  radius: ultraDense ? 5 : (denseNetwork ? 6 : 8),
+                  useRadiusInMeter: false,
+                  color: AppTheme.info.withValues(alpha: 0.18),
+                  borderStrokeWidth: ultraDense ? 0.8 : (denseNetwork ? 1 : 1.5),
+                  borderColor: AppTheme.info.withValues(alpha: 0.5),
+                ),
+            ],
+          ),
+          if (!ultraDense)
+            MarkerLayer(
+              markers: [
+                for (final airport in connectedAirports.values.take(
+                  ultraDense ? 4 : (denseNetwork ? 8 : 999),
+                ))
+                  Marker(
+                    point: LatLng(airport.latitude, airport.longitude),
+                    width: 72,
+                    height: 28,
+                    alignment: Alignment.topCenter,
+                    child: _AirportMarker(
+                      label: airport.iata,
+                      highlighted: false,
+                    ),
+                  ),
+              ],
+            ),
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppTheme.background.withValues(alpha: 0.05),
+                    Colors.transparent,
+                    AppTheme.background.withValues(alpha: 0.12),
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 8,
+            bottom: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: AppTheme.background.withValues(alpha: 0.78),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Text(
+                'CARTO / OSM',
+                style: AppTypography.badgeText.copyWith(
+                  color: AppTheme.textSecondary,
+                  fontSize: 9,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildConnectionsTable(
+  // ══════════════════════════════════════════════
+  // LEFT: Route List Panel (Floating Overlay)
+  // ══════════════════════════════════════════════
+
+  Widget _buildRouteListPanel(
     BuildContext context,
     List<UserRoute> routes,
     List<UserFleetAircraft> availableFleet,
     String userId,
-    NumberFormat currencyFormat,
     double autoGroundingThreshold,
   ) {
-    return AppTableShell(
-      child: Table(
-        columnWidths: const {
-          0: FlexColumnWidth(2.7), // ROUTE
-          1: FlexColumnWidth(1.7), // PERFORMANCE
-          2: FlexColumnWidth(2.2), // AIRCRAFT
-          3: FlexColumnWidth(1.0), // ACTIONS
-        },
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+    return Container(
+      width: 260,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: AppTheme.surface.withValues(alpha: 0.96),
+        border: Border(
+          right: BorderSide(color: AppTheme.border, width: 0.5),
+        ),
+      ),
+      child: Column(
         children: [
-          TableRow(
+          // Panel Header
+          Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             decoration: BoxDecoration(
               color: AppTheme.surfaceRaised,
-            ),
-            children: [
-              _routesTableHeaderCell(AppStrings.routeHeader),
-              _routesTableHeaderCell(AppStrings.networkPressureLabel),
-              _routesTableHeaderCell(AppStrings.aircraftHeader),
-              _routesTableHeaderCell(AppStrings.actionsHeader),
-            ],
-          ),
-          ...routes.map((route) {
-            final maintenance = route.buildMaintenancePreview(
-              autoGroundingThreshold,
-            );
-            final idealPrice = route.baseTicketPrice;
-            final pricingRatio = route.ticketPrice / idealPrice;
-
-            Color priceColor;
-            if (pricingRatio <= 1.0) {
-              priceColor = AppTheme.success;
-            } else if (pricingRatio <= 1.5) {
-              priceColor = AppTheme.warning;
-            } else {
-              priceColor = AppTheme.error;
-            }
-
-            final hasAircraft = route.assignedAircraft != null;
-
-            return TableRow(
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: AppTheme.border, width: 1.0),
-                ),
+              border: Border(
+                bottom: BorderSide(color: AppTheme.border, width: 0.5),
               ),
+            ),
+            child: Row(
               children: [
-                _routesTableCell(
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildIataBox(route.originIata),
-                          const SizedBox(width: AppSpacing.xs),
-                          Text(
-                            AppStrings.routeDividerGlyph,
-                            style: AppTypography.badgeText.copyWith(
-                              color: AppTheme.primary,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          _buildIataBox(route.destinationIata),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        '${route.origin.city} ${AppStrings.routeCitySeparator} ${route.destination.city}'
-                            .toUpperCase(),
-                        style: AppTypography.bodyMedium.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppTypography.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs - 2),
-                      Text(
-                        '${route.distanceKm.toStringAsFixed(0)} KM  •  ${route.flightsPerWeek} ${AppStrings.flightsPerWeekSuffix}',
-                        style: AppTypography.captionLight.copyWith(
-                          color: AppTypography.textSecondary,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
+                Icon(Icons.route, color: AppTheme.primary, size: 13),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'ACTIVE ROUTES',
+                  style: AppTypography.microLabel.copyWith(
+                    color: AppTheme.textSecondary,
                   ),
                 ),
-                _routesTableCell(
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        currencyFormat.format(route.ticketPrice),
-                        style: AppTypography.badgeText.copyWith(
-                          color: priceColor,
-                          letterSpacing: 0.0,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs - 2),
-                      Text(
-                        '${AppStrings.maintenanceSlackLabel}: ${maintenance.maintenanceHoursPerWeek.toStringAsFixed(1)}H',
-                        style: AppTypography.badgeText.copyWith(
-                          color: maintenance.maintenanceHoursPerWeek > 0
-                              ? AppTheme.info
-                              : AppTypography.textSecondary,
-                          letterSpacing: 0.0,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs - 2),
-                      if (hasAircraft)
-                        Text(
-                          '${AppStrings.loadShortLabel} ${route.loadFactor.toStringAsFixed(1)}%',
-                          style: AppTypography.badgeText.copyWith(
-                            color: route.loadFactor >= 80.0
-                                ? AppTheme.success
-                                : (route.loadFactor >= 50.0
-                                      ? AppTheme.warning
-                                      : AppTheme.error),
-                            letterSpacing: 0.0,
-                          ),
-                        )
-                      else
-                        Text(
-                          AppStrings.groundedLabel,
-                          style: AppTypography.badgeText.copyWith(
-                            color: AppTheme.error,
-                          ),
-                        ),
-                      Text(
-                        '${AppStrings.demandLabel} ${route.demandMultiplier.toStringAsFixed(2)}${AppStrings.demandMultiplierSuffix}',
-                        style: AppTypography.badgeText.copyWith(
-                          color: AppTypography.textSecondary,
-                          letterSpacing: 0.0,
-                        ),
-                      ),
-                    ],
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
                   ),
-                ),
-                _routesTableCell(
-                  _buildAircraftDropdown(
-                    context,
-                    route,
-                    availableFleet,
-                    userId,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(3),
                   ),
-                ),
-                _routesTableCell(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AppTableIconAction(
-                        tooltip: 'Route details',
-                        icon: Icons.open_in_new,
-                        onPressed: () => _showRouteDetailsDialog(
-                          context,
-                          route,
-                          currencyFormat,
-                          autoGroundingThreshold,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      AppTableIconAction(
-                        tooltip: AppStrings.adjustRouteTooltip,
-                        icon: Icons.tune,
-                        onPressed: () => _showAdjustDialog(
-                          context,
-                          route,
-                          userId,
-                          currencyFormat,
-                          context.read<AuthCubit>().state is AuthAuthenticated
-                              ? (context.read<AuthCubit>().state
-                                        as AuthAuthenticated)
-                                    .user
-                                    .autoGroundingThreshold
-                              : GameConstants.defaultAutoGroundingThreshold,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      AppTableIconAction(
-                        tooltip: AppStrings.closeRouteTooltip,
-                        icon: Icons.delete_forever_outlined,
-                        color: AppTheme.error,
-                        onPressed: () =>
-                            _confirmCloseRoute(context, route, userId),
-                      ),
-                    ],
+                  child: Text(
+                    '${routes.length}',
+                    style: AppTypography.badgeText.copyWith(
+                      color: AppTheme.primary,
+                      fontSize: 10,
+                    ),
                   ),
                 ),
               ],
-            );
-          }),
+            ),
+          ),
+          // Route List
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.sm,
+              ),
+              itemCount: routes.length,
+              itemBuilder: (context, index) {
+                final route = routes[index];
+                final isSelected = route.id == _selectedRouteId;
+                return _buildRouteCard(
+                  context,
+                  route,
+                  isSelected,
+                  autoGroundingThreshold,
+                  userId,
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildConnectionCard(
+  Widget _buildRouteCard(
     BuildContext context,
     UserRoute route,
-    List<UserFleetAircraft> availableFleet,
-    String userId,
-    NumberFormat currencyFormat,
+    bool isSelected,
     double autoGroundingThreshold,
+    String userId,
   ) {
+    final hasAircraft = route.assignedAircraft != null;
+    final isGrounded = !hasAircraft ||
+        route.assignedAircraft!.isMaintenanceGrounded(autoGroundingThreshold);
+    final maintenance = route.buildMaintenancePreview(autoGroundingThreshold);
     final idealPrice = route.baseTicketPrice;
     final pricingRatio = route.ticketPrice / idealPrice;
 
-    Color priceColor;
-    final fareTooltipText = _buildFareTooltip(
-      route: route,
-      currencyFormat: currencyFormat,
-      idealPrice: idealPrice,
-      pricingRatio: pricingRatio,
-    );
-    if (pricingRatio <= 1.0) {
-      priceColor = AppTheme.success;
-    } else if (pricingRatio <= 1.5) {
-      priceColor = AppTheme.warning;
+    Color statusColor;
+    String statusLabel;
+    if (isGrounded) {
+      statusColor = AppTheme.error;
+      statusLabel = 'GROUNDED';
+    } else if (maintenance.netHealthImpactPercent > 0) {
+      statusColor = AppTheme.warning;
+      statusLabel = 'PRESSURED';
     } else {
-      priceColor = AppTheme.error;
+      statusColor = AppTheme.success;
+      statusLabel = 'ACTIVE';
     }
 
-    final hasAircraft = route.assignedAircraft != null;
-    final isGrounded =
-        !hasAircraft ||
-        route.assignedAircraft!.isMaintenanceGrounded(autoGroundingThreshold);
-    final maintenance = route.buildMaintenancePreview(autoGroundingThreshold);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        border: Border.all(
-          color: isGrounded ? AppTheme.error : AppTheme.border,
-          width: 1.0,
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedRouteId = isSelected ? null : route.id;
+        });
+      },
+      onLongPress: () {
+        _showRouteDetailsDialog(
+          context,
+          route,
+          _currencyFormat,
+          autoGroundingThreshold,
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppTheme.accentSubtle
+              : AppTheme.surface.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: isSelected
+                ? AppTheme.primary.withValues(alpha: 0.4)
+                : AppTheme.border,
+            width: 0.5,
+          ),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    _buildIataBox(route.originIata),
+                    const SizedBox(width: AppSpacing.xs),
+                    Icon(
+                      Icons.arrow_forward,
+                      color: AppTheme.primary,
+                      size: 10,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    _buildIataBox(route.destinationIata),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: AppTypography.badgeText.copyWith(
+                      color: statusColor,
+                      fontSize: 9,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${route.distanceKm.toStringAsFixed(0)} KM  •  ${route.flightsPerWeek}X/WK',
+                  style: AppTypography.captionLight.copyWith(
+                    color: AppTheme.textMuted,
+                  ),
+                ),
+                Text(
+                  _currencyFormat.format(route.ticketPrice),
+                  style: AppTypography.monoValue.copyWith(
+                    color: pricingRatio <= 1.0
+                        ? AppTheme.success
+                        : (pricingRatio <= 1.5
+                            ? AppTheme.warning
+                            : AppTheme.error),
+                  ),
+                ),
+              ],
+            ),
+            if (isSelected) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      text: 'Adjust',
+                      onPressed: () {
+                        _showAdjustDialog(
+                          context,
+                          route,
+                          userId,
+                          _currencyFormat,
+                          autoGroundingThreshold,
+                        );
+                      },
+                      type: AppButtonType.secondary,
+                      height: 32,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: AppButton(
+                      text: 'Close',
+                      onPressed: () {
+                        _confirmCloseRoute(context, route, userId);
+                      },
+                      type: AppButtonType.secondary,
+                      height: 32,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
         ),
       ),
-      padding: const EdgeInsets.all(AppSpacing.sm),
+    );
+  }
+
+  Widget _buildIataBox(String iata) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        iata,
+        style: AppTypography.monoLabel.copyWith(
+          color: AppTheme.primary,
+          fontSize: 10,
+        ),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════
+  // TOP-RIGHT: System Monitor
+  // ══════════════════════════════════════════════
+
+  Widget _buildSystemMonitor(
+    List<UserRoute> routes,
+    List<UserFleetAircraft> availableFleet,
+  ) {
+    final assignedCount = routes
+        .map((r) => r.assignedAircraftId)
+        .whereType<String>()
+        .toSet()
+        .length;
+
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppTheme.surface.withValues(alpha: 0.92),
+        border: Border.all(color: AppTheme.border, width: 0.5),
+        borderRadius: BorderRadius.circular(4),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  _buildIataBox(route.originIata),
-                  const SizedBox(width: AppSpacing.sm - 2),
-                  Text(
-                    AppStrings.routeDividerGlyph,
-                    style: AppTypography.badgeText.copyWith(
-                      color: AppTheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm - 2),
-                  _buildIataBox(route.destinationIata),
-                ],
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.delete_forever_outlined,
-                  color: AppTheme.error,
-                  size: 20,
-                ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => _confirmCloseRoute(context, route, userId),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm - 2),
-          Text(
-            '${route.origin.city} ${AppStrings.routeCitySeparator} ${route.destination.city}'
-                .toUpperCase(),
-            style: AppTypography.badgeText.copyWith(
-              color: AppTypography.textSecondary,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Divider(color: AppTheme.border),
-          const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            spacing: AppSpacing.md,
-            runSpacing: AppSpacing.xs,
-            children: [
-              _buildTycoonStatItem(
-                context,
-                AppStrings.distanceLabel,
-                '${route.distanceKm.toStringAsFixed(0)} KM',
-                AppStrings.distanceTooltip,
-                icon: Icons.straighten,
-              ),
-              _buildTycoonStatItem(
-                context,
-                AppStrings.ticketFareLabel,
-                currencyFormat.format(route.ticketPrice),
-                fareTooltipText,
-                valueColor: priceColor,
-                icon: Icons.local_atm,
-              ),
-              _buildTycoonStatItem(
-                context,
-                AppStrings.frequencyLabel,
-                '${route.flightsPerWeek}X/WK',
-                AppStrings.frequencyTooltip,
-                icon: Icons.calendar_today_outlined,
-              ),
-              _buildTycoonStatItem(
-                context,
-                AppStrings.maintenanceSlackLabel,
-                '${maintenance.maintenanceHoursPerWeek.toStringAsFixed(1)}H',
-                maintenance.isGrounded
-                    ? AppStrings.maintenancePreviewGrounded
-                    : '${AppStrings.maxScheduleLabel}: ${maintenance.maxFlightsPerWeek}${AppStrings.perWeekSuffix}',
-                icon: Icons.build_circle_outlined,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          if (hasAircraft) ...[
-            AppInfoStrip(
-              backgroundColor: AppTheme.background,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        AppStrings.yieldMetrics,
-                        style: AppTypography.badgeText.copyWith(
-                          color: isGrounded
-                              ? AppTheme.warning
-                              : AppTheme.primary,
-                        ),
-                      ),
-                      Text(
-                        '${route.expectedPassengers} ${AppStrings.expectedPassengersLabel}',
-                        style: AppTypography.badgeText.copyWith(
-                          color: AppTheme.success,
-                          letterSpacing: 0.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Wrap(
-                    spacing: AppSpacing.md,
-                    runSpacing: AppSpacing.xs,
-                    children: [
-                      AppStatText(
-                        label: AppStrings.loadFactorLabel,
-                        value: '${route.loadFactor.toStringAsFixed(1)}%',
-                        valueColor: route.loadFactor >= 80.0
-                            ? AppTheme.success
-                            : (route.loadFactor >= 50.0
-                                  ? AppTheme.warning
-                                  : AppTheme.error),
-                      ),
-                      AppStatText(
-                        label: AppStrings.askLabel,
-                        value: NumberFormat.compact().format(route.weeklyASK),
-                        valueColor: AppTypography.textPrimary,
-                      ),
-                      AppStatText(
-                        label: AppStrings.rpkLabel,
-                        value: NumberFormat.compact().format(route.weeklyRPK),
-                        valueColor: AppTypography.textPrimary,
-                      ),
-                      AppStatText(
-                        label: AppStrings.maintenanceImpactLabel,
-                        value: maintenance.requiresAircraftAssignment
-                            ? '--'
-                            : '${maintenance.netHealthImpactPercent.toStringAsFixed(1)}%',
-                        valueColor: maintenance.isGrounded
-                            ? AppTheme.error
-                            : (maintenance.netHealthImpactPercent > 0
-                                  ? AppTheme.warning
-                                  : AppTheme.success),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            AppInfoStrip(
-              backgroundColor: AppTheme.error.withValues(alpha: 0.08),
-              borderColor: AppTheme.error.withValues(alpha: 0.18),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: AppTheme.error,
-                    size: 16,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: Text(
-                      AppStrings.groundedAssignCarrier,
-                      style: AppTypography.badgeText.copyWith(
-                        color: AppTheme.error,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.xs),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+              PulseDot(color: AppTheme.success, size: 4),
+              const SizedBox(width: AppSpacing.sm),
               Text(
-                AppStrings.carrierLabel,
-                style: AppTypography.badgeText.copyWith(
-                  color: AppTypography.textSecondary,
+                'SYSTEM MONITOR',
+                style: AppTypography.microLabel.copyWith(
+                  color: AppTheme.textSecondary,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xs),
-              _buildAircraftDropdown(context, route, availableFleet, userId),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          OutlinedButton(
-            onPressed: () => _showRouteDetailsDialog(
-              context,
-              route,
-              currencyFormat,
-              autoGroundingThreshold,
-            ),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(40),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.zero,
-              ),
-              side: BorderSide(color: AppTheme.border),
-            ),
-            child: Text(
-              'VIEW ROUTE DETAIL',
-              style: AppTypography.badgeText.copyWith(color: AppTheme.primary),
+          const SizedBox(height: AppSpacing.sm),
+          _buildMonitorLine('RADAR', 'OPERATIONAL', AppTheme.success),
+          _buildMonitorLine('SATCOM', 'LINK ACTIVE', AppTheme.info),
+          _buildMonitorLine(
+            'FLEET',
+            '$assignedCount/${routes.length} ASSIGNED',
+            assignedCount == routes.length ? AppTheme.success : AppTheme.warning,
+          ),
+          _buildMonitorLine(
+            'NETWORK',
+            '${routes.length} ROUTES',
+            AppTheme.textSecondary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonitorLine(String label, String value, Color valueColor) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: AppTypography.badgeText.copyWith(
+              color: AppTheme.textMuted,
+              fontSize: 9,
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
-          OutlinedButton(
-            onPressed: () => _showAdjustDialog(
-              context,
-              route,
-              userId,
-              currencyFormat,
-              context.read<AuthCubit>().state is AuthAuthenticated
-                  ? (context.read<AuthCubit>().state as AuthAuthenticated)
-                        .user
-                        .autoGroundingThreshold
-                  : GameConstants.defaultAutoGroundingThreshold,
-            ),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(40),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.zero,
-              ),
-              side: BorderSide(color: AppTheme.border),
-            ),
-            child: Text(
-              AppStrings.adjustParametersButton,
-              style: AppTypography.badgeText.copyWith(color: AppTheme.primary),
+          Text(
+            value,
+            style: AppTypography.badgeText.copyWith(
+              color: valueColor,
+              fontSize: 9,
             ),
           ),
         ],
@@ -696,117 +677,337 @@ class _RoutesViewState extends State<RoutesView>
     );
   }
 
-  // BLUEPRINT NETWORK TAB VIEW (Create Route Planner)
-  Widget _buildBlueprintTab(
-    String userId,
-    NumberFormat currencyFormat,
-    double autoGroundingThreshold,
-  ) {
-    return BlocBuilder<RoutesCubit, RoutesState>(
-      buildWhen: (previous, current) => current is! RoutesActionSuccess,
-      builder: (context, state) {
-        if (state is RoutesLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
+  // ══════════════════════════════════════════════
+  // BOTTOM: Blueprint Planner Panel
+  // ══════════════════════════════════════════════
 
-        final airports = _getAirports(state);
-        return BlueprintPlannerForm(
-          airports: airports,
-          activeRoutes: _getRoutes(state),
-          availableAircraft: _getAvailableFleet(state),
-          userId: userId,
-          autoGroundingThreshold: autoGroundingThreshold,
-          currencyFormat: currencyFormat,
-          routesCubit: context.read<RoutesCubit>(),
-          onSuccessRedirect: () => _tabController.animateTo(0),
-        );
-      },
-    );
-  }
-
-  // INTERACTIVE SCHEDULING DROPDOWN
-  Widget _buildAircraftDropdown(
+  Widget _buildBlueprintPlannerPanel(
     BuildContext context,
-    UserRoute route,
+    List<Airport> airports,
+    List<UserRoute> routes,
     List<UserFleetAircraft> availableFleet,
     String userId,
+    double autoGroundingThreshold,
   ) {
-    final activeId = route.assignedAircraftId;
-    final cubit = context.read<RoutesCubit>();
-    final compatibleFleet = availableFleet
-        .where((fleet) => fleet.canOperateDistance(route.distanceKm))
-        .toList();
-
-    // Dropdown Items list contains unassigned fleet + the currently assigned aircraft
-    final dropdownItems = <DropdownMenuItem<String?>>[
-      DropdownMenuItem<String?>(
-        value: null,
-        child: Text(
-          AppStrings.groundedNoneLabel,
-          style: AppTypography.badgeText.copyWith(
-            color: AppTheme.error,
-            letterSpacing: 0.0,
-          ),
-        ),
-      ),
-    ];
-
-    if (route.assignedAircraft != null) {
-      dropdownItems.add(
-        DropdownMenuItem<String?>(
-          value: route.assignedAircraftId,
-          child: Text(
-            '${route.assignedAircraft!.model.manufacturer} ${route.assignedAircraft!.model.modelName} [${route.assignedAircraft!.tailNumber}]',
-            style: AppTypography.badgeText.copyWith(
-              color: AppTheme.primary,
-              letterSpacing: 0.0,
-            ),
-          ),
-        ),
-      );
-    }
-
-    for (var fleet in compatibleFleet) {
-      dropdownItems.add(
-        DropdownMenuItem<String?>(
-          value: fleet.id,
-          child: Text(
-            '${fleet.model.manufacturer} ${fleet.model.modelName} [${fleet.tailNumber}]',
-            style: AppTypography.badgeText.copyWith(
-              color: AppTypography.textPrimary,
-              letterSpacing: 0.0,
-            ),
-          ),
-        ),
-      );
-    }
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md - 2),
       decoration: BoxDecoration(
-        color: AppTheme.background,
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
-          value: activeId,
-          items: dropdownItems,
-          onChanged: (newVal) async {
-            await cubit.assignAircraft(
-              routeId: route.id,
-              aircraftId: newVal,
-              userId: userId,
-            );
-          },
-          dropdownColor: AppTheme.surface,
-          isExpanded: true,
-          icon: Icon(Icons.arrow_drop_down, color: AppTheme.primary, size: 18),
+        color: AppTheme.surface.withValues(alpha: 0.96),
+        border: Border(
+          top: BorderSide(color: AppTheme.border, width: 0.5),
         ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Header Bar ──
+          Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceRaised,
+              border: Border(
+                bottom: BorderSide(color: AppTheme.border, width: 0.5),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.architecture, color: AppTheme.primary, size: 13),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'BLUEPRINT PLANNER',
+                  style: AppTypography.microLabel.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const Spacer(),
+                if (_plannerOrigin != null && _plannerDestination != null) ...[
+                  Text(
+                    'DIST: ${_plannerOrigin!.latitude.toStringAsFixed(2)}° ${_plannerOrigin!.longitude.toStringAsFixed(2)}°',
+                    style: AppTypography.badgeText.copyWith(
+                      color: AppTheme.textMuted,
+                      fontSize: 9,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                ],
+                Text(
+                  '${airports.length} AIRPORTS',
+                  style: AppTypography.badgeText.copyWith(
+                    color: AppTheme.textMuted,
+                    fontSize: 9,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Input Row ──
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.sm,
+            ),
+            child: Form(
+              key: _plannerFormKey,
+              child: Row(
+                children: [
+                  // Origin
+                  Expanded(
+                    child: SearchableAirportDropdown(
+                      label: 'ORIGIN',
+                      airports: airports,
+                      selectedValue: _plannerOrigin,
+                      onSelected: (a) {
+                        setState(() {
+                          _plannerOrigin = a;
+                          _updatePlannerDistance();
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Icon(Icons.swap_horiz, color: AppTheme.primary, size: 18),
+                  const SizedBox(width: AppSpacing.sm),
+                  // Destination
+                  Expanded(
+                    child: SearchableAirportDropdown(
+                      label: 'DESTINATION',
+                      airports: airports,
+                      selectedValue: _plannerDestination,
+                      onSelected: (a) {
+                        setState(() {
+                          _plannerDestination = a;
+                          _updatePlannerDistance();
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  // Price
+                  SizedBox(
+                    width: 130,
+                    child: TextFormField(
+                      controller: _priceController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: false,
+                      ),
+                      style: AppTypography.monoValue.copyWith(fontSize: 12),
+                      decoration: InputDecoration(
+                        labelText: 'FARE',
+                        labelStyle: AppTypography.microLabel.copyWith(
+                          color: AppTheme.textMuted,
+                        ),
+                        prefixText: '\$',
+                        prefixStyle: AppTypography.monoValue.copyWith(
+                          color: AppTheme.success,
+                          fontSize: 12,
+                        ),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                          vertical: AppSpacing.sm,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(3),
+                          borderSide: BorderSide(color: AppTheme.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(3),
+                          borderSide: BorderSide(color: AppTheme.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(3),
+                          borderSide: BorderSide(color: AppTheme.primary),
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Required';
+                        }
+                        if (double.tryParse(v) == null || double.tryParse(v)! <= 0) {
+                          return 'Invalid';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  // Action Button
+                  BlocBuilder<RoutesCubit, RoutesState>(
+                    builder: (context, routesState) {
+                      final isLoading = routesState is RoutesActionLoading;
+                      return AppButton(
+                        text: isLoading ? 'CREATING...' : 'ESTABLISH',
+                        isLoading: isLoading,
+                        icon: Icons.add_location_alt_outlined,
+                        height: 38,
+                        onPressed: isLoading
+                            ? null
+                            : () => _submitBlueprint(
+                                context,
+                                userId,
+                                autoGroundingThreshold,
+                              ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Footer Stats ──
+          Container(
+            height: 28,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: AppTheme.border, width: 0.5),
+              ),
+            ),
+            child: Row(
+              children: [
+                _buildFooterStat(
+                  'DIST',
+                  _plannerDistance > 0
+                      ? '${_plannerDistance.toStringAsFixed(0)} KM'
+                      : '--',
+                ),
+                _buildFooterDivider(),
+                _buildFooterStat(
+                  'BASE FARE',
+                  _plannerDistance > 0
+                      ? _currencyFormat.format(
+                          GameConstants.ticketBaseFare +
+                              (_plannerDistance * GameConstants.ticketPerKmRate),
+                        )
+                      : '--',
+                ),
+                _buildFooterDivider(),
+                _buildFooterStat(
+                  'EET',
+                  _plannerDistance > 0
+                      ? '${(_plannerDistance / 850 + GameConstants.aircraftTurnaroundHours).toStringAsFixed(1)}H'
+                      : '--',
+                ),
+                _buildFooterDivider(),
+                _buildFooterStat(
+                  'ROUTES',
+                  '${routes.length}',
+                ),
+                const Spacer(),
+                if (_plannerOrigin != null && _plannerDestination != null)
+                  Text(
+                    '${_plannerOrigin!.iata} → ${_plannerDestination!.iata}',
+                    style: AppTypography.monoLabel.copyWith(
+                      color: AppTheme.primary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // DIALOG CONFIRMATIONS
+  Widget _buildFooterStat(String label, String value) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$label: ',
+          style: AppTypography.badgeText.copyWith(
+            color: AppTheme.textMuted,
+            fontSize: 9,
+          ),
+        ),
+        Text(
+          value,
+          style: AppTypography.badgeText.copyWith(
+            color: AppTheme.textPrimary,
+            fontSize: 9,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooterDivider() {
+    return Container(
+      width: 1,
+      height: 14,
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      color: AppTheme.border,
+    );
+  }
+
+  // ══════════════════════════════════════════════
+  // PLANNER LOGIC
+  // ══════════════════════════════════════════════
+
+  void _updatePlannerDistance() {
+    if (_plannerOrigin != null && _plannerDestination != null) {
+      _plannerDistance = Airport.calculateDistance(
+        _plannerOrigin!,
+        _plannerDestination!,
+      );
+    } else {
+      _plannerDistance = 0.0;
+    }
+  }
+
+  Future<void> _submitBlueprint(
+    BuildContext context,
+    String userId,
+    double autoGroundingThreshold,
+  ) async {
+    if (!(_plannerFormKey.currentState?.validate() ?? false)) return;
+    if (_plannerOrigin == null || _plannerDestination == null) {
+      AppSnackBar.showError(context, 'Select origin and destination airports.');
+      return;
+    }
+    if (_plannerOrigin!.iata == _plannerDestination!.iata) {
+      AppSnackBar.showError(context, AppStrings.identicalAirportsError);
+      return;
+    }
+
+    final price = double.tryParse(_priceController.text);
+    if (price == null || price <= 0) {
+      AppSnackBar.showError(context, AppStrings.invalidTicketPriceError);
+      return;
+    }
+
+    final success = await context.read<RoutesCubit>().createRoute(
+      userId: userId,
+      originIata: _plannerOrigin!.iata,
+      destinationIata: _plannerDestination!.iata,
+      distanceKm: _plannerDistance,
+      ticketPrice: price,
+      flightsPerWeek: GameConstants.defaultWeeklyFlights,
+    );
+
+    if (success) {
+      setState(() {
+        _plannerOrigin = null;
+        _plannerDestination = null;
+        _plannerDistance = 0.0;
+        _priceController.clear();
+      });
+    }
+  }
+
+  Airport? _resolveHomeAirport(String hqIata) {
+    final airports = _getAirports(context.read<RoutesCubit>().state);
+    for (final airport in airports) {
+      if (airport.iata == hqIata) return airport;
+    }
+    return null;
+  }
+
+  // ══════════════════════════════════════════════
+  // DIALOGS (Preserved from original)
+  // ══════════════════════════════════════════════
 
   void _showRouteDetailsDialog(
     BuildContext context,
@@ -883,8 +1084,8 @@ class _RoutesViewState extends State<RoutesView>
                       valueColor: maintenance.isGrounded
                           ? AppTheme.error
                           : (maintenance.netHealthImpactPercent > 0
-                                ? AppTheme.warning
-                                : AppTheme.success),
+                              ? AppTheme.warning
+                              : AppTheme.success),
                     ),
                     AppLabeledValue(
                       label: AppStrings.askLabel,
@@ -1041,7 +1242,11 @@ class _RoutesViewState extends State<RoutesView>
                         Container(
                           decoration: BoxDecoration(
                             color: AppTheme.background,
-                            border: Border.all(color: AppTheme.border),
+                            border: Border.all(
+                              color: AppTheme.border,
+                              width: 0.5,
+                            ),
+                            borderRadius: BorderRadius.circular(4),
                           ),
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.sm,
@@ -1123,7 +1328,6 @@ class _RoutesViewState extends State<RoutesView>
                   text: AppStrings.saveAdjustments,
                   onPressed: () async {
                     final priceText = priceController.text.trim();
-
                     final price = double.tryParse(priceText);
                     if (price == null || price <= 0) {
                       AppSnackBar.showError(
@@ -1176,11 +1380,9 @@ class _RoutesViewState extends State<RoutesView>
       final capLabel = maxFlights > 0 ? '$maxFlights' : 'N/A';
       return '${AppStrings.weeklyFrequencyHelperPrefix}$capLabel${AppStrings.weeklyFrequencyHelperSuffix} ${AppStrings.maintenancePreviewNeedsAssignment}';
     }
-
     if (preview.isGrounded) {
       return AppStrings.maintenancePreviewGrounded;
     }
-
     return '${AppStrings.maintenancePreviewPrefix}${preview.maintenanceHoursPerWeek.toStringAsFixed(1)}'
         '${AppStrings.maintenancePreviewMiddle}${preview.netHealthImpactPercent.toStringAsFixed(1)}%';
   }
@@ -1207,7 +1409,9 @@ class _RoutesViewState extends State<RoutesView>
         color: AppTheme.background,
         border: Border.all(
           color: _viabilityColor(assessment.viability).withValues(alpha: 0.22),
+          width: 0.5,
         ),
+        borderRadius: BorderRadius.circular(4),
       ),
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(
@@ -1313,71 +1517,9 @@ class _RoutesViewState extends State<RoutesView>
     );
   }
 
-  // WIDGET HELPERS
-
-  Widget _buildIataBox(String iata) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withValues(alpha: 0.15),
-        border: Border.all(color: AppTheme.primary, width: 1.0),
-      ),
-      child: Text(
-        iata,
-        style: AppTypography.badgeText.copyWith(
-          color: AppTheme.primary,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTycoonStatItem(
-    BuildContext context,
-    String label,
-    String value,
-    String tooltipMessage, {
-    Color? valueColor,
-    IconData? icon,
-  }) {
-    return Tooltip(
-      message: tooltipMessage,
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        border: Border.all(color: AppTheme.border),
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      textStyle: AppTypography.badgeText.copyWith(
-        color: AppTypography.textPrimary,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 14, color: valueColor ?? AppTheme.textSecondary),
-            const SizedBox(width: AppSpacing.xs),
-          ],
-          AppStatText(
-            label: label,
-            value: value,
-            labelColor: AppTheme.textSecondary,
-            valueColor: valueColor ?? AppTypography.textPrimary,
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Icon(Icons.info_outline, size: 11, color: AppTheme.textMuted),
-        ],
-      ),
-    );
-  }
-
-  // RECOVERY DATAS
+  // ══════════════════════════════════════════════
+  // HELPERS
+  // ══════════════════════════════════════════════
 
   List<UserRoute> _getRoutes(RoutesState state) {
     if (state is RoutesDataState) return state.routes;
@@ -1392,36 +1534,6 @@ class _RoutesViewState extends State<RoutesView>
   List<UserFleetAircraft> _getAvailableFleet(RoutesState state) {
     if (state is RoutesDataState) return state.availableAircraft;
     return [];
-  }
-
-  Widget _routesTableHeaderCell(String label) {
-    return AppTableHeaderCell(
-      label: label,
-      color: AppTypography.textSecondary,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-    );
-  }
-
-  Widget _routesTableCell(Widget child) {
-    return AppTableBodyCell(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-      child: child,
-    );
-  }
-
-  String _buildFareTooltip({
-    required UserRoute route,
-    required NumberFormat currencyFormat,
-    required double idealPrice,
-    required double pricingRatio,
-  }) {
-    if (pricingRatio <= 1.0) {
-      return '${AppStrings.routePricingWatchStrong} (${route.demandMultiplier.toStringAsFixed(2)}x)';
-    }
-    if (pricingRatio <= 1.5) {
-      return '${AppStrings.elasticityCalibratedDesc} (${route.demandMultiplier.toStringAsFixed(2)}x)';
-    }
-    return '${AppStrings.routePricingWatchWeak} ${currencyFormat.format(idealPrice)}';
   }
 
   Color _viabilityColor(RouteViabilityBand viability) {
@@ -1448,5 +1560,140 @@ class _RoutesViewState extends State<RoutesView>
       case RouteViabilityBand.blocked:
         return AppStrings.viabilityBlockedLabel;
     }
+  }
+
+  List<LatLng> _buildGreatCircleArc(
+    Airport origin,
+    Airport destination, {
+    required int steps,
+  }) {
+    final points = <LatLng>[];
+    final startLat = origin.latitude * math.pi / 180.0;
+    final startLon = origin.longitude * math.pi / 180.0;
+    final endLat = destination.latitude * math.pi / 180.0;
+    final endLon = destination.longitude * math.pi / 180.0;
+
+    final d = 2 *
+        math.asin(
+          math.sqrt(
+            math.pow(math.sin((startLat - endLat) / 2), 2) +
+                math.cos(startLat) *
+                    math.cos(endLat) *
+                    math.pow(math.sin((startLon - endLon) / 2), 2),
+          ),
+        );
+
+    if (d == 0) return points;
+
+    for (var i = 1; i < steps; i++) {
+      final f = i / steps;
+      final a = math.sin((1 - f) * d) / math.sin(d);
+      final b = math.sin(f * d) / math.sin(d);
+
+      final x = a * math.cos(startLat) * math.cos(startLon) +
+          b * math.cos(endLat) * math.cos(endLon);
+      final y = a * math.cos(startLat) * math.sin(startLon) +
+          b * math.cos(endLat) * math.sin(endLon);
+      final z = a * math.sin(startLat) + b * math.sin(endLat);
+
+      final lat = math.atan2(z, math.sqrt(x * x + y * y));
+      final lon = math.atan2(y, x);
+      points.add(LatLng(lat * 180.0 / math.pi, lon * 180.0 / math.pi));
+    }
+    return points;
+  }
+}
+
+// ══════════════════════════════════════════════
+// INTERNAL MAP HELPERS
+// ══════════════════════════════════════════════
+
+class _MapRoute {
+  final Airport origin;
+  final Airport destination;
+  final bool highlighted;
+
+  const _MapRoute({
+    required this.origin,
+    required this.destination,
+    required this.highlighted,
+  });
+}
+
+class _MapViewport {
+  final LatLng center;
+  final double zoom;
+
+  const _MapViewport({required this.center, required this.zoom});
+
+  factory _MapViewport.fromRoutes({
+    required List<_MapRoute> routes,
+    required LatLng fallbackCenter,
+    LatLng? preferredCenter,
+  }) {
+    final airports = <Airport>[
+      for (final route in routes) route.origin,
+      for (final route in routes) route.destination,
+    ];
+    if (airports.isEmpty) {
+      return _MapViewport(center: fallbackCenter, zoom: 2.1);
+    }
+
+    var minLat = airports.first.latitude;
+    var maxLat = airports.first.latitude;
+    var minLon = airports.first.longitude;
+    var maxLon = airports.first.longitude;
+
+    for (final airport in airports.skip(1)) {
+      minLat = math.min(minLat, airport.latitude);
+      maxLat = math.max(maxLat, airport.latitude);
+      minLon = math.min(minLon, airport.longitude);
+      maxLon = math.max(maxLon, airport.longitude);
+    }
+
+    final latSpan = math.max(5.0, maxLat - minLat);
+    final lonSpan = math.max(8.0, maxLon - minLon);
+    final span = math.max(latSpan, lonSpan);
+    final center = preferredCenter ??
+        LatLng((minLat + maxLat) / 2, (minLon + maxLon) / 2);
+
+    if (span > 140) return _MapViewport(center: center, zoom: 1.9);
+    if (span > 90) return _MapViewport(center: center, zoom: 2.3);
+    if (span > 45) return _MapViewport(center: center, zoom: 3.0);
+    if (span > 20) return _MapViewport(center: center, zoom: 3.8);
+    if (span > 10) return _MapViewport(center: center, zoom: 4.6);
+    return _MapViewport(center: center, zoom: 5.2);
+  }
+}
+
+class _AirportMarker extends StatelessWidget {
+  final String label;
+  final bool highlighted;
+
+  const _AirportMarker({required this.label, required this.highlighted});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = highlighted ? AppTheme.primary : AppTheme.info;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: 2,
+        ),
+        decoration: BoxDecoration(
+          color: AppTheme.surface.withValues(alpha: 0.92),
+          border: Border.all(color: color.withValues(alpha: 0.8)),
+        ),
+        child: Text(
+          label,
+          style: AppTypography.badgeText.copyWith(
+            color: color,
+            fontSize: 10,
+          ),
+        ),
+      ),
+    );
   }
 }

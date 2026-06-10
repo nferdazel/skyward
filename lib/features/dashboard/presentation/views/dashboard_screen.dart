@@ -265,69 +265,66 @@ class _AuthenticatedDashboardShellState
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: Column(
+      body: Row(
         children: [
-          const TickerTape(),
+          const DashboardSidebar(),
           Expanded(
-            child: Row(
+            child: Column(
               children: [
-                const DashboardSidebar(),
+                // Status bar
+                BlocBuilder<SimulationCubit, SimulationState>(
+                  buildWhen: (previous, current) =>
+                      previous.gameTime != current.gameTime ||
+                      previous.cashBalance != current.cashBalance ||
+                      previous.fuelPricePerLiter !=
+                          current.fuelPricePerLiter ||
+                      previous.isSyncing != current.isSyncing,
+                  builder: (context, simState) {
+                    return TopHud(
+                      authState: authState,
+                      simState: simState,
+                      currencyFormat: currencyFormat,
+                      dateFormat: dateFormat,
+                    );
+                  },
+                ),
+                // Content area
                 Expanded(
-                  child: Column(
-                    children: [
-                      BlocBuilder<SimulationCubit, SimulationState>(
-                        buildWhen: (previous, current) =>
-                            previous.gameTime != current.gameTime ||
-                            previous.cashBalance != current.cashBalance ||
-                            previous.fuelPricePerLiter !=
-                                current.fuelPricePerLiter ||
-                            previous.isSyncing != current.isSyncing,
-                        builder: (context, simState) {
-                          return TopHud(
-                            authState: authState,
-                            simState: simState,
-                            currencyFormat: currencyFormat,
-                            dateFormat: dateFormat,
-                          );
-                        },
-                      ),
-                      Expanded(
-                        child: Container(
-                          padding: EdgeInsets.all(
-                            AppSpacing.pagePadding * scale,
-                          ),
-                          child: BlocBuilder<NavigationCubit, NavigationState>(
-                            builder: (context, navState) {
-                              return BlocBuilder<LazyTabCubit, LazyTabState>(
-                                builder: (context, lazyState) {
-                                  return IndexedStack(
-                                    index: navState.activeIndex,
-                                    children: List.generate(
-                                      6,
-                                      (index) => RepaintBoundary(
-                                        child:
-                                            lazyState.loadedIndexes.contains(
+                  child: Container(
+                    padding: EdgeInsets.all(
+                      AppSpacing.pagePadding * scale,
+                    ),
+                    child: BlocBuilder<NavigationCubit, NavigationState>(
+                      builder: (context, navState) {
+                        return BlocBuilder<LazyTabCubit, LazyTabState>(
+                          builder: (context, lazyState) {
+                            return IndexedStack(
+                              index: navState.activeIndex,
+                              children: List.generate(
+                                6,
+                                (index) => RepaintBoundary(
+                                  child:
+                                      lazyState.loadedIndexes.contains(
+                                        index,
+                                      )
+                                          ? _buildTabChild(
+                                              context,
                                               index,
+                                              currencyFormat,
+                                              dateFormat,
                                             )
-                                            ? _buildTabChild(
-                                                context,
-                                                index,
-                                                currencyFormat,
-                                                dateFormat,
-                                              )
-                                            : const SizedBox.shrink(),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
+                                          : const SizedBox.shrink(),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ),
+                // Ticker at bottom
+                const TickerTape(),
               ],
             ),
           ),
@@ -409,6 +406,7 @@ class _AuthenticatedDashboardShellState
                           color: simState.isSyncing
                               ? AppTheme.warning
                               : AppTheme.success,
+                          size: 6,
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Text(

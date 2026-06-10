@@ -39,9 +39,11 @@ class _TickerTapeState extends State<TickerTape>
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 28,
+      height: 24,
       width: double.infinity,
-      decoration: BoxDecoration(color: AppTheme.primary),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+      ),
       clipBehavior: Clip.hardEdge,
       child: AnimatedBuilder(
         animation: _animation,
@@ -59,11 +61,11 @@ class _TickerTapeState extends State<TickerTape>
               _message,
               maxLines: 1,
               overflow: TextOverflow.visible,
-              style: GoogleFonts.ibmPlexSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.background,
-                letterSpacing: 0.06,
+              style: GoogleFonts.ibmPlexMono(
+                fontSize: 10,
+                fontWeight: FontWeight.w400,
+                color: AppTheme.textMuted,
+                letterSpacing: 0.1,
               ),
             ),
           ),

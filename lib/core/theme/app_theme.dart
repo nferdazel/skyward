@@ -5,36 +5,36 @@ import 'app_theme_colors.dart';
 import 'skyward_colors.dart';
 
 class AppTheme {
-  // ── BACKWARDS COMPATIBILITY COLOR TOKENS (defaults to dark theme) ──
-  // Prefer Theme.of(context).extension<AppThemeColors>()! for theme-aware colors
+  // ── COLOR TOKENS ──
   static Color get primary => SkywardColors.darkAccent;
   static Color get accentSubtle => SkywardColors.darkAccentSubtle;
   static Color get background => SkywardColors.darkBg;
   static Color get surface => SkywardColors.darkSurface;
   static Color get surfaceRaised => SkywardColors.darkSurface2;
+  static Color get surfaceElevated => SkywardColors.darkSurface3;
   static Color get border => SkywardColors.darkBorder;
-  static Color get borderSubtle => SkywardColors.darkSurface3;
+  static Color get borderSubtle => SkywardColors.darkBorder2;
 
-  // ── FIXED SEMANTIC COLORS ──
+  // ── SEMANTIC COLORS ──
   static Color get success => SkywardColors.darkGreen;
   static Color get successSubtle => SkywardColors.darkGreenSubtle;
   static Color get error => SkywardColors.darkRed;
   static Color get errorSubtle => SkywardColors.darkRedSubtle;
   static Color get warning => SkywardColors.darkAmber;
   static Color get warningSubtle => SkywardColors.darkAmberSubtle;
-  static Color get info => SkywardColors.blue;
+  static Color get info => SkywardColors.darkAccent;
   static Color get neutral => SkywardColors.darkNeutral;
 
-  // ── TEXT COLOR TOKENS ──
+  // ── TEXT COLORS ──
   static Color get textPrimary => SkywardColors.darkTextPri;
   static Color get textSecondary => SkywardColors.darkTextSec;
   static Color get textMuted => SkywardColors.darkTextDim;
 
-  // ── ACCENT PALETTE EXTRA ──
+  // ── ACCENT EXTRAS ──
   static Color get accentBright => SkywardColors.darkAccentBright;
   static Color get accentGhost => SkywardColors.darkAccentGhost;
 
-  // ── BACKWARDS COMPATIBILITY FLAT GRADIENT FALLBACKS ──
+  // ── GRADIENT FALLBACKS ──
   static Gradient get primaryGradient => const LinearGradient(
     colors: [SkywardColors.darkAccent, SkywardColors.darkAccent],
   );
@@ -60,7 +60,7 @@ class AppTheme {
         onSecondary: Colors.white,
         onSurface: SkywardColors.darkTextPri,
       ),
-      textTheme: GoogleFonts.ibmPlexSansTextTheme(
+      textTheme: GoogleFonts.interTextTheme(
         const TextTheme(
           displayLarge: TextStyle(
             fontSize: 22,
@@ -127,21 +127,25 @@ class AppTheme {
             color: SkywardColors.darkTextSec,
           ),
           labelLarge: TextStyle(
+            fontFamily: 'IBM Plex Mono',
             fontSize: 11,
             fontWeight: FontWeight.w600,
             color: SkywardColors.darkAccent,
-            letterSpacing: 1.0,
+            letterSpacing: 0.08,
           ),
           labelMedium: TextStyle(
+            fontFamily: 'IBM Plex Mono',
             fontSize: 10,
             fontWeight: FontWeight.w400,
             color: SkywardColors.darkTextSec,
+            letterSpacing: 0.12,
           ),
           labelSmall: TextStyle(
+            fontFamily: 'IBM Plex Mono',
             fontSize: 10,
             fontWeight: FontWeight.w300,
             color: SkywardColors.darkTextDim,
-            letterSpacing: 1.0,
+            letterSpacing: 0.12,
           ),
         ),
       ),
@@ -149,10 +153,11 @@ class AppTheme {
         backgroundColor: SkywardColors.darkSurface,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.ibmPlexSans(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
+        titleTextStyle: GoogleFonts.ibmPlexMono(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
           color: SkywardColors.darkTextPri,
+          letterSpacing: 0.08,
         ),
         iconTheme: const IconThemeData(color: SkywardColors.darkAccent),
         shape: const Border(
@@ -165,10 +170,10 @@ class AppTheme {
           foregroundColor: Colors.black,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-          textStyle: GoogleFonts.ibmPlexSans(
+          textStyle: GoogleFonts.ibmPlexMono(
             fontWeight: FontWeight.w600,
-            fontSize: 14,
-            letterSpacing: 0.1,
+            fontSize: 12,
+            letterSpacing: 0.08,
           ),
           elevation: 0,
         ),
@@ -179,10 +184,10 @@ class AppTheme {
           side: const BorderSide(color: SkywardColors.darkAccent, width: 1.0),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-          textStyle: GoogleFonts.ibmPlexSans(
+          textStyle: GoogleFonts.ibmPlexMono(
             fontWeight: FontWeight.w600,
-            fontSize: 14,
-            letterSpacing: 0.1,
+            fontSize: 12,
+            letterSpacing: 0.08,
           ),
         ),
       ),
@@ -193,15 +198,15 @@ class AppTheme {
           horizontal: 20,
           vertical: 18,
         ),
-        labelStyle: GoogleFonts.ibmPlexSans(
+        labelStyle: GoogleFonts.ibmPlexMono(
           color: SkywardColors.darkTextSec,
           fontSize: 12,
-          letterSpacing: 0.1,
+          letterSpacing: 0.08,
         ),
-        hintStyle: GoogleFonts.ibmPlexSans(
+        hintStyle: GoogleFonts.ibmPlexMono(
           color: SkywardColors.darkTextDim,
           fontSize: 12,
-          letterSpacing: 0.1,
+          letterSpacing: 0.08,
         ),
         enabledBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(4)),

@@ -10,35 +10,41 @@ class AppBadge extends StatelessWidget {
   final double fontSize;
   final double letterSpacing;
   final EdgeInsetsGeometry padding;
+  final bool showDot;
 
   const AppBadge({
     super.key,
     required this.label,
     required this.color,
     this.backgroundColor,
-    this.fontSize = 9.0,
-    this.letterSpacing = 0.4,
-    this.padding = const EdgeInsets.symmetric(horizontal: 6.0, vertical: 3.0),
+    this.fontSize = 11.0,
+    this.letterSpacing = 0.08,
+    this.padding = const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+    this.showDot = false,
   });
 
-  factory AppBadge.success({required String label}) {
-    return AppBadge(label: label, color: AppTheme.success);
+  factory AppBadge.success({required String label, bool showDot = false}) {
+    return AppBadge(label: label, color: AppTheme.success, showDot: showDot);
   }
 
-  factory AppBadge.error({required String label}) {
-    return AppBadge(label: label, color: AppTheme.error);
+  factory AppBadge.error({required String label, bool showDot = false}) {
+    return AppBadge(label: label, color: AppTheme.error, showDot: showDot);
   }
 
-  factory AppBadge.warning({required String label}) {
-    return AppBadge(label: label, color: AppTheme.warning);
+  factory AppBadge.warning({required String label, bool showDot = false}) {
+    return AppBadge(label: label, color: AppTheme.warning, showDot: showDot);
   }
 
-  factory AppBadge.primary({required String label}) {
-    return AppBadge(label: label, color: AppTheme.primary);
+  factory AppBadge.primary({required String label, bool showDot = false}) {
+    return AppBadge(label: label, color: AppTheme.primary, showDot: showDot);
   }
 
-  factory AppBadge.secondary({required String label}) {
-    return AppBadge(label: label, color: AppTheme.textSecondary);
+  factory AppBadge.secondary({required String label, bool showDot = false}) {
+    return AppBadge(
+      label: label,
+      color: AppTheme.textSecondary,
+      showDot: showDot,
+    );
   }
 
   @override
@@ -46,18 +52,33 @@ class AppBadge extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: backgroundColor ?? color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1.0),
+        color: backgroundColor ?? color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(3),
       ),
-      child: Text(
-        label.toUpperCase(),
-        style: AppTypography.badgeText.copyWith(
-          fontSize: fontSize,
-          color: color,
-          letterSpacing: letterSpacing,
-          height: 1.0,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showDot) ...[
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label.toUpperCase(),
+            style: AppTypography.badgeText.copyWith(
+              fontSize: fontSize,
+              color: color,
+              letterSpacing: letterSpacing,
+              height: 1.0,
+            ),
+          ),
+        ],
       ),
     );
   }

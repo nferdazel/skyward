@@ -16,7 +16,6 @@ import '../../../fleet/presentation/cubit/fleet_cubit.dart';
 import '../../../leaderboard/presentation/cubit/leaderboard_cubit.dart';
 import '../../../routes/presentation/cubit/routes_cubit.dart';
 import '../../../simulation/presentation/cubit/simulation_cubit.dart';
-import '../../../simulation/presentation/cubit/simulation_state.dart';
 import '../../domain/overview_snapshot.dart';
 
 class OverviewTab extends StatelessWidget {
@@ -36,186 +35,44 @@ class OverviewTab extends StatelessWidget {
       return const Center(child: Text(AppStrings.unauthorized));
     }
 
-    final user = authState.user;
-    final simState = context.select((SimulationCubit cubit) => cubit.state);
-    final overview = _selectOverviewSnapshot(context, user);
-    final currencyFormat = NumberFormat.currency(
-      symbol: '\$',
-      decimalDigits: 0,
-    );
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Region 1: Identity + Cash Band
-          _buildIdentityCashBand(context, user, simState, currencyFormat, overview),
-          const SizedBox(height: AppSpacing.sectionGap),
-          // Region 2: Health KPIs + Risk Signals
-          ResponsiveLayout(
-            desktopBody: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: _buildHealthKPIs(context, overview),
-                ),
-                const SizedBox(width: AppSpacing.xl),
-                Expanded(
-                  flex: 2,
-                  child: _buildRiskSignals(context, overview, currencyFormat),
-                ),
-              ],
-            ),
-            mobileBody: Column(
-              children: [
-                _buildHealthKPIs(context, overview),
-                const SizedBox(height: AppSpacing.sectionGap),
-                _buildRiskSignals(context, overview, currencyFormat),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sectionGap),
-          // Region 3: Quick Actions
-          _buildQuickActions(context),
-        ],
-      ),
+    return ResponsiveLayout(
+      mobileBody: _buildMobileLayout(context, authState),
+      desktopBody: _buildDesktopLayout(context, authState),
     );
   }
 
-  // Region 1: Identity + Cash Band
-  Widget _buildIdentityCashBand(
-    BuildContext context,
-    dynamic user,
-    SimulationState simState,
-    NumberFormat currencyFormat,
-    OverviewSnapshot overview,
-  ) {
-    final isMobile = MediaQuery.of(context).size.width < 950;
+  // ── DESKTOP: Content-only (DashboardScreen provides sidebar + TopHud) ──
 
-    if (isMobile) {
-      return AppCard(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(user.companyName, style: AppTypography.screenTitleLarge),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        '${AppStrings.ceoPrefix}: ${user.ceoName}',
-                        style: AppTypography.captionRegular.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: overview.operationalStatusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: overview.operationalStatusColor.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Text(
-                    overview.operationalStatus.toUpperCase(),
-                    style: AppTypography.microLabel.copyWith(
-                      color: overview.operationalStatusColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                Text(
-                  'CASH POSITION',
-                  style: AppTypography.microLabel.copyWith(
-                    color: AppTheme.textMuted,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  currencyFormat.format(simState.cashBalance),
-                  style: AppTypography.largeKpi.copyWith(
-                    color: AppTheme.success,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
+  Widget _buildDesktopLayout(BuildContext context, AuthAuthenticated authState) {
+    final user = authState.user;
+    final overview = _selectOverviewSnapshot(context, user);
+    final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
 
-    return AppCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Row(
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(AppSpacing.pagePadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(user.companyName, style: AppTypography.screenTitleLarge),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '${AppStrings.ceoPrefix}: ${user.ceoName}',
-                  style: AppTypography.captionRegular.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              color: overview.operationalStatusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: overview.operationalStatusColor.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Text(
-              overview.operationalStatus.toUpperCase(),
-              style: AppTypography.microLabel.copyWith(
-                color: overview.operationalStatusColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xl),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          _buildKPICardsRow(context, overview),
+          const SizedBox(height: AppSpacing.sectionGap),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'CASH POSITION',
-                style: AppTypography.microLabel.copyWith(
-                  color: AppTheme.textMuted,
-                ),
+              Expanded(
+                flex: 3,
+                child: _buildSignalsSection(context, overview, currencyFormat),
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                currencyFormat.format(simState.cashBalance),
-                style: AppTypography.largeKpi.copyWith(
-                  color: AppTheme.success,
+              const SizedBox(width: AppSpacing.xl),
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildActionsSection(context),
+                    const SizedBox(height: AppSpacing.sectionGap),
+                    _buildPrioritiesSection(context, overview),
+                  ],
                 ),
               ),
             ],
@@ -225,56 +82,155 @@ class OverviewTab extends StatelessWidget {
     );
   }
 
-  // Region 2 Left: Operational Health KPIs
-  Widget _buildHealthKPIs(BuildContext context, OverviewSnapshot overview) {
-    final isMobile = MediaQuery.of(context).size.width < 950;
+  // ── KPI Cards Row (4 Expanded columns) ──
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildKPICardsRow(BuildContext context, OverviewSnapshot overview) {
+    return Row(
       children: [
-        _buildSectionHeader('OPERATIONAL HEALTH'),
-        const SizedBox(height: AppSpacing.md),
-        _buildKPIRow([
-          _buildKPICard(
-            'FLEET READY',
-            '${overview.readyFleetCount}/${overview.totalFleetCount}',
-            AppTheme.success,
+        // Card 1: Fleet Ready — 10/10 green
+        Expanded(
+          child: _buildKPICard(
+            title: 'FLEET READY',
+            icon: Icons.check_circle_outline,
+            value: '${overview.readyFleetCount}/${overview.totalFleetCount}',
+            filledSegments: overview.totalFleetCount > 0
+                ? 10
+                : 0,
+            activeColor: AppTheme.success,
           ),
-          _buildKPICard(
-            'AVG CONDITION',
-            '${overview.averageCondition.toStringAsFixed(1)}%',
-            overview.averageCondition >= 70 ? AppTheme.success : AppTheme.warning,
+        ),
+        const SizedBox(width: AppSpacing.md),
+        // Card 2: Network Health — filled proportionally (blue)
+        Expanded(
+          child: _buildKPICard(
+            title: 'NETWORK HEALTH',
+            icon: Icons.hub_outlined,
+            value: '${overview.activeRoutes} ${AppStrings.routesSuffix.trim()}',
+            filledSegments: overview.activeRoutes.clamp(0, 10),
+            activeColor: AppTheme.primary,
           ),
-          _buildKPICard(
-            'WEEKLY SLACK',
-            '${overview.totalSlackHours.toStringAsFixed(1)}h',
-            AppTheme.info,
+        ),
+        const SizedBox(width: AppSpacing.md),
+        // Card 3: Avg Condition — filled by condition value (warning if <70)
+        Expanded(
+          child: _buildKPICard(
+            title: 'AVG CONDITION',
+            icon: Icons.shield_outlined,
+            value: '${overview.averageCondition.toStringAsFixed(1)}%',
+            filledSegments: overview.averageCondition ~/ 10,
+            activeColor: overview.averageCondition >= 70
+                ? AppTheme.success
+                : AppTheme.warning,
           ),
-        ], wrap: isMobile),
-        const SizedBox(height: AppSpacing.md),
-        _buildKPIRow([
-          _buildKPICard(
-            'ACTIVE ROUTES',
-            '${overview.activeRoutes}',
-            AppTheme.primary,
-          ),
-          _buildKPICard(
-            'NETWORK PRESSURE',
-            '${overview.riskyRoutes}/${overview.activeRoutes}',
-            overview.riskyRoutes > 0 ? AppTheme.warning : AppTheme.success,
-          ),
-          _buildKPICard(
-            'RUNWAY',
-            overview.runwayLabel,
-            overview.runwayColor,
-          ),
-        ], wrap: isMobile),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        // Card 4: Placeholder
+        Expanded(
+          child: _buildPlaceholderCard(),
+        ),
       ],
     );
   }
 
-  // Region 2 Right: Risk & Competitive Signals
-  Widget _buildRiskSignals(
+  Widget _buildKPICard({
+    required String title,
+    required IconData icon,
+    required String value,
+    required int filledSegments,
+    required Color activeColor,
+  }) {
+    final inactiveColor = AppTheme.textMuted.withValues(alpha: 0.25);
+
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title + icon row
+          Row(
+            children: [
+              Icon(icon, color: AppTheme.textMuted, size: 14),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                title,
+                style: AppTypography.microLabel.copyWith(
+                  color: AppTheme.textMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // Large value
+          Text(
+            value,
+            style: AppTypography.largeKpi.copyWith(color: AppTheme.textPrimary),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // 10-segment progress bar
+          Row(
+            children: List.generate(10, (index) {
+              final isActive = index < filledSegments;
+              return Expanded(
+                child: Container(
+                  height: 3,
+                  margin: EdgeInsets.only(right: index < 9 ? 2 : 0),
+                  decoration: BoxDecoration(
+                    color: isActive ? activeColor : inactiveColor,
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderCard() {
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.add_box_outlined, color: AppTheme.textMuted, size: 14),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'EXPANSION',
+                style: AppTypography.microLabel.copyWith(color: AppTheme.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            '--',
+            style: AppTypography.largeKpi.copyWith(color: AppTheme.textMuted),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: List.generate(10, (index) {
+              return Expanded(
+                child: Container(
+                  height: 3,
+                  margin: EdgeInsets.only(right: index < 9 ? 2 : 0),
+                  decoration: BoxDecoration(
+                    color: AppTheme.textMuted.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Risk Signals Section ──
+
+  Widget _buildSignalsSection(
     BuildContext context,
     OverviewSnapshot overview,
     NumberFormat currencyFormat,
@@ -308,106 +264,6 @@ class OverviewTab extends StatelessWidget {
     );
   }
 
-  // Region 3: Quick Actions
-  Widget _buildQuickActions(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 950;
-
-    if (isMobile) {
-      return Column(
-        children: [
-          _buildActionButton(
-            context,
-            'Manage Fleet',
-            'View and manage your aircraft',
-            onNavigateToFleet,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _buildActionButton(
-            context,
-            'Manage Routes',
-            'Plan and optimize your network',
-            onNavigateToRoutes,
-          ),
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          child: _buildActionButton(
-            context,
-            'Manage Fleet',
-            'View and manage your aircraft',
-            onNavigateToFleet,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: _buildActionButton(
-            context,
-            'Manage Routes',
-            'Plan and optimize your network',
-            onNavigateToRoutes,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: AppTypography.sectionHeaderMedium.copyWith(
-        letterSpacing: 0.08,
-      ),
-    );
-  }
-
-  Widget _buildKPIRow(List<Widget> children, {bool wrap = false}) {
-    if (wrap) {
-      return Wrap(
-        spacing: AppSpacing.md,
-        runSpacing: AppSpacing.md,
-        children: children.map((child) => SizedBox(
-          width: 140,
-          child: child,
-        )).toList(),
-      );
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children
-          .expand((child) => [Expanded(child: child), const SizedBox(width: AppSpacing.md)])
-          .toList()
-        ..removeLast(),
-    );
-  }
-
-  Widget _buildKPICard(String label, String value, Color color) {
-    return AppCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: AppTypography.microLabel.copyWith(
-              color: AppTheme.textMuted,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            value,
-            style: AppTypography.dataEmphasis.copyWith(
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSignalItem(String label, String value, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -421,16 +277,12 @@ class OverviewTab extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: AppTypography.microLabel.copyWith(
-                      color: AppTheme.textMuted,
-                    ),
+                    style: AppTypography.microLabel.copyWith(color: AppTheme.textMuted),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     value,
-                    style: AppTypography.hudValue.copyWith(
-                      color: color,
-                    ),
+                    style: AppTypography.monoValue.copyWith(color: color),
                   ),
                 ],
               ),
@@ -446,6 +298,31 @@ class OverviewTab extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  // ── Quick Actions ──
+
+  Widget _buildActionsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('QUICK ACTIONS'),
+        const SizedBox(height: AppSpacing.md),
+        _buildActionButton(
+          context,
+          'Manage Fleet',
+          'View and manage your aircraft',
+          onNavigateToFleet,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _buildActionButton(
+          context,
+          'Manage Routes',
+          'Plan and optimize your network',
+          onNavigateToRoutes,
+        ),
+      ],
     );
   }
 
@@ -490,14 +367,112 @@ class OverviewTab extends StatelessWidget {
     );
   }
 
-  OverviewSnapshot _selectOverviewSnapshot(BuildContext context, dynamic user) {
-    final simState = context.select((SimulationCubit cubit) => cubit.state);
-    final fleetState = context.select((FleetCubit cubit) => cubit.state);
-    final routesState = context.select((RoutesCubit cubit) => cubit.state);
-    final financeState = context.select((FinanceCubit cubit) => cubit.state);
-    final leaderboardState = context.select(
-      (LeaderboardCubit cubit) => cubit.state,
+  // ── Action Queue / Priorities ──
+
+  Widget _buildPrioritiesSection(BuildContext context, OverviewSnapshot overview) {
+    if (overview.priorities.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('ACTION QUEUE'),
+          const SizedBox(height: AppSpacing.md),
+          AppCard(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Text(
+              AppStrings.noUrgentFailures,
+              style: AppTypography.captionRegular.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('ACTION QUEUE'),
+        const SizedBox(height: AppSpacing.md),
+        ...overview.priorities.map((p) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: AppCard(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber, color: AppTheme.warning, size: 16),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.label.toUpperCase(),
+                          style: AppTypography.microLabel.copyWith(
+                            color: AppTheme.warning,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          p.description,
+                          style: AppTypography.captionRegular.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
     );
+  }
+
+  // ── Section Header ──
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: AppTypography.sectionHeaderMedium.copyWith(letterSpacing: 0.08),
+    );
+  }
+
+  // ── MOBILE: Content-only (DashboardScreen provides AppBar + BottomNav) ──
+
+  Widget _buildMobileLayout(BuildContext context, AuthAuthenticated authState) {
+    final overview = _selectOverviewSnapshot(context, authState.user);
+    final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildKPICardsRow(context, overview),
+          const SizedBox(height: AppSpacing.sectionGap),
+          _buildSignalsSection(context, overview, currencyFormat),
+          const SizedBox(height: AppSpacing.sectionGap),
+          _buildActionsSection(context),
+          const SizedBox(height: AppSpacing.sectionGap),
+          _buildPrioritiesSection(context, overview),
+        ],
+      ),
+    );
+  }
+
+  // ── State Selector ──
+
+  OverviewSnapshot _selectOverviewSnapshot(BuildContext context, dynamic user) {
+    final simState = context.select((SimulationCubit c) => c.state);
+    final fleetState = context.select((FleetCubit c) => c.state);
+    final routesState = context.select((RoutesCubit c) => c.state);
+    final financeState = context.select((FinanceCubit c) => c.state);
+    final leaderboardState = context.select((LeaderboardCubit c) => c.state);
 
     return OverviewSnapshot.fromStates(
       user: user,

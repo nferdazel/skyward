@@ -5,6 +5,7 @@ import '../theme/app_spacing.dart';
 
 class AppCard extends StatelessWidget {
   final Widget child;
+  final Widget? header;
   final Color? backgroundColor;
   final Color? borderColor;
   final double borderWidth;
@@ -15,9 +16,10 @@ class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
     required this.child,
+    this.header,
     this.backgroundColor,
     this.borderColor,
-    this.borderWidth = 1.0,
+    this.borderWidth = 0.5,
     this.padding = const EdgeInsets.all(AppSpacing.cardPadding),
     this.margin = EdgeInsets.zero,
     this.customBorder,
@@ -25,24 +27,58 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final decoration = BoxDecoration(
-      color: backgroundColor ?? AppTheme.surface,
-      border: customBorder ??
-          Border.all(
-            color: borderColor ?? AppTheme.border,
-            width: borderWidth,
-          ),
-    );
+    final cardBorder = customBorder ??
+        Border.all(
+          color: borderColor ?? AppTheme.border,
+          width: borderWidth,
+        );
 
     final card = Container(
       margin: margin,
-      padding: padding,
       decoration: customBorder != null
-          ? decoration
-          : decoration.copyWith(
+          ? BoxDecoration(border: cardBorder)
+          : BoxDecoration(
+              color: backgroundColor ?? AppTheme.surface,
               borderRadius: BorderRadius.circular(4),
+              border: cardBorder,
             ),
-      child: child,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final fitsHeight = constraints.hasBoundedHeight;
+          return Column(
+            mainAxisSize: fitsHeight ? MainAxisSize.max : MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (header != null)
+                Container(
+                  height: 32,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.cardPadding,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceRaised,
+                    border: Border(
+                      bottom: BorderSide(color: AppTheme.border, width: 0.5),
+                    ),
+                  ),
+                  child: header,
+                ),
+              if (fitsHeight)
+                Expanded(
+                  child: Padding(
+                    padding: padding,
+                    child: child,
+                  ),
+                )
+              else
+                Padding(
+                  padding: padding,
+                  child: child,
+                ),
+            ],
+          );
+        },
+      ),
     );
 
     if (customBorder != null) {

@@ -1,6 +1,6 @@
 # Skyward UI/UX Extraction
 
-Last verified against code on 2026-06-09 (post-redesign).
+Last verified against code on 2026-06-09 (post v4 redesign).
 
 This document extracts the current UI/UX structure, design language, and screen responsibilities from the live Flutter codebase so redesign work can stay grounded in the actual product.
 
@@ -38,26 +38,22 @@ The implemented interface reads as:
 
 Current direction:
 - dark airline operations console
-- flat surfaces with 4px border-radius
+- flat surfaces with 4px border-radius (3px for badges)
 - border-led hierarchy rather than shadow-led hierarchy
-- cold blue accenting over dark neutral surfaces
-- status colors used as operational signals
+- monospace font (IBM Plex Mono) for all metric values and labels
+- Inter for body/UI text
+- status colors used as operational signals only
 
 Primary dark palette from [skyward_colors.dart](/home/sachiel/Projects/skyward/lib/core/theme/skyward_colors.dart:1):
-- background: `#0D1117`
-- surface: `#161B22`
-- surface raised: `#1C2128`
-- border: `#30363D`
-- border subtle: `#21262D`
-- primary accent: `#79C0FF`
-- primary accent subtle: `#1F3A5F`
-- success: `#3FB950`
-- success subtle: `#1A3A23`
-- danger: `#F85149`
-- danger subtle: `#3D1F1F`
-- warning: `#D29922`
-- warning subtle: `#3D2F0F`
-- neutral: `#6E7681`
+- background: `#0A0C0F` (near-black base)
+- surface: `#111318` (card backgrounds)
+- surface raised: `#181C22` (raised elements)
+- border: `#3A3F4A` (borders)
+- primary accent: `#448AFF` (information blue)
+- success: `#00E676` (operational green)
+- danger: `#FF3D00` (critical red)
+- warning: `#FFB300` (caution amber)
+- neutral: `#6B7280` (muted text)
 
 Runtime theme note:
 - a light theme token set exists
