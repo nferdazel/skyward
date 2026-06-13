@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
-import '../../../../core/constants/app_strings.dart';
-import '../../../../presentation/widgets/app_card.dart';
-import '../../../../presentation/widgets/app_button.dart';
 import '../../../../presentation/widgets/app_badge.dart';
+import '../../../../presentation/widgets/app_button.dart';
+import '../../../../presentation/widgets/app_card.dart';
 import '../../../../presentation/widgets/app_dialog_shell.dart';
 import '../../../../presentation/widgets/app_info_strip.dart';
 import '../../../../presentation/widgets/app_section_header.dart';
 import '../../../../presentation/widgets/app_stat_text.dart';
 import '../../../../presentation/widgets/app_table_shell.dart';
-import '../widgets/leaderboard_ui_elements.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
+import '../../domain/leaderboard_models.dart';
 import '../cubit/leaderboard_cubit.dart';
 import '../cubit/leaderboard_state.dart';
-import '../../domain/leaderboard_models.dart';
+import '../widgets/leaderboard_ui_elements.dart';
 
 class LeaderboardView extends StatelessWidget {
   const LeaderboardView({super.key});
@@ -146,9 +147,7 @@ class LeaderboardView extends StatelessWidget {
         children: [
           // Table Header
           TableRow(
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceRaised,
-            ),
+            decoration: BoxDecoration(color: AppTheme.surfaceRaised),
             children: [
               _buildTableHeaderCell(AppStrings.rankLabel),
               _buildTableHeaderCell(AppStrings.companyLabel),
@@ -772,10 +771,7 @@ class LeaderboardView extends StatelessWidget {
           color: AppTheme.warning,
         );
       case 'recovery':
-        return AppBadge(
-          label: AppStrings.recoveryStatus,
-          color: AppTheme.info,
-        );
+        return AppBadge(label: AppStrings.recoveryStatus, color: AppTheme.info);
       case 'bankrupt':
         return AppBadge.error(label: AppStrings.bankruptStatus);
       default:
@@ -1079,12 +1075,15 @@ class LeaderboardView extends StatelessWidget {
                                 ),
                               )
                             : ConstrainedBox(
-                                constraints: const BoxConstraints(maxHeight: 220),
+                                constraints: const BoxConstraints(
+                                  maxHeight: 220,
+                                ),
                                 child: ListView.separated(
                                   shrinkWrap: true,
                                   itemCount: liveInsights.networkRoutes.length,
                                   itemBuilder: (context, index) {
-                                    final route = liveInsights.networkRoutes[index];
+                                    final route =
+                                        liveInsights.networkRoutes[index];
                                     return AppCard(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: AppSpacing.sm,
@@ -1106,8 +1105,8 @@ class LeaderboardView extends StatelessWidget {
                                               overflow: TextOverflow.ellipsis,
                                               style: AppTypography.bodyMedium
                                                   .copyWith(
-                                                    color:
-                                                        AppTypography.textPrimary,
+                                                    color: AppTypography
+                                                        .textPrimary,
                                                   ),
                                             ),
                                           ),
@@ -1115,9 +1114,8 @@ class LeaderboardView extends StatelessWidget {
                                       ),
                                     );
                                   },
-                                  separatorBuilder: (_, _) => const SizedBox(
-                                    height: AppSpacing.xs,
-                                  ),
+                                  separatorBuilder: (_, _) =>
+                                      const SizedBox(height: AppSpacing.xs),
                                 ),
                               ),
 
