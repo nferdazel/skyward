@@ -9,6 +9,7 @@ import '../../../../core/mixins/simulation_reactive_mixin.dart';
 import '../../../../core/realtime/realtime_subscription_bag.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 import '../../../../core/utils/perf_debug.dart';
+import '../../../simulation/presentation/cubit/simulation_cubit.dart';
 import '../../domain/fleet_models.dart';
 import 'fleet_state.dart';
 
@@ -44,20 +45,21 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
   void _emitLoaded() {
     emit(
       FleetLoaded(
-        fleet: _cachedFleet,
-        catalog: _cachedCatalog,
-        selectedManufacturers: _selectedManufacturers,
-        selectedCategories: _selectedCategories,
-        selectedRangeBrackets: _selectedRangeBrackets,
+        fleet: List<UserFleetAircraft>.from(_cachedFleet),
+        catalog: List<AircraftModel>.from(_cachedCatalog),
+        selectedManufacturers: List<String>.from(_selectedManufacturers),
+        selectedCategories: List<String>.from(_selectedCategories),
+        selectedRangeBrackets: List<String>.from(_selectedRangeBrackets),
         sortBy: _sortBy,
       ),
     );
   }
 
-  void setupReactivity(dynamic simCubit, String userId) {
+  void setupReactivity(SimulationCubit simCubit, String userId) {
     subscribeToSimulation(
       simCubit,
       () => loadFleetAndCatalog(userId, silent: true),
+      delay: const Duration(milliseconds: 200),
     );
     _setupRealtime(userId);
   }
@@ -508,6 +510,10 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
             status: 'active',
             acquiredAt: target.acquiredAt,
             model: target.model,
+            economySeats: target.economySeats,
+            businessSeats: target.businessSeats,
+            firstClassSeats: target.firstClassSeats,
+            tailNumber: target.tailNumber,
           );
         }
         emit(

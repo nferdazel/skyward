@@ -11,6 +11,7 @@ import '../../../../core/realtime/realtime_subscription_bag.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 import '../../../../core/utils/perf_debug.dart';
 import '../../../fleet/domain/fleet_models.dart';
+import '../../../simulation/presentation/cubit/simulation_cubit.dart';
 import '../../domain/route_models.dart';
 import 'routes_state.dart';
 
@@ -143,10 +144,11 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
     }
   }
 
-  void setupReactivity(dynamic simCubit, String userId) {
+  void setupReactivity(SimulationCubit simCubit, String userId) {
     subscribeToSimulation(
       simCubit,
       () => loadRoutesAndData(userId, silent: true),
+      delay: const Duration(milliseconds: 400),
     );
     _setupRealtime(userId);
   }

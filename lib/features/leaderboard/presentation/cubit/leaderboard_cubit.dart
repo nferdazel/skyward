@@ -10,6 +10,7 @@ import '../../../../core/mixins/simulation_reactive_mixin.dart';
 import '../../../../core/realtime/realtime_subscription_bag.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 import '../../../../core/utils/perf_debug.dart';
+import '../../../simulation/presentation/cubit/simulation_cubit.dart';
 import '../../domain/leaderboard_models.dart';
 import 'leaderboard_state.dart';
 
@@ -36,7 +37,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
   LeaderboardCubit() : super(const LeaderboardInitial());
 
   void setupReactivity(
-    dynamic simCubit,
+    SimulationCubit simCubit,
     String userId,
     String companyName,
     String ceoName,
@@ -56,7 +57,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
           silent: true,
         ),
       );
-    });
+    }, delay: const Duration(milliseconds: 800));
     _setupRealtime();
   }
 

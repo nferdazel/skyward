@@ -9,6 +9,7 @@ import '../../../../core/mixins/simulation_reactive_mixin.dart';
 import '../../../../core/realtime/realtime_subscription_bag.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 import '../../../../core/utils/perf_debug.dart';
+import '../../../simulation/presentation/cubit/simulation_cubit.dart';
 import '../../domain/finance_snapshot.dart';
 import '../../domain/ledger_model.dart';
 import 'finance_state.dart';
@@ -169,8 +170,12 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
     );
   }
 
-  void setupReactivity(dynamic simCubit, String userId) {
-    subscribeToSimulation(simCubit, () => refreshSnapshot(userId, silent: true));
+  void setupReactivity(SimulationCubit simCubit, String userId) {
+    subscribeToSimulation(
+      simCubit,
+      () => refreshSnapshot(userId, silent: true),
+      delay: const Duration(milliseconds: 600),
+    );
     _setupRealtime(userId);
   }
 
@@ -256,13 +261,13 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
       );
 
       emit(_buildFinanceState(logs, snapshot: _cachedSnapshot));
-    } catch (e) {
+    } catch (e, stack) {
       PerfDebug.end(
         'finance.ledger_load',
         stopwatch,
         fields: {'silent': silent, 'error': true},
       );
-      SupabaseManager.logError('loadLedger', e);
+      SupabaseManager.logError('loadLedger', e, stack);
       final snapshot = _snapshotState();
       emit(
         FinanceError(
