@@ -53,26 +53,3 @@ class LeaderboardError extends LeaderboardState {
   final String message;
   const LeaderboardError({required this.message});
 }
-
-// Substates for Competitor Insights detail drawer / modal
-abstract class CompetitorInsightsState {
-  const CompetitorInsightsState();
-}
-
-class InsightsInitial extends CompetitorInsightsState {
-  const InsightsInitial();
-}
-
-class InsightsLoading extends CompetitorInsightsState {
-  const InsightsLoading();
-}
-
-class InsightsLoaded extends CompetitorInsightsState {
-  final CompetitorInsights insights;
-  const InsightsLoaded({required this.insights});
-}
-
-class InsightsError extends CompetitorInsightsState {
-  final String message;
-  const InsightsError({required this.message});
-}
