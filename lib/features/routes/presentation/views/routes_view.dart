@@ -41,6 +41,8 @@ class _RoutesViewState extends State<RoutesView> {
     decimalDigits: 0,
   );
 
+  static final Map<String, List<LatLng>> _arcCache = {};
+
   String? _selectedRouteId;
   Airport? _plannerOrigin;
   Airport? _plannerDestination;
@@ -541,6 +543,21 @@ class _RoutesViewState extends State<RoutesView> {
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
+                  IconButton(
+                    icon: Icon(Icons.info_outline, size: 16, color: AppTheme.textSecondary),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    tooltip: 'Route details',
+                    onPressed: () {
+                      _showRouteDetailsDialog(
+                        context,
+                        route,
+                        _currencyFormat,
+                        autoGroundingThreshold,
+                      );
+                    },
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: AppButton(
                       text: 'Adjust',
@@ -1563,6 +1580,16 @@ class _RoutesViewState extends State<RoutesView> {
   }
 
   List<LatLng> _buildGreatCircleArc(
+    Airport origin,
+    Airport destination, {
+    required int steps,
+  }) {
+    final key =
+        '${origin.latitude},${origin.longitude}-${destination.latitude},${destination.longitude}';
+    return _arcCache.putIfAbsent(key, () => _computeArc(origin, destination, steps: steps));
+  }
+
+  List<LatLng> _computeArc(
     Airport origin,
     Airport destination, {
     required int steps,

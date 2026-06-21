@@ -124,9 +124,9 @@ class OverviewTab extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.md),
-        // Card 4: Placeholder
+        // Card 4: Cash Runway
         Expanded(
-          child: _buildPlaceholderCard(),
+          child: _buildRunwayCard(overview),
         ),
       ],
     );
@@ -187,7 +187,7 @@ class OverviewTab extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholderCard() {
+  Widget _buildRunwayCard(OverviewSnapshot snapshot) {
     return AppCard(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -195,33 +195,18 @@ class OverviewTab extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.add_box_outlined, color: AppTheme.textMuted, size: 14),
+              Icon(Icons.timer_outlined, color: AppTheme.textMuted, size: 14),
               const SizedBox(width: AppSpacing.sm),
               Text(
-                'EXPANSION',
+                'CASH RUNWAY',
                 style: AppTypography.microLabel.copyWith(color: AppTheme.textMuted),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            '--',
-            style: AppTypography.largeKpi.copyWith(color: AppTheme.textMuted),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: List.generate(10, (index) {
-              return Expanded(
-                child: Container(
-                  height: 3,
-                  margin: EdgeInsets.only(right: index < 9 ? 2 : 0),
-                  decoration: BoxDecoration(
-                    color: AppTheme.textMuted.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-              );
-            }),
+            snapshot.runwayLabel,
+            style: AppTypography.largeKpi.copyWith(color: snapshot.runwayColor),
           ),
         ],
       ),

@@ -476,7 +476,7 @@ class _AuthenticatedDashboardShellState
               navItems.length,
               (index) => BottomNavigationBarItem(
                 icon: Icon(navIcons[index], size: 18),
-                label: '',
+                label: navItems[index],
               ),
             ),
           );

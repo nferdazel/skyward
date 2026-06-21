@@ -20,6 +20,15 @@ class DashboardSidebar extends StatelessWidget {
       Icons.settings_outlined,
     ];
 
+    const navLabels = [
+      'Dashboard',
+      'Fleet',
+      'Routes',
+      'Financials',
+      'Rankings',
+      'Settings',
+    ];
+
     return Container(
       width: 44,
       decoration: BoxDecoration(
@@ -32,17 +41,20 @@ class DashboardSidebar extends StatelessWidget {
         children: [
           const SizedBox(height: AppSpacing.md),
           // Logo mark
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: AppTheme.primary,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Icon(
-              Icons.flight,
-              color: Colors.black,
-              size: 16,
+          Tooltip(
+            message: 'Skyward Ops',
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: AppTheme.primary,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Icon(
+                Icons.flight,
+                color: Colors.black,
+                size: 16,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -65,6 +77,7 @@ class DashboardSidebar extends StatelessWidget {
                         navIcons[i],
                         state.activeIndex == i,
                         () => context.read<NavigationCubit>().selectTab(i),
+                        label: navLabels[i],
                       ),
                     ],
                   ],
@@ -80,6 +93,7 @@ class DashboardSidebar extends StatelessWidget {
             false,
             () => context.read<AuthCubit>().logout(),
             color: AppTheme.error,
+            label: 'Logout',
           ),
           const SizedBox(height: AppSpacing.sm),
         ],
@@ -93,34 +107,43 @@ class DashboardSidebar extends StatelessWidget {
     bool isActive,
     VoidCallback onTap, {
     Color? color,
+    String label = '',
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: 6,
         vertical: 2,
       ),
-      child: Material(
-        color: isActive ? AppTheme.accentSubtle : Colors.transparent,
-        borderRadius: BorderRadius.circular(4),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(4),
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
+      child: Semantics(
+        label: label,
+        button: true,
+        selected: isActive,
+        child: Tooltip(
+          message: label,
+          child: Material(
+            color: isActive ? AppTheme.accentSubtle : Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+            child: InkWell(
+              onTap: onTap,
               borderRadius: BorderRadius.circular(4),
-              border: isActive
-                  ? Border.all(
-                      color: AppTheme.primary.withValues(alpha: 0.3),
-                      width: 1,
-                    )
-                  : null,
-            ),
-            child: Icon(
-              icon,
-              color: color ?? (isActive ? AppTheme.primary : AppTheme.textSecondary),
-              size: 18,
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  border: isActive
+                      ? Border.all(
+                          color: AppTheme.primary.withValues(alpha: 0.3),
+                          width: 1,
+                        )
+                      : null,
+                ),
+                child: Icon(
+                  icon,
+                  color: color ?? (isActive ? AppTheme.primary : AppTheme.textSecondary),
+                  size: 18,
+                ),
+              ),
             ),
           ),
         ),

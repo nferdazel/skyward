@@ -454,7 +454,7 @@ class AppStrings {
 
   static const String noActiveConnections = 'NO ACTIVE FLIGHT CONNECTIONS.';
   static const String noActiveConnectionsDesc =
-      'Navigate to Blueprint Network tab to establish routes between international airport hubs.';
+      'Use the Blueprint Planner below to establish routes between airport hubs.';
   static const String routeHeader = 'ROUTE';
   static const String scheduleHeader = 'SCHEDULE';
   static const String fareHeader = 'FARE';
