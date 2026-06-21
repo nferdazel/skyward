@@ -1,4 +1,4 @@
-project_id = "REDACTED_PROJECT_ID"
+project_id = "test-project"
 
 [functions.register-with-username]
 verify_jwt = false

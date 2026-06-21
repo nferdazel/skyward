@@ -44,7 +44,7 @@ Current direction:
 - Inter for body/UI text
 - status colors used as operational signals only
 
-Primary dark palette from [skyward_colors.dart](/home/sachiel/Projects/skyward/lib/core/theme/skyward_colors.dart:1):
+Primary dark palette from [skyward_colors.dart](../../lib/core/theme/skyward_colors.dart:1):
 - background: `#0A0C0F` (near-black base)
 - surface: `#111318` (card backgrounds)
 - surface raised: `#181C22` (raised elements)
@@ -60,9 +60,9 @@ Runtime theme note:
 - the app currently boots with `AppTheme.darkTheme`
 
 References:
-- [main.dart](/home/sachiel/Projects/skyward/lib/main.dart:1)
-- [app_theme.dart](/home/sachiel/Projects/skyward/lib/core/theme/app_theme.dart:1)
-- [skyward_colors.dart](/home/sachiel/Projects/skyward/lib/core/theme/skyward_colors.dart:1)
+- [main.dart](../../lib/main.dart:1)
+- [app_theme.dart](../../lib/core/theme/app_theme.dart:1)
+- [skyward_colors.dart](../../lib/core/theme/skyward_colors.dart:1)
 
 ## 2. Application Architecture
 
@@ -92,14 +92,14 @@ Sub-views:
   - Blueprint Network
 
 References:
-- [auth_screen.dart](/home/sachiel/Projects/skyward/lib/features/auth/presentation/views/auth_screen.dart:1)
-- [dashboard_screen.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/views/dashboard_screen.dart:1)
-- [overview_tab.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/views/overview_tab.dart:1)
-- [fleet_view.dart](/home/sachiel/Projects/skyward/lib/features/fleet/presentation/views/fleet_view.dart:1)
-- [routes_view.dart](/home/sachiel/Projects/skyward/lib/features/routes/presentation/views/routes_view.dart:1)
-- [finance_view.dart](/home/sachiel/Projects/skyward/lib/features/finance/presentation/views/finance_view.dart:1)
-- [leaderboard_view.dart](/home/sachiel/Projects/skyward/lib/features/leaderboard/presentation/views/leaderboard_view.dart:1)
-- [settings_view.dart](/home/sachiel/Projects/skyward/lib/features/settings/presentation/views/settings_view.dart:1)
+- [auth_screen.dart](../../lib/features/auth/presentation/views/auth_screen.dart:1)
+- [dashboard_screen.dart](../../lib/features/dashboard/presentation/views/dashboard_screen.dart:1)
+- [overview_tab.dart](../../lib/features/dashboard/presentation/views/overview_tab.dart:1)
+- [fleet_view.dart](../../lib/features/fleet/presentation/views/fleet_view.dart:1)
+- [routes_view.dart](../../lib/features/routes/presentation/views/routes_view.dart:1)
+- [finance_view.dart](../../lib/features/finance/presentation/views/finance_view.dart:1)
+- [leaderboard_view.dart](../../lib/features/leaderboard/presentation/views/leaderboard_view.dart:1)
+- [settings_view.dart](../../lib/features/settings/presentation/views/settings_view.dart:1)
 
 ### Navigation Logic
 
@@ -130,10 +130,10 @@ Lazy loading:
 - Fleet and Routes internal tabs are also lazily activated
 
 References:
-- [main.dart](/home/sachiel/Projects/skyward/lib/main.dart:1)
-- [dashboard_sidebar.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/widgets/dashboard_sidebar.dart:1)
-- [top_hud.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/widgets/top_hud.dart:1)
-- [ticker_tape.dart](/home/sachiel/Projects/skyward/lib/core/widgets/ticker_tape.dart:1)
+- [main.dart](../../lib/main.dart:1)
+- [dashboard_sidebar.dart](../../lib/features/dashboard/presentation/widgets/dashboard_sidebar.dart:1)
+- [top_hud.dart](../../lib/features/dashboard/presentation/widgets/top_hud.dart:1)
+- [ticker_tape.dart](../../lib/core/widgets/ticker_tape.dart:1)
 
 ### User Roles
 
@@ -167,7 +167,7 @@ This is not a high-whitespace marketing or editorial layout.
 ### Screen 1: Overview
 
 Reference:
-- [overview_tab.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/views/overview_tab.dart:1)
+- [overview_tab.dart](../../lib/features/dashboard/presentation/views/overview_tab.dart:1)
 
 Primary role:
 - command-center home
@@ -198,9 +198,9 @@ Primary calls to action:
 ### Screen 2: Routes
 
 References:
-- [routes_view.dart](/home/sachiel/Projects/skyward/lib/features/routes/presentation/views/routes_view.dart:1)
-- [blueprint_planner_form.dart](/home/sachiel/Projects/skyward/lib/features/routes/presentation/widgets/blueprint_planner_form.dart:1)
-- [route_network_map.dart](/home/sachiel/Projects/skyward/lib/features/routes/presentation/widgets/route_network_map.dart:1)
+- [routes_view.dart](../../lib/features/routes/presentation/views/routes_view.dart:1)
+- [blueprint_planner_form.dart](../../lib/features/routes/presentation/widgets/blueprint_planner_form.dart:1)
+- [route_network_map.dart](../../lib/features/routes/presentation/widgets/route_network_map.dart:1)
 
 Primary role:
 - strategic network planning
@@ -229,7 +229,7 @@ Primary calls to action:
 ### Screen 3: Finance
 
 Reference:
-- [finance_view.dart](/home/sachiel/Projects/skyward/lib/features/finance/presentation/views/finance_view.dart:1)
+- [finance_view.dart](../../lib/features/finance/presentation/views/finance_view.dart:1)
 
 Primary role:
 - executive audit and cash diagnostics
@@ -258,7 +258,7 @@ Primary calls to action:
 #### Fleet
 
 Reference:
-- [fleet_view.dart](/home/sachiel/Projects/skyward/lib/features/fleet/presentation/views/fleet_view.dart:1)
+- [fleet_view.dart](../../lib/features/fleet/presentation/views/fleet_view.dart:1)
 
 Primary role:
 - active fleet management
@@ -289,7 +289,7 @@ Important visible data:
 #### Leaderboard
 
 Reference:
-- [leaderboard_view.dart](/home/sachiel/Projects/skyward/lib/features/leaderboard/presentation/views/leaderboard_view.dart:1)
+- [leaderboard_view.dart](../../lib/features/leaderboard/presentation/views/leaderboard_view.dart:1)
 
 Primary role:
 - ranking surface
@@ -311,7 +311,7 @@ Important visible data:
 #### Settings
 
 Reference:
-- [settings_view.dart](/home/sachiel/Projects/skyward/lib/features/settings/presentation/views/settings_view.dart:1)
+- [settings_view.dart](../../lib/features/settings/presentation/views/settings_view.dart:1)
 
 Primary role:
 - airline profile management
@@ -357,7 +357,7 @@ Breakpoint logic:
 - mobile below `950px`
 
 Reference:
-- [responsive_layout.dart](/home/sachiel/Projects/skyward/lib/core/widgets/responsive_layout.dart:1)
+- [responsive_layout.dart](../../lib/core/widgets/responsive_layout.dart:1)
 
 ### Interactive Elements
 
@@ -379,7 +379,7 @@ Not present in the current UX:
 
 #### Color Tokens
 
-From [app_theme.dart](/home/sachiel/Projects/skyward/lib/core/theme/app_theme.dart:1):
+From [app_theme.dart](../../lib/core/theme/app_theme.dart:1):
 
 | Token | Hex | Usage |
 |-------|-----|-------|
@@ -397,7 +397,7 @@ From [app_theme.dart](/home/sachiel/Projects/skyward/lib/core/theme/app_theme.da
 
 #### Spacing Tokens
 
-From [app_spacing.dart](/home/sachiel/Projects/skyward/lib/presentation/theme/app_spacing.dart:1):
+From [app_spacing.dart](../../lib/presentation/theme/app_spacing.dart:1):
 
 | Token | Value |
 |-------|-------|
@@ -434,8 +434,8 @@ Current typographic hierarchy:
 - large KPI: 22px, bold
 
 References:
-- [app_theme.dart](/home/sachiel/Projects/skyward/lib/core/theme/app_theme.dart:1)
-- [app_typography.dart](/home/sachiel/Projects/skyward/lib/presentation/theme/app_typography.dart:1)
+- [app_theme.dart](../../lib/core/theme/app_theme.dart:1)
+- [app_typography.dart](../../lib/presentation/theme/app_typography.dart:1)
 
 #### Component Language
 
@@ -458,9 +458,9 @@ Visual behavior of primitives:
 - emphasis is achieved through border, color, and type instead of depth
 
 References:
-- [app_card.dart](/home/sachiel/Projects/skyward/lib/presentation/widgets/app_card.dart:1)
-- [app_button.dart](/home/sachiel/Projects/skyward/lib/presentation/widgets/app_button.dart:1)
-- [app_theme.dart](/home/sachiel/Projects/skyward/lib/core/theme/app_theme.dart:1)
+- [app_card.dart](../../lib/presentation/widgets/app_card.dart:1)
+- [app_button.dart](../../lib/presentation/widgets/app_button.dart:1)
+- [app_theme.dart](../../lib/core/theme/app_theme.dart:1)
 
 ## 5. Notable UI Signatures
 
@@ -472,7 +472,7 @@ The app uses a terminal-style loader for auth restore and bootstrapping:
 - blue accent on dark background
 
 Reference:
-- [terminal_loader.dart](/home/sachiel/Projects/skyward/lib/core/widgets/terminal_loader.dart:1)
+- [terminal_loader.dart](../../lib/core/widgets/terminal_loader.dart:1)
 
 ### Ticker Tape
 
@@ -483,7 +483,7 @@ Desktop shell includes a top system ticker strip:
 - status-broadcast feeling
 
 Reference:
-- [ticker_tape.dart](/home/sachiel/Projects/skyward/lib/core/widgets/ticker_tape.dart:1)
+- [ticker_tape.dart](../../lib/core/widgets/ticker_tape.dart:1)
 
 ### HUD Bar
 
@@ -498,7 +498,7 @@ Desktop and mobile both prioritize a compact operational HUD showing:
 44px height with pipe separators and UPPERCASE labels.
 
 Reference:
-- [top_hud.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/widgets/top_hud.dart:1)
+- [top_hud.dart](../../lib/features/dashboard/presentation/widgets/top_hud.dart:1)
 
 ### Sidebar
 
@@ -510,7 +510,7 @@ Desktop sidebar:
 - "SKYWARD" wordmark at top
 
 Reference:
-- [dashboard_sidebar.dart](/home/sachiel/Projects/skyward/lib/features/dashboard/presentation/widgets/dashboard_sidebar.dart:1)
+- [dashboard_sidebar.dart](../../lib/features/dashboard/presentation/widgets/dashboard_sidebar.dart:1)
 
 ### Tactical Labeling
 

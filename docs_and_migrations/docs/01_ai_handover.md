@@ -44,9 +44,9 @@ Important backend responsibilities:
 - ledger/history reads
 
 See:
-- [03_supabase_contract_map.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/03_supabase_contract_map.md)
-- [04_database_design.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/04_database_design.md)
-- [../README.md](/home/sachiel/Projects/skyward/docs_and_migrations/README.md)
+- [03_supabase_contract_map.md](03_supabase_contract_map.md)
+- [04_database_design.md](04_database_design.md)
+- [../README.md](../README.md)
 
 Security migration note:
 - Security Phase 1 adds `users.auth_user_id` plus shared username/email helper

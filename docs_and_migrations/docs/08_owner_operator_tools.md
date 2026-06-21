@@ -1,5 +1,8 @@
 # Owner Operator Tools
 
+> **Note:** Replace `<your_user_id>` and `<your_username>` with your actual account values.
+> Find them with: `SELECT id, username FROM users WHERE company_name = '<your_company>';`
+
 Last verified against code on 2026-06-07.
 
 This document covers the private operator surfaces added for the game owner.
@@ -27,10 +30,10 @@ from users
 order by created_at asc;
 ```
 
-For the current live creator account, `chnoto` is:
+For your account, find your player id:
 
 ```sql
-REDACTED_USER_ID
+<your_user_id>
 ```
 
 ## 2. Run the optimizer from HQ
@@ -40,7 +43,7 @@ This ranks route, fare, and cabin-layout combinations for your fleet.
 ```sql
 select *
 from get_owner_route_optimizer(
-  'REDACTED_USER_ID',
+  '<your_user_id>',
   null,
   null,
   25,
@@ -62,7 +65,7 @@ Meaning:
 ```sql
 select *
 from get_owner_route_optimizer(
-  'REDACTED_USER_ID',
+  '<your_user_id>',
   'CGK',
   null,
   20,
@@ -79,7 +82,7 @@ already-operated routes back into the ranking.
 ```sql
 select *
 from get_owner_route_optimizer(
-  'REDACTED_USER_ID',
+  '<your_user_id>',
   'CGK',
   'LAX',
   10,

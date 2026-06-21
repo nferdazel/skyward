@@ -41,9 +41,9 @@ Desktop shell layout:
 - main content workspace via `IndexedStack`
 
 For the maintained backend/runtime record, use:
-- [docs_and_migrations/README.md](/home/sachiel/Projects/skyward/docs_and_migrations/README.md)
-- [docs_and_migrations/docs/01_ai_handover.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/01_ai_handover.md)
-- [docs_and_migrations/docs/03_supabase_contract_map.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/03_supabase_contract_map.md)
+- [docs_and_migrations/README.md](docs_and_migrations/README.md)
+- [docs_and_migrations/docs/01_ai_handover.md](docs_and_migrations/docs/01_ai_handover.md)
+- [docs_and_migrations/docs/03_supabase_contract_map.md](docs_and_migrations/docs/03_supabase_contract_map.md)
 
 ## Local setup
 

@@ -9,10 +9,10 @@ Use it as an operator guide, not as a chronological diary.
 
 If you only open four files, open these:
 
-1. [01_ai_handover.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/01_ai_handover.md)
-2. [03_supabase_contract_map.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/03_supabase_contract_map.md)
-3. [04_database_design.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/04_database_design.md)
-4. [07_live_backend_audit_queries.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/07_live_backend_audit_queries.md)
+1. [01_ai_handover.md](docs/01_ai_handover.md)
+2. [03_supabase_contract_map.md](docs/03_supabase_contract_map.md)
+3. [04_database_design.md](docs/04_database_design.md)
+4. [07_live_backend_audit_queries.md](docs/07_live_backend_audit_queries.md)
 
 ## Current Runtime State
 
@@ -34,19 +34,19 @@ Current major next step:
 
 Use docs by question:
 - "What is the app/backend shape right now?"
-  Open [01_ai_handover.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/01_ai_handover.md)
+  Open [01_ai_handover.md](docs/01_ai_handover.md)
 - "What RPCs or direct table reads does Flutter rely on?"
-  Open [03_supabase_contract_map.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/03_supabase_contract_map.md)
+  Open [03_supabase_contract_map.md](docs/03_supabase_contract_map.md)
 - "What is the current database/security model?"
-  Open [04_database_design.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/04_database_design.md)
+  Open [04_database_design.md](docs/04_database_design.md)
 - "How do I troubleshoot suspicious simulation behavior?"
-  Open [06_simulation_troubleshooting.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/06_simulation_troubleshooting.md)
+  Open [06_simulation_troubleshooting.md](docs/06_simulation_troubleshooting.md)
 - "What SQL should I run against live Supabase?"
-  Open [07_live_backend_audit_queries.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/07_live_backend_audit_queries.md)
+  Open [07_live_backend_audit_queries.md](docs/07_live_backend_audit_queries.md)
 - "How does the private owner/operator optimizer work?"
-  Open [08_owner_operator_tools.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/08_owner_operator_tools.md)
+  Open [08_owner_operator_tools.md](docs/08_owner_operator_tools.md)
 - "What is the current UI/UX design system?"
-  Open [09_ui_ux_extraction.md](/home/sachiel/Projects/skyward/docs_and_migrations/docs/09_ui_ux_extraction.md)
+  Open [09_ui_ux_extraction.md](docs/09_ui_ux_extraction.md)
 
 ## Documentation Set
 

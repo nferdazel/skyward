@@ -111,7 +111,7 @@ void main() {
 
     setUp(() {
       SharedPreferences.setMockInitialValues({});
-      SupabaseManager.supabaseUrl = 'https://REDACTED_PROJECT_ID.supabase.co';
+      SupabaseManager.supabaseUrl = 'https://test-project.supabase.co';
 
       fakeClient = FakeSupabaseClient(responses: {
         'process_simulation_delta': [

@@ -3,8 +3,8 @@
 This document is the repo-local operating contract for anyone changing Skyward.
 
 It supplements:
-- [`.commandcode/taste/taste.md`](/home/sachiel/Projects/skyward/.commandcode/taste/taste.md)
-- [`.commandcode/taste/flutter/dart-code-standards/taste.md`](/home/sachiel/Projects/skyward/.commandcode/taste/flutter/dart-code-standards/taste.md)
+- `.commandcode/taste/taste.md` *(not in repo)*
+- `.commandcode/taste/flutter/dart-code-standards/taste.md` *(not in repo)*
 
 If this document conflicts with implementation convenience, this document wins.
 
