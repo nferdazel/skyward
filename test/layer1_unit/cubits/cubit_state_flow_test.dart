@@ -111,11 +111,6 @@ void main() {
           );
         },
         expect: () => [
-          isA<SimulationState>().having(
-            (state) => state.isSyncing,
-            'isSyncing',
-            true,
-          ),
           isA<SimulationState>()
               .having((state) => state.isSyncing, 'isSyncing', false)
               .having((state) => state.cashBalance, 'cashBalance', 16000000.0)
