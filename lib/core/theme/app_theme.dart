@@ -135,14 +135,14 @@ class AppTheme {
           ),
           labelMedium: TextStyle(
             fontFamily: 'IBM Plex Mono',
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: FontWeight.w400,
             color: SkywardColors.darkTextSec,
             letterSpacing: 0.12,
           ),
           labelSmall: TextStyle(
             fontFamily: 'IBM Plex Mono',
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: FontWeight.w400,
             color: SkywardColors.darkTextDim,
             letterSpacing: 0.12,
@@ -319,12 +319,12 @@ class AppTheme {
             letterSpacing: 1.0,
           ),
           labelMedium: TextStyle(
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: FontWeight.w400,
             color: SkywardColors.lightTextSec,
           ),
           labelSmall: TextStyle(
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: FontWeight.w400,
             color: SkywardColors.lightTextDim,
             letterSpacing: 1.0,

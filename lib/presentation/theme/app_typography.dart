@@ -11,11 +11,11 @@ class AppTypography {
 
   // ── DISPLAY / SCREEN TITLES (IBM Plex Mono) ──
   static final TextStyle screenTitleLarge = GoogleFonts.ibmPlexMono(
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: FontWeight.w600,
     color: textPrimary,
     height: 1.2,
-    letterSpacing: 0.08,
+    letterSpacing: 0.06,
   );
 
   static final TextStyle screenTitleMedium = GoogleFonts.ibmPlexMono(
@@ -23,29 +23,29 @@ class AppTypography {
     fontWeight: FontWeight.w600,
     color: textPrimary,
     height: 1.2,
-    letterSpacing: 0.08,
+    letterSpacing: 0.06,
   );
 
   // ── SECTION HEADERS (IBM Plex Mono, ALL CAPS) ──
   static final TextStyle sectionHeaderLarge = GoogleFonts.ibmPlexMono(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+    color: textSecondary,
+    height: 1.2,
+    letterSpacing: 0.1,
+  );
+
+  static final TextStyle sectionHeaderMedium = GoogleFonts.ibmPlexMono(
     fontSize: 11,
     fontWeight: FontWeight.w600,
     color: textSecondary,
     height: 1.2,
-    letterSpacing: 0.12,
-  );
-
-  static final TextStyle sectionHeaderMedium = GoogleFonts.ibmPlexMono(
-    fontSize: 10,
-    fontWeight: FontWeight.w600,
-    color: textSecondary,
-    height: 1.2,
-    letterSpacing: 0.12,
+    letterSpacing: 0.1,
   );
 
   // ── BODY TEXT (Inter) ──
   static final TextStyle bodyLarge = GoogleFonts.inter(
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: FontWeight.normal,
     color: textPrimary,
     height: 1.4,
@@ -60,11 +60,11 @@ class AppTypography {
 
   // ── MICRO LABELS (IBM Plex Mono, ALL CAPS) ──
   static final TextStyle microLabel = GoogleFonts.ibmPlexMono(
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: FontWeight.w600,
     color: textSecondary,
     height: 1.2,
-    letterSpacing: 0.12,
+    letterSpacing: 0.1,
   );
 
   // ── CAPTIONS / HINTS (Inter) ──
@@ -106,13 +106,13 @@ class AppTypography {
   );
 
   static final TextStyle dataEmphasis = GoogleFonts.ibmPlexMono(
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: FontWeight.w700,
     color: textPrimary,
   );
 
   static final TextStyle largeKpi = GoogleFonts.ibmPlexMono(
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: FontWeight.w700,
     color: textPrimary,
     letterSpacing: -0.02,

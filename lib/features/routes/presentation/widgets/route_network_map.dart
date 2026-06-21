@@ -526,7 +526,7 @@ class _AirportMarker extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: AppTypography.badgeText.copyWith(color: color, fontSize: 10),
+          style: AppTypography.badgeText.copyWith(color: color, fontSize: 11),
         ),
       ),
     );
@@ -562,7 +562,7 @@ class _MapMetricChip extends StatelessWidget {
               text: '$label ',
               style: AppTypography.badgeText.copyWith(
                 color: AppTheme.textSecondary,
-                fontSize: 10,
+                fontSize: 11,
                 letterSpacing: 0.6,
               ),
             ),

@@ -8,7 +8,7 @@ class TickerTape extends StatefulWidget {
   const TickerTape({super.key});
 
   static final TextStyle _monoStyle = GoogleFonts.ibmPlexMono(
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: FontWeight.w400,
     color: AppTheme.textMuted,
     letterSpacing: 0.1,

@@ -156,7 +156,7 @@ class _FleetViewState extends State<FleetView>
       onTap: () => _onTabTap(index),
       borderRadius: BorderRadius.circular(4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
@@ -425,7 +425,7 @@ class _FleetViewState extends State<FleetView>
                           : AppBadge(
                               label: AppStrings.okStatus,
                               color: AppTheme.success,
-                              fontSize: 10,
+                              fontSize: 11,
                               letterSpacing: 0.4,
                               padding: EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -858,7 +858,7 @@ class _FleetViewState extends State<FleetView>
             Text(
               label,
               style: AppTypography.badgeText.copyWith(
-                fontSize: 10,
+                fontSize: 11,
                 color: AppTheme.textPrimary,
               ),
             ),

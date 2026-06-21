@@ -87,7 +87,7 @@ class RankCell extends StatelessWidget {
           style: AppTypography.badgeText.copyWith(
             color: isHuman ? AppTheme.primary : AppTypography.textSecondary,
             fontWeight: FontWeight.bold,
-            fontSize: 10,
+            fontSize: 11,
           ),
         ),
       ),

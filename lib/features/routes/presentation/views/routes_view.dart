@@ -389,7 +389,7 @@ class _RoutesViewState extends State<RoutesView> {
                     '${routes.length}',
                     style: AppTypography.badgeText.copyWith(
                       color: AppTheme.primary,
-                      fontSize: 10,
+                      fontSize: 11,
                     ),
                   ),
                 ),
@@ -607,7 +607,7 @@ class _RoutesViewState extends State<RoutesView> {
         iata,
         style: AppTypography.monoLabel.copyWith(
           color: AppTheme.primary,
-          fontSize: 10,
+          fontSize: 11,
         ),
       ),
     );
@@ -1716,7 +1716,7 @@ class _AirportMarker extends StatelessWidget {
           label,
           style: AppTypography.badgeText.copyWith(
             color: color,
-            fontSize: 10,
+            fontSize: 11,
           ),
         ),
       ),
