@@ -6,11 +6,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
     show PostgresChangeEvent, PostgresChangeFilter, PostgresChangeFilterType;
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/game_constants.dart';
 import '../../../../core/database/supabase_client.dart';
 import '../../../../core/realtime/realtime_subscription_bag.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 import '../../../auth/domain/user_model.dart';
+import '../../data/simulation_gateway.dart';
 import 'simulation_state.dart';
 
 class SimulationCubit extends Cubit<SimulationState>
@@ -23,13 +25,15 @@ class SimulationCubit extends Cubit<SimulationState>
   bool _loopRunning = false;
   bool _lifecycleObserverRegistered = false;
   Future<User?>? _activeSync;
+  final SimulationGateway _gateway;
 
   // Cache for global_game_settings to avoid redundant fetches
   static Map<String, dynamic>? _cachedGameSettings;
   static DateTime? _cachedSettingsTime;
 
-  SimulationCubit()
-    : super(
+  SimulationCubit({SimulationGateway? gateway})
+    : _gateway = gateway ?? const SupabaseSimulationGateway(),
+      super(
         SimulationState.initial(DateTime.parse('2020-01-01T00:00:00Z'), 0.00),
       );
 
@@ -45,7 +49,7 @@ class SimulationCubit extends Cubit<SimulationState>
     required String userId,
     required DateTime initialGameTime,
     required double initialCash,
-    String initialOperationalStatus = 'Active',
+    String initialOperationalStatus = AppStrings.statusActive,
     int initialConsecutiveNegativeDays = 0,
     int initialRecoveryStreakDays = 0,
   }) async {
@@ -169,7 +173,7 @@ class SimulationCubit extends Cubit<SimulationState>
             gameSpeedMultiplier: GameConstants.defaultGameSpeedMultiplier,
             lastElapsedDays: 0.04, // ~1 game hour
             lastFlightsRun: 0,
-            operationalStatus: 'Active',
+            operationalStatus: AppStrings.statusActive,
             consecutiveNegativeDays: 0,
             recoveryStreakDays: 0,
           ),
@@ -178,9 +182,7 @@ class SimulationCubit extends Cubit<SimulationState>
       }
 
       // 1. Ask Supabase to reconcile this actor to the shared world clock.
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'process_simulation_delta',
-      );
+      final List<dynamic> response = await _gateway.processSimulationDelta();
 
       double elapsedGameDays = 0.0;
       int flightsRun = 0;
@@ -193,15 +195,9 @@ class SimulationCubit extends Cubit<SimulationState>
       }
 
       // 2. Fetch the authoritative user profile containing reconciled balances and time.
-      final Map<String, dynamic> userProfile = await SupabaseManager.client
-          .from('users')
-          .select(
-            'id, username, company_name, ceo_name, cash, game_current_time, '
-            'hq_airport_iata, auto_grounding_threshold, operational_status, '
-            'consecutive_negative_days, recovery_streak_days',
-          )
-          .eq('id', userId)
-          .single();
+      final Map<String, dynamic> userProfile = await _gateway.loadUserProfile(
+        userId,
+      );
 
       final authoritativeUser = User.fromMap(userProfile);
 
@@ -220,10 +216,7 @@ class SimulationCubit extends Cubit<SimulationState>
                 ?.toDouble() ??
             GameConstants.defaultGameSpeedMultiplier;
       } else {
-        final List<dynamic> settingsResponse = await SupabaseManager.client
-            .from('global_game_settings')
-            .select('fuel_price_per_liter, time_scale_multiplier')
-            .limit(1);
+        final List<dynamic> settingsResponse = await _gateway.loadGameSettings();
 
         if (settingsResponse.isNotEmpty) {
           _cachedGameSettings = settingsResponse[0] as Map<String, dynamic>;

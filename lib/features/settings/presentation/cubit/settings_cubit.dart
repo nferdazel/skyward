@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/database/supabase_client.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
+import '../../data/settings_gateway.dart';
 
 class SettingsState {
   static const Object _unset = Object();
@@ -56,7 +57,11 @@ class SettingsState {
 }
 
 class SettingsCubit extends Cubit<SettingsState> {
-  SettingsCubit() : super(const SettingsState());
+  final SettingsGateway _gateway;
+
+  SettingsCubit({SettingsGateway? gateway})
+    : _gateway = gateway ?? const SupabaseSettingsGateway(),
+      super(const SettingsState());
 
   void setUiScale(double scale) {
     emit(state.copyWith(uiScale: scale));
@@ -74,10 +79,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     emit(state.copyWith(isLoadingAirports: true, selectedHq: currentHq));
     try {
       if (!DevModeManager.isDevMode) {
-        final List<dynamic> response = await SupabaseManager.client
-            .from('airports')
-            .select('iata, name, city, country')
-            .order('country', ascending: true);
+        final List<dynamic> response = await _gateway.loadAirports();
         final list = response.map((e) => Map<String, dynamic>.from(e)).toList();
         emit(state.copyWith(airports: list, isLoadingAirports: false));
       } else {
@@ -133,14 +135,11 @@ class SettingsCubit extends Cubit<SettingsState> {
     emit(state.copyWith(isSaving: true));
     try {
       if (!DevModeManager.isDevMode) {
-        final List<dynamic> response = await SupabaseManager.client.rpc(
-          'save_airline_settings',
-          params: {
-            'p_company_name': companyName,
-            'p_auto_grounding_threshold': autoGroundingThreshold,
-            'p_hq_airport_iata': hqAirportIata,
-          },
-        );
+        final List<dynamic> response = await _gateway.saveAirlineSettings({
+          'p_company_name': companyName,
+          'p_auto_grounding_threshold': autoGroundingThreshold,
+          'p_hq_airport_iata': hqAirportIata,
+        });
 
         final result = response.isNotEmpty
             ? response[0] as Map<String, dynamic>
@@ -175,9 +174,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     emit(state.copyWith(isSaving: true));
     try {
       if (!DevModeManager.isDevMode) {
-        final List<dynamic> response = await SupabaseManager.client.rpc(
-          'reset_user_airline',
-        );
+        final List<dynamic> response = await _gateway.resetUserAirline();
         if (response.isNotEmpty) {
           final result = response[0] as Map<String, dynamic>;
           final success = result['success'] as bool? ?? false;
