@@ -51,6 +51,8 @@ Forbidden for app state:
 
 ## 5. UI/UX Rules
 
+- **Desktop web only.** Mobile responsive layouts have been removed. Do not add `ResponsiveLayout` or mobile-specific branches.
+- Minimum window size: 1024×700.
 - Minimize flicker.
 - Prefer silent reloads over blocking loaders when data is already on screen.
 - Avoid unnecessary page-wide loading states after small actions.
