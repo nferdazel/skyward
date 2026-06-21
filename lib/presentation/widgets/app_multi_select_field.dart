@@ -88,7 +88,8 @@ class AppMultiSelectField extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 300),
                       child: SingleChildScrollView(
                         child: Column(
                           children: options.map((option) {

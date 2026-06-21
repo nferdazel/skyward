@@ -166,8 +166,9 @@ class _SearchableAirportDropdownState extends State<SearchableAirportDropdown> {
 
   Widget _buildOverlay() {
     final filtered = _getFilteredAirports();
+    final screenWidth = MediaQuery.of(context).size.width;
     return Positioned(
-      width: 400,
+      width: screenWidth < 400 ? screenWidth - 16 : 400,
       child: CompositedTransformFollower(
         link: _layerLink,
         showWhenUnlinked: false,

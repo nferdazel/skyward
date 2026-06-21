@@ -13,6 +13,10 @@ import 'features/settings/presentation/cubit/settings_cubit.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Minimum recommended window size: 920×600 for desktop/web layouts.
+  // Flutter web does not provide a direct API to enforce minimum window size;
+  // responsive breakpoints handle narrower viewports gracefully.
+
   // Initialize Supabase Connection
   await SupabaseManager.initialize();
 

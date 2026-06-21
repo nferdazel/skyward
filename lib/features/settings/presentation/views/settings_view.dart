@@ -114,7 +114,7 @@ class _SettingsViewState extends State<SettingsView> {
                           return Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
+                              Flexible(
                                 child: Column(
                                   children: [
                                     _buildGameSettingsSection(
@@ -134,7 +134,7 @@ class _SettingsViewState extends State<SettingsView> {
                                 ),
                               ),
                               const SizedBox(width: AppSpacing.lg),
-                              Expanded(
+                              Flexible(
                                 child: Column(
                                   children: [
                                     _buildProfileFormSection(
