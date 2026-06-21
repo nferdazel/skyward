@@ -9,11 +9,13 @@ import '../../../../core/realtime/realtime_subscription_bag.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 import '../../../../core/utils/perf_debug.dart';
 import '../../../simulation/presentation/cubit/simulation_cubit.dart';
+import '../../data/finance_gateway.dart';
 import '../../domain/finance_snapshot.dart';
 import '../../domain/ledger_model.dart';
 import 'finance_state.dart';
 
 class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
+  final FinanceGateway _gateway;
   final RealtimeSubscriptionBag _realtimeSubscriptions =
       RealtimeSubscriptionBag();
   FinanceSnapshot _cachedSnapshot = const FinanceSnapshot.empty();
@@ -23,7 +25,9 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
   Future<void>? _activeLedgerLoad;
   Future<void>? _activeSnapshotRefresh;
 
-  FinanceCubit() : super(const FinanceInitial());
+  FinanceCubit({FinanceGateway? gateway})
+      : _gateway = gateway ?? const SupabaseFinanceGateway(),
+        super(const FinanceInitial());
 
   FinanceDataState _buildFinanceState(
     List<LedgerEntry> logs, {
@@ -233,14 +237,8 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
       }
 
       final results = await Future.wait<dynamic>([
-        SupabaseManager.client
-            .from('financial_ledger')
-            .select(
-              'id, transaction_type, category, amount, description, game_date, created_at',
-            )
-            .eq('user_id', userId)
-            .order('game_date', ascending: false),
-        _fetchSnapshotMap(),
+        _gateway.loadLedger(userId),
+        _gateway.getFinanceSnapshot(),
       ]);
 
       final ledgerResponse = results[0] as List<dynamic>;
@@ -313,7 +311,7 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
   }) async {
     final stopwatch = PerfDebug.start('finance.snapshot_refresh');
     try {
-      final snapshotMap = await _fetchSnapshotMap();
+      final snapshotMap = await _gateway.getFinanceSnapshot();
       _cachedSnapshot = FinanceSnapshot.fromMap(snapshotMap);
       PerfDebug.end(
         'finance.snapshot_refresh',
@@ -331,16 +329,6 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
         SupabaseManager.logError('refreshFinanceSnapshot', e);
       }
     }
-  }
-
-  Future<Map<String, dynamic>> _fetchSnapshotMap() async {
-    final snapshotResponse = await SupabaseManager.client.rpc(
-      'get_finance_snapshot',
-    );
-    if (snapshotResponse is List<dynamic> && snapshotResponse.isNotEmpty) {
-      return snapshotResponse.first as Map<String, dynamic>;
-    }
-    return <String, dynamic>{};
   }
 
   void _scheduleRealtimeRefresh(String userId, {required bool fullReload}) {
