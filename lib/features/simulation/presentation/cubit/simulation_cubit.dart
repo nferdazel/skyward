@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print, prefer_initializing_formals
+// ignore_for_file: prefer_initializing_formals
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';

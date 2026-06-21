@@ -1,4 +1,5 @@
-// ignore_for_file: avoid_print, unnecessary_getters_setters
+// ignore_for_file: unnecessary_getters_setters
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_env.dart';
@@ -60,7 +61,7 @@ class SupabaseManager {
 
   static Future<void> initialize() async {
     if (isDevMode) {
-      print(
+      debugPrint(
         'WARNING: Supabase credentials are not configured yet. '
         'Create a local .env file from .env.example and generate app_env.g.dart.',
       );
@@ -81,16 +82,16 @@ class SupabaseManager {
 
   // Centrally log Supabase client network/execution exceptions
   static void logError(String action, dynamic error, [dynamic stackTrace]) {
-    print('==================================================');
-    print('[SUPABASE EXCEPTION] Action: $action');
-    print(
+    debugPrint('==================================================');
+    debugPrint('[SUPABASE EXCEPTION] Action: $action');
+    debugPrint(
       '[SUPABASE EXCEPTION] Timestamp: ${DateTime.now().toIso8601String()}',
     );
-    print('[SUPABASE EXCEPTION] Error: $error');
+    debugPrint('[SUPABASE EXCEPTION] Error: $error');
     if (stackTrace != null) {
-      print('[SUPABASE EXCEPTION] StackTrace:\n$stackTrace');
+      debugPrint('[SUPABASE EXCEPTION] StackTrace:\n$stackTrace');
     }
-    print('==================================================');
+    debugPrint('==================================================');
   }
 
   // Centrally log Supabase RPC response failure messages
@@ -99,13 +100,13 @@ class SupabaseManager {
     Map<String, dynamic> params,
     String errorMessage,
   ) {
-    print('==================================================');
-    print('[SUPABASE RPC FAILURE] Stored Procedure: $functionName');
-    print(
+    debugPrint('==================================================');
+    debugPrint('[SUPABASE RPC FAILURE] Stored Procedure: $functionName');
+    debugPrint(
       '[SUPABASE RPC FAILURE] Timestamp: ${DateTime.now().toIso8601String()}',
     );
-    print('[SUPABASE RPC FAILURE] Request Parameters: $params');
-    print('[SUPABASE RPC FAILURE] Database Error Message: $errorMessage');
-    print('==================================================');
+    debugPrint('[SUPABASE RPC FAILURE] Request Parameters: $params');
+    debugPrint('[SUPABASE RPC FAILURE] Database Error Message: $errorMessage');
+    debugPrint('==================================================');
   }
 }

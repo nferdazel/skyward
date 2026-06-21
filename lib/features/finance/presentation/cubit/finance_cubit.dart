@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -241,7 +240,7 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
             )
             .eq('user_id', userId)
             .order('game_date', ascending: false),
-        _fetchSnapshotMap(userId),
+        _fetchSnapshotMap(),
       ]);
 
       final ledgerResponse = results[0] as List<dynamic>;
@@ -314,7 +313,7 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
   }) async {
     final stopwatch = PerfDebug.start('finance.snapshot_refresh');
     try {
-      final snapshotMap = await _fetchSnapshotMap(userId);
+      final snapshotMap = await _fetchSnapshotMap();
       _cachedSnapshot = FinanceSnapshot.fromMap(snapshotMap);
       PerfDebug.end(
         'finance.snapshot_refresh',
@@ -334,7 +333,7 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
     }
   }
 
-  Future<Map<String, dynamic>> _fetchSnapshotMap(String unusedUserId) async {
+  Future<Map<String, dynamic>> _fetchSnapshotMap() async {
     final snapshotResponse = await SupabaseManager.client.rpc(
       'get_finance_snapshot',
     );
