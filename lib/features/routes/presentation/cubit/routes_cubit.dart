@@ -58,6 +58,86 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
     );
   }
 
+  /// Common helper to execute a route RPC action with loading/error state
+  /// management.
+  ///
+  /// Handles snapshot, loading emission, response parsing, error logging,
+  /// and the catch block. On success, emits [RoutesActionSuccess] with the
+  /// snapshot data and reloads route data via [loadRoutesAndData].
+  Future<bool> _executeRouteAction({
+    required String actionName,
+    required String failureMessage,
+    required Future<List<dynamic>> Function() rpcCall,
+    required String userId,
+    Map<String, dynamic> rpcParams = const {},
+  }) async {
+    final snapshot = _snapshotState();
+    emit(
+      RoutesActionLoading(
+        routes: snapshot.routes,
+        airports: snapshot.airports,
+        availableAircraft: snapshot.availableAircraft,
+        plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
+        adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
+      ),
+    );
+
+    try {
+      final List<dynamic> response = await rpcCall();
+
+      final result = response.isNotEmpty
+          ? response[0] as Map<String, dynamic>
+          : <String, dynamic>{};
+      final success = result['success'] as bool? ?? false;
+      final message = result['message'] as String? ?? failureMessage;
+
+      if (success) {
+        emit(
+          RoutesActionSuccess(
+            message: message,
+            routes: snapshot.routes,
+            airports: snapshot.airports,
+            availableAircraft: snapshot.availableAircraft,
+            plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
+            adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
+          ),
+        );
+        await loadRoutesAndData(userId, silent: true);
+        return true;
+      } else {
+        SupabaseManager.logRpcFailure(actionName, rpcParams, message);
+        emit(
+          RoutesError(
+            message: message,
+            hasData: true,
+            routes: snapshot.routes,
+            airports: snapshot.airports,
+            availableAircraft: snapshot.availableAircraft,
+            plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
+            adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
+          ),
+        );
+        _emitLoaded();
+        return false;
+      }
+    } catch (e, stack) {
+      SupabaseManager.logError(actionName, e, stack);
+      emit(
+        RoutesError(
+          message: e.toString(),
+          hasData: true,
+          routes: snapshot.routes,
+          airports: snapshot.airports,
+          availableAircraft: snapshot.availableAircraft,
+          plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
+          adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
+        ),
+      );
+      _emitLoaded();
+      return false;
+    }
+  }
+
   void updatePlannerMaintenancePreview({
     required double distanceKm,
     int? flightsPerWeek,
@@ -300,112 +380,55 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
     required double ticketPrice,
     required int flightsPerWeek,
   }) async {
-    final snapshot = _snapshotState();
-    emit(
-      RoutesActionLoading(
-        routes: snapshot.routes,
-        airports: snapshot.airports,
-        availableAircraft: snapshot.availableAircraft,
-        plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-        adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
-      ),
-    );
-    try {
-      if (DevModeManager.isDevMode) {
-        // Dev Fallback Route Insertion
-        final origin = _cachedAirports.firstWhere((a) => a.iata == originIata);
-        final dest = _cachedAirports.firstWhere(
-          (a) => a.iata == destinationIata,
-        );
-        final newRoute = UserRoute(
-          id: 'mock-route-${DateTime.now().millisecondsSinceEpoch}',
-          originIata: originIata,
-          destinationIata: destinationIata,
-          distanceKm: distanceKm,
-          ticketPrice: ticketPrice,
-          flightsPerWeek: flightsPerWeek,
-          origin: origin,
-          destination: dest,
-        );
-        _cachedRoutes.insert(0, newRoute);
-        emit(
-          RoutesActionSuccess(
-            message: AppStrings.routeCreatedSuccess,
-            routes: List<UserRoute>.from(_cachedRoutes),
-            airports: List<Airport>.from(_cachedAirports),
-            availableAircraft: List<UserFleetAircraft>.from(
-              _cachedAvailableAircraft,
-            ),
-            plannerMaintenancePreview: _plannerMaintenancePreview,
-            adjustmentMaintenancePreview: _adjustmentMaintenancePreview,
-          ),
-        );
-        _emitLoaded();
-        return true;
-      }
-
-      final List<dynamic> response = await _gateway.createRoute(
+    if (DevModeManager.isDevMode) {
+      final origin = _cachedAirports.firstWhere((a) => a.iata == originIata);
+      final dest = _cachedAirports.firstWhere(
+        (a) => a.iata == destinationIata,
+      );
+      final newRoute = UserRoute(
+        id: 'mock-route-${DateTime.now().millisecondsSinceEpoch}',
         originIata: originIata,
         destinationIata: destinationIata,
         distanceKm: distanceKm,
         ticketPrice: ticketPrice,
         flightsPerWeek: flightsPerWeek,
+        origin: origin,
+        destination: dest,
       );
-
-      final result = response.isNotEmpty
-          ? response[0] as Map<String, dynamic>
-          : <String, dynamic>{};
-      final success = result['success'] as bool? ?? false;
-      final message = result['message'] as String? ?? AppStrings.routeCreateFailed;
-      if (!success) {
-        SupabaseManager.logRpcFailure('create_route', {
-          'p_user_id': userId,
-          'p_origin_iata': originIata,
-          'p_destination_iata': destinationIata,
-        }, message);
-        emit(
-          RoutesError(
-            message: message,
-            hasData: true,
-            routes: snapshot.routes,
-            airports: snapshot.airports,
-            availableAircraft: snapshot.availableAircraft,
-            plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-            adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
-          ),
-        );
-        _emitLoaded();
-        return false;
-      }
-
+      _cachedRoutes.insert(0, newRoute);
       emit(
         RoutesActionSuccess(
-          message: message,
-          routes: snapshot.routes,
-          airports: snapshot.airports,
-          availableAircraft: snapshot.availableAircraft,
-          plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-          adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
-        ),
-      );
-      await loadRoutesAndData(userId, silent: true);
-      return true;
-    } catch (e, stack) {
-      SupabaseManager.logError('createRoute', e, stack);
-      emit(
-        RoutesError(
-          message: e.toString(),
-          hasData: true,
-          routes: snapshot.routes,
-          airports: snapshot.airports,
-          availableAircraft: snapshot.availableAircraft,
-          plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-          adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
+          message: AppStrings.routeCreatedSuccess,
+          routes: List<UserRoute>.from(_cachedRoutes),
+          airports: List<Airport>.from(_cachedAirports),
+          availableAircraft: List<UserFleetAircraft>.from(
+            _cachedAvailableAircraft,
+          ),
+          plannerMaintenancePreview: _plannerMaintenancePreview,
+          adjustmentMaintenancePreview: _adjustmentMaintenancePreview,
         ),
       );
       _emitLoaded();
-      return false;
+      return true;
     }
+
+    return _executeRouteAction(
+      actionName: 'create_route',
+      failureMessage: AppStrings.routeCreateFailed,
+      userId: userId,
+      rpcParams: {
+        'p_user_id': userId,
+        'p_origin_iata': originIata,
+        'p_destination_iata': destinationIata,
+      },
+      rpcCall: () => _gateway.createRoute(
+        originIata: originIata,
+        destinationIata: destinationIata,
+        distanceKm: distanceKm,
+        ticketPrice: ticketPrice,
+        flightsPerWeek: flightsPerWeek,
+      ),
+    );
   }
 
   // Assign or unassign aircraft to a route
@@ -414,126 +437,68 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
     required String? aircraftId,
     required String userId,
   }) async {
-    final snapshot = _snapshotState();
-    emit(
-      RoutesActionLoading(
-        routes: snapshot.routes,
-        airports: snapshot.airports,
-        availableAircraft: snapshot.availableAircraft,
-        plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-        adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
-      ),
-    );
-    try {
-      if (DevModeManager.isDevMode) {
-        // Dev Fallback
-        final routeIdx = _cachedRoutes.indexWhere((r) => r.id == routeId);
-        if (routeIdx != -1) {
-          final target = _cachedRoutes[routeIdx];
-          UserFleetAircraft? assigned;
-          if (aircraftId != null) {
-            final fleetIdx = _cachedAvailableAircraft.indexWhere(
-              (f) => f.id == aircraftId,
-            );
-            if (fleetIdx != -1) {
-              assigned = _cachedAvailableAircraft.removeAt(fleetIdx);
-            }
-          }
-
-          // If unassigning, add back to available
-          if (aircraftId == null && target.assignedAircraft != null) {
-            _cachedAvailableAircraft.add(target.assignedAircraft!);
-          }
-
-          _cachedRoutes[routeIdx] = UserRoute(
-            id: target.id,
-            originIata: target.originIata,
-            destinationIata: target.destinationIata,
-            distanceKm: target.distanceKm,
-            ticketPrice: target.ticketPrice,
-            flightsPerWeek: target.flightsPerWeek,
-            origin: target.origin,
-            destination: target.destination,
-            assignedAircraftId: aircraftId,
-            assignedAircraft: assigned,
+    if (DevModeManager.isDevMode) {
+      final routeIdx = _cachedRoutes.indexWhere((r) => r.id == routeId);
+      if (routeIdx != -1) {
+        final target = _cachedRoutes[routeIdx];
+        UserFleetAircraft? assigned;
+        if (aircraftId != null) {
+          final fleetIdx = _cachedAvailableAircraft.indexWhere(
+            (f) => f.id == aircraftId,
           );
+          if (fleetIdx != -1) {
+            assigned = _cachedAvailableAircraft.removeAt(fleetIdx);
+          }
         }
-        emit(
-          RoutesActionSuccess(
-            message: AppStrings.routeAssignmentSuccess,
-            routes: List<UserRoute>.from(_cachedRoutes),
-            airports: List<Airport>.from(_cachedAirports),
-            availableAircraft: List<UserFleetAircraft>.from(
-              _cachedAvailableAircraft,
-            ),
-            plannerMaintenancePreview: _plannerMaintenancePreview,
-            adjustmentMaintenancePreview: _adjustmentMaintenancePreview,
-          ),
+
+        // If unassigning, add back to available
+        if (aircraftId == null && target.assignedAircraft != null) {
+          _cachedAvailableAircraft.add(target.assignedAircraft!);
+        }
+
+        _cachedRoutes[routeIdx] = UserRoute(
+          id: target.id,
+          originIata: target.originIata,
+          destinationIata: target.destinationIata,
+          distanceKm: target.distanceKm,
+          ticketPrice: target.ticketPrice,
+          flightsPerWeek: target.flightsPerWeek,
+          origin: target.origin,
+          destination: target.destination,
+          assignedAircraftId: aircraftId,
+          assignedAircraft: assigned,
         );
-        _emitLoaded();
-        return true;
       }
-
-      final List<dynamic> response = await _gateway.assignAircraft(
-        routeId: routeId,
-        aircraftId: aircraftId,
-      );
-
-      final result = response.isNotEmpty
-          ? response[0] as Map<String, dynamic>
-          : <String, dynamic>{};
-      final success = result['success'] as bool? ?? false;
-      final message =
-          result['message'] as String? ?? 'Aircraft assignment failed.';
-      if (!success) {
-        SupabaseManager.logRpcFailure('assign_aircraft_to_route', {
-          'p_user_id': userId,
-          'p_route_id': routeId,
-          'p_aircraft_id': aircraftId,
-        }, message);
-        emit(
-          RoutesError(
-            message: message,
-            hasData: true,
-            routes: snapshot.routes,
-            airports: snapshot.airports,
-            availableAircraft: snapshot.availableAircraft,
-            plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-            adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
-          ),
-        );
-        _emitLoaded();
-        return false;
-      }
-
       emit(
         RoutesActionSuccess(
-          message: message,
-          routes: snapshot.routes,
-          airports: snapshot.airports,
-          availableAircraft: snapshot.availableAircraft,
-          plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-          adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
-        ),
-      );
-      await loadRoutesAndData(userId, silent: true);
-      return true;
-    } catch (e, stack) {
-      SupabaseManager.logError('assignAircraftToRoute', e, stack);
-      emit(
-        RoutesError(
-          message: e.toString(),
-          hasData: true,
-          routes: snapshot.routes,
-          airports: snapshot.airports,
-          availableAircraft: snapshot.availableAircraft,
-          plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-          adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
+          message: AppStrings.routeAssignmentSuccess,
+          routes: List<UserRoute>.from(_cachedRoutes),
+          airports: List<Airport>.from(_cachedAirports),
+          availableAircraft: List<UserFleetAircraft>.from(
+            _cachedAvailableAircraft,
+          ),
+          plannerMaintenancePreview: _plannerMaintenancePreview,
+          adjustmentMaintenancePreview: _adjustmentMaintenancePreview,
         ),
       );
       _emitLoaded();
-      return false;
+      return true;
     }
+
+    return _executeRouteAction(
+      actionName: 'assign_aircraft_to_route',
+      failureMessage: 'Aircraft assignment failed.',
+      userId: userId,
+      rpcParams: {
+        'p_user_id': userId,
+        'p_route_id': routeId,
+        'p_aircraft_id': aircraftId,
+      },
+      rpcCall: () => _gateway.assignAircraft(
+        routeId: routeId,
+        aircraftId: aircraftId,
+      ),
+    );
   }
 
   // Update ticket price and weekly flight frequency
@@ -543,113 +508,53 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
     required int flightsPerWeek,
     required String userId,
   }) async {
-    final snapshot = _snapshotState();
-    emit(
-      RoutesActionLoading(
-        routes: snapshot.routes,
-        airports: snapshot.airports,
-        availableAircraft: snapshot.availableAircraft,
-        plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-        adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
-      ),
-    );
-    try {
-      if (DevModeManager.isDevMode) {
-        // Dev Fallback
-        final idx = _cachedRoutes.indexWhere((r) => r.id == routeId);
-        if (idx != -1) {
-          final target = _cachedRoutes[idx];
-          _cachedRoutes[idx] = UserRoute(
-            id: target.id,
-            originIata: target.originIata,
-            destinationIata: target.destinationIata,
-            distanceKm: target.distanceKm,
-            ticketPrice: ticketPrice,
-            flightsPerWeek: flightsPerWeek,
-            origin: target.origin,
-            destination: target.destination,
-            assignedAircraftId: target.assignedAircraftId,
-            assignedAircraft: target.assignedAircraft,
-          );
-        }
-        emit(
-          RoutesActionSuccess(
-            message: 'Route frequency and pricing adjusted!',
-            routes: List<UserRoute>.from(_cachedRoutes),
-            airports: List<Airport>.from(_cachedAirports),
-            availableAircraft: List<UserFleetAircraft>.from(
-              _cachedAvailableAircraft,
-            ),
-            plannerMaintenancePreview: _plannerMaintenancePreview,
-            adjustmentMaintenancePreview: _adjustmentMaintenancePreview,
-          ),
+    if (DevModeManager.isDevMode) {
+      final idx = _cachedRoutes.indexWhere((r) => r.id == routeId);
+      if (idx != -1) {
+        final target = _cachedRoutes[idx];
+        _cachedRoutes[idx] = UserRoute(
+          id: target.id,
+          originIata: target.originIata,
+          destinationIata: target.destinationIata,
+          distanceKm: target.distanceKm,
+          ticketPrice: ticketPrice,
+          flightsPerWeek: flightsPerWeek,
+          origin: target.origin,
+          destination: target.destination,
+          assignedAircraftId: target.assignedAircraftId,
+          assignedAircraft: target.assignedAircraft,
         );
-        _emitLoaded();
-        return true;
       }
-
-      final List<dynamic> response =
-          await _gateway.updateRouteFrequencyAndPrice(
-        routeId: routeId,
-        ticketPrice: ticketPrice,
-        flightsPerWeek: flightsPerWeek,
-      );
-
-      final result = response.isNotEmpty
-          ? response[0] as Map<String, dynamic>
-          : <String, dynamic>{};
-      final success = result['success'] as bool? ?? false;
-      final message =
-          result['message'] as String? ??
-          'Route frequency and pricing update failed.';
-      if (!success) {
-        SupabaseManager.logRpcFailure('update_route_frequency_and_price', {
-          'p_user_id': userId,
-          'p_route_id': routeId,
-        }, message);
-        emit(
-          RoutesError(
-            message: message,
-            hasData: true,
-            routes: snapshot.routes,
-            airports: snapshot.airports,
-            availableAircraft: snapshot.availableAircraft,
-            plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-            adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
-          ),
-        );
-        _emitLoaded();
-        return false;
-      }
-
       emit(
         RoutesActionSuccess(
-          message: message,
-          routes: snapshot.routes,
-          airports: snapshot.airports,
-          availableAircraft: snapshot.availableAircraft,
-          plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-          adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
-        ),
-      );
-      await loadRoutesAndData(userId, silent: true);
-      return true;
-    } catch (e, stack) {
-      SupabaseManager.logError('updateRouteFrequencyAndPrice', e, stack);
-      emit(
-        RoutesError(
-          message: e.toString(),
-          hasData: true,
-          routes: snapshot.routes,
-          airports: snapshot.airports,
-          availableAircraft: snapshot.availableAircraft,
-          plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-          adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
+          message: 'Route frequency and pricing adjusted!',
+          routes: List<UserRoute>.from(_cachedRoutes),
+          airports: List<Airport>.from(_cachedAirports),
+          availableAircraft: List<UserFleetAircraft>.from(
+            _cachedAvailableAircraft,
+          ),
+          plannerMaintenancePreview: _plannerMaintenancePreview,
+          adjustmentMaintenancePreview: _adjustmentMaintenancePreview,
         ),
       );
       _emitLoaded();
-      return false;
+      return true;
     }
+
+    return _executeRouteAction(
+      actionName: 'update_route_frequency_and_price',
+      failureMessage: 'Route frequency and pricing update failed.',
+      userId: userId,
+      rpcParams: {
+        'p_user_id': userId,
+        'p_route_id': routeId,
+      },
+      rpcCall: () => _gateway.updateRouteFrequencyAndPrice(
+        routeId: routeId,
+        ticketPrice: ticketPrice,
+        flightsPerWeek: flightsPerWeek,
+      ),
+    );
   }
 
   // Close/Delete a route
@@ -657,100 +562,41 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
     required String routeId,
     required String userId,
   }) async {
-    final snapshot = _snapshotState();
-    emit(
-      RoutesActionLoading(
-        routes: snapshot.routes,
-        airports: snapshot.airports,
-        availableAircraft: snapshot.availableAircraft,
-        plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-        adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
-      ),
-    );
-    try {
-      if (DevModeManager.isDevMode) {
-        // Dev Fallback Delete
-        final idx = _cachedRoutes.indexWhere((r) => r.id == routeId);
-        if (idx != -1) {
-          final target = _cachedRoutes[idx];
-          if (target.assignedAircraft != null) {
-            _cachedAvailableAircraft.add(target.assignedAircraft!);
-          }
-          _cachedRoutes.removeAt(idx);
+    if (DevModeManager.isDevMode) {
+      final idx = _cachedRoutes.indexWhere((r) => r.id == routeId);
+      if (idx != -1) {
+        final target = _cachedRoutes[idx];
+        if (target.assignedAircraft != null) {
+          _cachedAvailableAircraft.add(target.assignedAircraft!);
         }
-        emit(
-          RoutesActionSuccess(
-            message: AppStrings.routeDeletedSuccess,
-            routes: List<UserRoute>.from(_cachedRoutes),
-            airports: List<Airport>.from(_cachedAirports),
-            availableAircraft: List<UserFleetAircraft>.from(
-              _cachedAvailableAircraft,
-            ),
-            plannerMaintenancePreview: _plannerMaintenancePreview,
-            adjustmentMaintenancePreview: _adjustmentMaintenancePreview,
-          ),
-        );
-        _emitLoaded();
-        return true;
+        _cachedRoutes.removeAt(idx);
       }
-
-      final List<dynamic> response = await _gateway.deleteRoute(
-        routeId: routeId,
-      );
-
-      final result = response.isNotEmpty
-          ? response[0] as Map<String, dynamic>
-          : <String, dynamic>{};
-      final success = result['success'] as bool? ?? false;
-      final message = result['message'] as String? ?? AppStrings.routeDeleteFailed;
-      if (!success) {
-        SupabaseManager.logRpcFailure('delete_route', {
-          'p_user_id': userId,
-          'p_route_id': routeId,
-        }, message);
-        emit(
-          RoutesError(
-            message: message,
-            hasData: true,
-            routes: snapshot.routes,
-            airports: snapshot.airports,
-            availableAircraft: snapshot.availableAircraft,
-            plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-            adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
-          ),
-        );
-        _emitLoaded();
-        return false;
-      }
-
       emit(
         RoutesActionSuccess(
-          message: message,
-          routes: snapshot.routes,
-          airports: snapshot.airports,
-          availableAircraft: snapshot.availableAircraft,
-          plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-          adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
-        ),
-      );
-      await loadRoutesAndData(userId, silent: true);
-      return true;
-    } catch (e, stack) {
-      SupabaseManager.logError('deleteRoute', e, stack);
-      emit(
-        RoutesError(
-          message: e.toString(),
-          hasData: true,
-          routes: snapshot.routes,
-          airports: snapshot.airports,
-          availableAircraft: snapshot.availableAircraft,
-          plannerMaintenancePreview: snapshot.plannerMaintenancePreview,
-          adjustmentMaintenancePreview: snapshot.adjustmentMaintenancePreview,
+          message: AppStrings.routeDeletedSuccess,
+          routes: List<UserRoute>.from(_cachedRoutes),
+          airports: List<Airport>.from(_cachedAirports),
+          availableAircraft: List<UserFleetAircraft>.from(
+            _cachedAvailableAircraft,
+          ),
+          plannerMaintenancePreview: _plannerMaintenancePreview,
+          adjustmentMaintenancePreview: _adjustmentMaintenancePreview,
         ),
       );
       _emitLoaded();
-      return false;
+      return true;
     }
+
+    return _executeRouteAction(
+      actionName: 'delete_route',
+      failureMessage: AppStrings.routeDeleteFailed,
+      userId: userId,
+      rpcParams: {
+        'p_user_id': userId,
+        'p_route_id': routeId,
+      },
+      rpcCall: () => _gateway.deleteRoute(routeId: routeId),
+    );
   }
 
   // Seed Mock Data in Dev Mode

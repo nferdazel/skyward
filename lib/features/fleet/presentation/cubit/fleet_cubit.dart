@@ -59,6 +59,108 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
     );
   }
 
+  /// Common helper to execute a fleet RPC action with loading/error state
+  /// management.
+  ///
+  /// Handles snapshot, loading emission, response parsing, error logging,
+  /// and the catch block. The [onSuccess] callback is invoked when the RPC
+  /// returns `success: true` and should handle post-success side effects,
+  /// emit the appropriate success state, call `_emitLoaded()`, and return
+  /// `true`.
+  Future<bool> _executeFleetAction({
+    required String actionName,
+    required String failureMessage,
+    required Future<List<dynamic>> Function() rpcCall,
+    required Future<bool> Function(
+      Map<String, dynamic> result,
+      FleetDataState snapshot,
+    ) onSuccess,
+    String errorPrefix = '',
+    Map<String, dynamic> rpcParams = const {},
+  }) async {
+    final snapshot = _snapshotState();
+    emit(
+      FleetActionLoading(
+        fleet: snapshot.fleet,
+        catalog: snapshot.catalog,
+        selectedManufacturers: snapshot.selectedManufacturers,
+        selectedCategories: snapshot.selectedCategories,
+        selectedRangeBrackets: snapshot.selectedRangeBrackets,
+        sortBy: snapshot.sortBy,
+      ),
+    );
+
+    try {
+      final List<dynamic> response = await rpcCall();
+
+      if (response.isEmpty) {
+        SupabaseManager.logRpcFailure(
+          actionName,
+          rpcParams,
+          AppStrings.dbEmptyResponse,
+        );
+        emit(
+          FleetError(
+            message: AppStrings.dbEmptyResponse,
+            hasData: true,
+            fleet: snapshot.fleet,
+            catalog: snapshot.catalog,
+            selectedManufacturers: snapshot.selectedManufacturers,
+            selectedCategories: snapshot.selectedCategories,
+            selectedRangeBrackets: snapshot.selectedRangeBrackets,
+            sortBy: snapshot.sortBy,
+          ),
+        );
+        _emitLoaded();
+        return false;
+      }
+
+      final result = response[0] as Map<String, dynamic>;
+      final success = result['success'] as bool? ?? false;
+      final message = result['message'] as String?;
+
+      if (success) {
+        return await onSuccess(result, snapshot);
+      } else {
+        SupabaseManager.logRpcFailure(
+          actionName,
+          rpcParams,
+          message ?? failureMessage,
+        );
+        emit(
+          FleetError(
+            message: message ?? failureMessage,
+            hasData: true,
+            fleet: snapshot.fleet,
+            catalog: snapshot.catalog,
+            selectedManufacturers: snapshot.selectedManufacturers,
+            selectedCategories: snapshot.selectedCategories,
+            selectedRangeBrackets: snapshot.selectedRangeBrackets,
+            sortBy: snapshot.sortBy,
+          ),
+        );
+        _emitLoaded();
+        return false;
+      }
+    } catch (e, stack) {
+      SupabaseManager.logError(actionName, e, stack);
+      emit(
+        FleetError(
+          message: '$errorPrefix${e.toString()}',
+          hasData: true,
+          fleet: snapshot.fleet,
+          catalog: snapshot.catalog,
+          selectedManufacturers: snapshot.selectedManufacturers,
+          selectedCategories: snapshot.selectedCategories,
+          selectedRangeBrackets: snapshot.selectedRangeBrackets,
+          sortBy: snapshot.sortBy,
+        ),
+      );
+      _emitLoaded();
+      return false;
+    }
+  }
+
   void setupReactivity(SimulationCubit simCubit, String userId) {
     subscribeToSimulation(
       simCubit,
@@ -180,117 +282,68 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
     required int firstClass,
     required FleetBalanceCallback onBalanceChanged,
   }) async {
-    final snapshot = _snapshotState();
-    emit(
-      FleetActionLoading(
-        fleet: snapshot.fleet,
-        catalog: snapshot.catalog,
-        selectedManufacturers: snapshot.selectedManufacturers,
-        selectedCategories: snapshot.selectedCategories,
-        selectedRangeBrackets: snapshot.selectedRangeBrackets,
-        sortBy: snapshot.sortBy,
-      ),
-    );
-    try {
-      if (DevModeManager.isDevMode) {
-        // Dev Fallback Buy Logic
-        final model = _cachedCatalog.firstWhere((m) => m.id == modelId);
-        final newAircraft = UserFleetAircraft(
-          id: 'mock-aircraft-${DateTime.now().millisecondsSinceEpoch}',
-          nickname: nickname,
-          acquisitionType: 'purchase',
-          condition: 100.00,
-          status: 'active',
-          acquiredAt: DateTime.now(),
-          model: model,
-          economySeats: economy,
-          businessSeats: business,
-          firstClassSeats: firstClass,
-        );
-        _cachedFleet.insert(0, newAircraft);
+    if (DevModeManager.isDevMode) {
+      final model = _cachedCatalog.firstWhere((m) => m.id == modelId);
+      final newAircraft = UserFleetAircraft(
+        id: 'mock-aircraft-${DateTime.now().millisecondsSinceEpoch}',
+        nickname: nickname,
+        acquisitionType: 'purchase',
+        condition: 100.00,
+        status: 'active',
+        acquiredAt: DateTime.now(),
+        model: model,
+        economySeats: economy,
+        businessSeats: business,
+        firstClassSeats: firstClass,
+      );
+      _cachedFleet.insert(0, newAircraft);
+      emit(
+        FleetActionSuccess(
+          message: AppStrings.purchaseSuccess,
+          fleet: List<UserFleetAircraft>.from(_cachedFleet),
+          catalog: List<AircraftModel>.from(_cachedCatalog),
+          selectedManufacturers: _selectedManufacturers,
+          selectedCategories: _selectedCategories,
+          selectedRangeBrackets: _selectedRangeBrackets,
+          sortBy: _sortBy,
+        ),
+      );
+      _emitLoaded();
+      return true;
+    }
 
-        emit(
-          FleetActionSuccess(
-            message: AppStrings.purchaseSuccess,
-            fleet: List<UserFleetAircraft>.from(_cachedFleet),
-            catalog: List<AircraftModel>.from(_cachedCatalog),
-            selectedManufacturers: _selectedManufacturers,
-            selectedCategories: _selectedCategories,
-            selectedRangeBrackets: _selectedRangeBrackets,
-            sortBy: _sortBy,
-          ),
-        );
-        _emitLoaded();
-        return true;
-      }
-
-      final List<dynamic> response = await _gateway.purchaseAircraft({
+    return _executeFleetAction(
+      actionName: 'purchase_aircraft',
+      failureMessage: AppStrings.purchaseFailed,
+      errorPrefix: AppStrings.dbConnectionFailed,
+      rpcParams: {
+        'p_user_id': userId,
+        'p_model_id': modelId,
+        'p_nickname': nickname,
+      },
+      rpcCall: () => _gateway.purchaseAircraft({
         'p_model_id': modelId,
         'p_nickname': nickname,
         'p_economy_seats': economy,
         'p_business_seats': business,
         'p_first_class_seats': firstClass,
-      });
-
-      if (response.isNotEmpty) {
-        final result = response[0] as Map<String, dynamic>;
-        final success = result['success'] as bool? ?? false;
-        final message = result['message'] as String? ?? AppStrings.purchaseFailed;
+      }),
+      onSuccess: (result, snapshot) async {
+        final message =
+            result['message'] as String? ?? AppStrings.purchaseFailed;
         final newCash = (result['new_cash'] as num?)?.toDouble();
 
-        if (success) {
-          if (newCash != null) {
-            await onBalanceChanged(newCash);
-          }
-
-          _suppressNextFleetRealtimeReload = true;
-          await _appendLatestAircraftToCache(userId: userId, modelId: modelId);
-
-          emit(
-            FleetActionSuccess(
-              message: message,
-              fleet: _cachedFleet,
-              catalog: snapshot.catalog,
-              selectedManufacturers: snapshot.selectedManufacturers,
-              selectedCategories: snapshot.selectedCategories,
-              selectedRangeBrackets: snapshot.selectedRangeBrackets,
-              sortBy: snapshot.sortBy,
-            ),
-          );
-          _emitLoaded();
-          return true;
-        } else {
-          SupabaseManager.logRpcFailure('purchase_aircraft', {
-            'p_user_id': userId,
-            'p_model_id': modelId,
-            'p_nickname': nickname,
-          }, message);
-          emit(
-            FleetError(
-              message: message,
-              hasData: true,
-              fleet: snapshot.fleet,
-              catalog: snapshot.catalog,
-              selectedManufacturers: snapshot.selectedManufacturers,
-              selectedCategories: snapshot.selectedCategories,
-              selectedRangeBrackets: snapshot.selectedRangeBrackets,
-              sortBy: snapshot.sortBy,
-            ),
-          );
-          _emitLoaded();
-          return false;
+        if (newCash != null) {
+          await onBalanceChanged(newCash);
         }
-      } else {
-        const errorMsg = AppStrings.dbEmptyResponse;
-        SupabaseManager.logRpcFailure('purchase_aircraft', {
-          'p_user_id': userId,
-          'p_model_id': modelId,
-        }, errorMsg);
+
+        _suppressNextFleetRealtimeReload = true;
+        await _appendLatestAircraftToCache(userId: userId, modelId: modelId);
+
         emit(
-          FleetError(
-            message: errorMsg,
-            hasData: true,
-            fleet: snapshot.fleet,
+          FleetActionSuccess(
+            message: message,
+            fleet: _cachedFleet,
             catalog: snapshot.catalog,
             selectedManufacturers: snapshot.selectedManufacturers,
             selectedCategories: snapshot.selectedCategories,
@@ -299,25 +352,9 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
           ),
         );
         _emitLoaded();
-        return false;
-      }
-    } catch (e, stack) {
-      SupabaseManager.logError('purchase_aircraft', e, stack);
-      emit(
-        FleetError(
-          message: '${AppStrings.dbConnectionFailed}${e.toString()}',
-          hasData: true,
-          fleet: snapshot.fleet,
-          catalog: snapshot.catalog,
-          selectedManufacturers: snapshot.selectedManufacturers,
-          selectedCategories: snapshot.selectedCategories,
-          selectedRangeBrackets: snapshot.selectedRangeBrackets,
-          sortBy: snapshot.sortBy,
-        ),
-      );
-      _emitLoaded();
-      return false;
-    }
+        return true;
+      },
+    );
   }
 
   // Atomically lease a new aircraft
@@ -330,117 +367,68 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
     required int firstClass,
     required FleetBalanceCallback onBalanceChanged,
   }) async {
-    final snapshot = _snapshotState();
-    emit(
-      FleetActionLoading(
-        fleet: snapshot.fleet,
-        catalog: snapshot.catalog,
-        selectedManufacturers: snapshot.selectedManufacturers,
-        selectedCategories: snapshot.selectedCategories,
-        selectedRangeBrackets: snapshot.selectedRangeBrackets,
-        sortBy: snapshot.sortBy,
-      ),
-    );
-    try {
-      if (DevModeManager.isDevMode) {
-        // Dev Fallback Lease Logic
-        final model = _cachedCatalog.firstWhere((m) => m.id == modelId);
-        final newAircraft = UserFleetAircraft(
-          id: 'mock-aircraft-${DateTime.now().millisecondsSinceEpoch}',
-          nickname: nickname,
-          acquisitionType: 'lease',
-          condition: 100.00,
-          status: 'active',
-          acquiredAt: DateTime.now(),
-          model: model,
-          economySeats: economy,
-          businessSeats: business,
-          firstClassSeats: firstClass,
-        );
-        _cachedFleet.insert(0, newAircraft);
+    if (DevModeManager.isDevMode) {
+      final model = _cachedCatalog.firstWhere((m) => m.id == modelId);
+      final newAircraft = UserFleetAircraft(
+        id: 'mock-aircraft-${DateTime.now().millisecondsSinceEpoch}',
+        nickname: nickname,
+        acquisitionType: 'lease',
+        condition: 100.00,
+        status: 'active',
+        acquiredAt: DateTime.now(),
+        model: model,
+        economySeats: economy,
+        businessSeats: business,
+        firstClassSeats: firstClass,
+      );
+      _cachedFleet.insert(0, newAircraft);
+      emit(
+        FleetActionSuccess(
+          message: AppStrings.leaseSuccess,
+          fleet: List<UserFleetAircraft>.from(_cachedFleet),
+          catalog: List<AircraftModel>.from(_cachedCatalog),
+          selectedManufacturers: _selectedManufacturers,
+          selectedCategories: _selectedCategories,
+          selectedRangeBrackets: _selectedRangeBrackets,
+          sortBy: _sortBy,
+        ),
+      );
+      _emitLoaded();
+      return true;
+    }
 
-        emit(
-          FleetActionSuccess(
-            message: AppStrings.leaseSuccess,
-            fleet: List<UserFleetAircraft>.from(_cachedFleet),
-            catalog: List<AircraftModel>.from(_cachedCatalog),
-            selectedManufacturers: _selectedManufacturers,
-            selectedCategories: _selectedCategories,
-            selectedRangeBrackets: _selectedRangeBrackets,
-            sortBy: _sortBy,
-          ),
-        );
-        _emitLoaded();
-        return true;
-      }
-
-      final List<dynamic> response = await _gateway.leaseAircraft({
+    return _executeFleetAction(
+      actionName: 'lease_aircraft',
+      failureMessage: AppStrings.leaseFailed,
+      errorPrefix: AppStrings.dbConnectionFailed,
+      rpcParams: {
+        'p_user_id': userId,
+        'p_model_id': modelId,
+        'p_nickname': nickname,
+      },
+      rpcCall: () => _gateway.leaseAircraft({
         'p_model_id': modelId,
         'p_nickname': nickname,
         'p_economy_seats': economy,
         'p_business_seats': business,
         'p_first_class_seats': firstClass,
-      });
-
-      if (response.isNotEmpty) {
-        final result = response[0] as Map<String, dynamic>;
-        final success = result['success'] as bool? ?? false;
-        final message = result['message'] as String? ?? AppStrings.leaseFailed;
+      }),
+      onSuccess: (result, snapshot) async {
+        final message =
+            result['message'] as String? ?? AppStrings.leaseFailed;
         final newCash = (result['new_cash'] as num?)?.toDouble();
 
-        if (success) {
-          if (newCash != null) {
-            await onBalanceChanged(newCash);
-          }
-
-          _suppressNextFleetRealtimeReload = true;
-          await _appendLatestAircraftToCache(userId: userId, modelId: modelId);
-
-          emit(
-            FleetActionSuccess(
-              message: message,
-              fleet: _cachedFleet,
-              catalog: snapshot.catalog,
-              selectedManufacturers: snapshot.selectedManufacturers,
-              selectedCategories: snapshot.selectedCategories,
-              selectedRangeBrackets: snapshot.selectedRangeBrackets,
-              sortBy: snapshot.sortBy,
-            ),
-          );
-          _emitLoaded();
-          return true;
-        } else {
-          SupabaseManager.logRpcFailure('lease_aircraft', {
-            'p_user_id': userId,
-            'p_model_id': modelId,
-            'p_nickname': nickname,
-          }, message);
-          emit(
-            FleetError(
-              message: message,
-              hasData: true,
-              fleet: snapshot.fleet,
-              catalog: snapshot.catalog,
-              selectedManufacturers: snapshot.selectedManufacturers,
-              selectedCategories: snapshot.selectedCategories,
-              selectedRangeBrackets: snapshot.selectedRangeBrackets,
-              sortBy: snapshot.sortBy,
-            ),
-          );
-          _emitLoaded();
-          return false;
+        if (newCash != null) {
+          await onBalanceChanged(newCash);
         }
-      } else {
-        const errorMsg = AppStrings.dbEmptyResponse;
-        SupabaseManager.logRpcFailure('lease_aircraft', {
-          'p_user_id': userId,
-          'p_model_id': modelId,
-        }, errorMsg);
+
+        _suppressNextFleetRealtimeReload = true;
+        await _appendLatestAircraftToCache(userId: userId, modelId: modelId);
+
         emit(
-          FleetError(
-            message: errorMsg,
-            hasData: true,
-            fleet: snapshot.fleet,
+          FleetActionSuccess(
+            message: message,
+            fleet: _cachedFleet,
             catalog: snapshot.catalog,
             selectedManufacturers: snapshot.selectedManufacturers,
             selectedCategories: snapshot.selectedCategories,
@@ -449,25 +437,9 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
           ),
         );
         _emitLoaded();
-        return false;
-      }
-    } catch (e, stack) {
-      SupabaseManager.logError('lease_aircraft', e, stack);
-      emit(
-        FleetError(
-          message: '${AppStrings.dbConnectionFailed}${e.toString()}',
-          hasData: true,
-          fleet: snapshot.fleet,
-          catalog: snapshot.catalog,
-          selectedManufacturers: snapshot.selectedManufacturers,
-          selectedCategories: snapshot.selectedCategories,
-          selectedRangeBrackets: snapshot.selectedRangeBrackets,
-          sortBy: snapshot.sortBy,
-        ),
-      );
-      _emitLoaded();
-      return false;
-    }
+        return true;
+      },
+    );
   }
 
   // Perform aircraft maintenance/repair
@@ -476,40 +448,87 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
     required String fleetId,
     required FleetBalanceCallback onBalanceChanged,
   }) async {
-    final snapshot = _snapshotState();
-    emit(
-      FleetActionLoading(
-        fleet: snapshot.fleet,
-        catalog: snapshot.catalog,
-        selectedManufacturers: snapshot.selectedManufacturers,
-        selectedCategories: snapshot.selectedCategories,
-        selectedRangeBrackets: snapshot.selectedRangeBrackets,
-        sortBy: snapshot.sortBy,
-      ),
-    );
-    try {
-      if (DevModeManager.isDevMode) {
-        // Dev Fallback Repair Logic
-        final idx = _cachedFleet.indexWhere((f) => f.id == fleetId);
-        if (idx != -1) {
-          final target = _cachedFleet[idx];
-          _cachedFleet[idx] = UserFleetAircraft(
-            id: target.id,
-            nickname: target.nickname,
-            acquisitionType: target.acquisitionType,
-            condition: 100.00,
-            status: 'active',
-            acquiredAt: target.acquiredAt,
-            model: target.model,
-            economySeats: target.economySeats,
-            businessSeats: target.businessSeats,
-            firstClassSeats: target.firstClassSeats,
-            tailNumber: target.tailNumber,
-          );
+    if (DevModeManager.isDevMode) {
+      final idx = _cachedFleet.indexWhere((f) => f.id == fleetId);
+      if (idx != -1) {
+        final target = _cachedFleet[idx];
+        _cachedFleet[idx] = UserFleetAircraft(
+          id: target.id,
+          nickname: target.nickname,
+          acquisitionType: target.acquisitionType,
+          condition: 100.00,
+          status: 'active',
+          acquiredAt: target.acquiredAt,
+          model: target.model,
+          economySeats: target.economySeats,
+          businessSeats: target.businessSeats,
+          firstClassSeats: target.firstClassSeats,
+          tailNumber: target.tailNumber,
+        );
+      }
+      emit(
+        FleetActionSuccess(
+          message: 'Aircraft repaired successfully!',
+          fleet: List<UserFleetAircraft>.from(_cachedFleet),
+          catalog: List<AircraftModel>.from(_cachedCatalog),
+          selectedManufacturers: _selectedManufacturers,
+          selectedCategories: _selectedCategories,
+          selectedRangeBrackets: _selectedRangeBrackets,
+          sortBy: _sortBy,
+        ),
+      );
+      _emitLoaded();
+      return true;
+    }
+
+    return _executeFleetAction(
+      actionName: 'repair_aircraft',
+      failureMessage: AppStrings.repairFailed,
+      errorPrefix: AppStrings.dbConnectionFailed,
+      rpcParams: {'p_user_id': userId, 'p_fleet_id': fleetId},
+      rpcCall: () => _gateway.repairAircraft({'p_fleet_id': fleetId}),
+      onSuccess: (result, snapshot) async {
+        final message =
+            result['message'] as String? ?? AppStrings.repairFailed;
+        final newCash = (result['new_cash'] as num?)?.toDouble();
+
+        if (newCash != null) {
+          await onBalanceChanged(newCash);
         }
+
         emit(
           FleetActionSuccess(
-            message: 'Aircraft repaired successfully!',
+            message: message,
+            fleet: snapshot.fleet,
+            catalog: snapshot.catalog,
+            selectedManufacturers: snapshot.selectedManufacturers,
+            selectedCategories: snapshot.selectedCategories,
+            selectedRangeBrackets: snapshot.selectedRangeBrackets,
+            sortBy: snapshot.sortBy,
+          ),
+        );
+        _suppressNextFleetRealtimeReload = true;
+        await _reloadSingleAircraftIntoCache(fleetId);
+        _emitLoaded();
+        return true;
+      },
+    );
+  }
+
+  Future<bool> sellAircraft({
+    required String userId,
+    required String fleetId,
+    required FleetBalanceCallback onBalanceChanged,
+  }) async {
+    if (DevModeManager.isDevMode) {
+      final index = _cachedFleet.indexWhere(
+        (aircraft) => aircraft.id == fleetId,
+      );
+      if (index == -1) {
+        emit(
+          FleetError(
+            message: AppStrings.aircraftNotFound,
+            hasData: true,
             fleet: List<UserFleetAircraft>.from(_cachedFleet),
             catalog: List<AircraftModel>.from(_cachedCatalog),
             selectedManufacturers: _selectedManufacturers,
@@ -519,141 +538,45 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
           ),
         );
         _emitLoaded();
-        return true;
-      }
-
-      final List<dynamic> response = await _gateway.repairAircraft({
-        'p_fleet_id': fleetId,
-      });
-
-      if (response.isNotEmpty) {
-        final result = response[0] as Map<String, dynamic>;
-        final success = result['success'] as bool? ?? false;
-        final message = result['message'] as String? ?? AppStrings.repairFailed;
-        final newCash = (result['new_cash'] as num?)?.toDouble();
-
-        if (success) {
-          if (newCash != null) {
-            await onBalanceChanged(newCash);
-          }
-
-          emit(
-            FleetActionSuccess(
-              message: message,
-              fleet: snapshot.fleet,
-              catalog: snapshot.catalog,
-              selectedManufacturers: snapshot.selectedManufacturers,
-              selectedCategories: snapshot.selectedCategories,
-              selectedRangeBrackets: snapshot.selectedRangeBrackets,
-              sortBy: snapshot.sortBy,
-            ),
-          );
-          _suppressNextFleetRealtimeReload = true;
-          await _reloadSingleAircraftIntoCache(fleetId);
-          _emitLoaded();
-          return true;
-        } else {
-          SupabaseManager.logRpcFailure('repair_aircraft', {
-            'p_user_id': userId,
-            'p_fleet_id': fleetId,
-          }, message);
-          emit(
-            FleetError(
-              message: message,
-              hasData: true,
-              fleet: snapshot.fleet,
-              catalog: snapshot.catalog,
-              selectedManufacturers: snapshot.selectedManufacturers,
-              selectedCategories: snapshot.selectedCategories,
-              selectedRangeBrackets: snapshot.selectedRangeBrackets,
-              sortBy: snapshot.sortBy,
-            ),
-          );
-          _emitLoaded();
-          return false;
-        }
-      } else {
-        const errorMsg = AppStrings.dbEmptyResponse;
-        SupabaseManager.logRpcFailure('repair_aircraft', {
-          'p_user_id': userId,
-          'p_fleet_id': fleetId,
-        }, errorMsg);
-        emit(
-          FleetError(
-            message: errorMsg,
-            hasData: true,
-            fleet: snapshot.fleet,
-            catalog: snapshot.catalog,
-            selectedManufacturers: snapshot.selectedManufacturers,
-            selectedCategories: snapshot.selectedCategories,
-            selectedRangeBrackets: snapshot.selectedRangeBrackets,
-            sortBy: snapshot.sortBy,
-          ),
-        );
-        _emitLoaded();
         return false;
       }
-    } catch (e, stack) {
-      SupabaseManager.logError('repair_aircraft', e, stack);
+
+      _cachedFleet.removeAt(index);
       emit(
-        FleetError(
-          message: '${AppStrings.dbConnectionFailed}${e.toString()}',
-          hasData: true,
-          fleet: snapshot.fleet,
-          catalog: snapshot.catalog,
-          selectedManufacturers: snapshot.selectedManufacturers,
-          selectedCategories: snapshot.selectedCategories,
-          selectedRangeBrackets: snapshot.selectedRangeBrackets,
-          sortBy: snapshot.sortBy,
+        FleetActionSuccess(
+          message: 'Aircraft sold successfully!',
+          fleet: List<UserFleetAircraft>.from(_cachedFleet),
+          catalog: List<AircraftModel>.from(_cachedCatalog),
+          selectedManufacturers: _selectedManufacturers,
+          selectedCategories: _selectedCategories,
+          selectedRangeBrackets: _selectedRangeBrackets,
+          sortBy: _sortBy,
         ),
       );
       _emitLoaded();
-      return false;
+      return true;
     }
-  }
 
-  Future<bool> sellAircraft({
-    required String userId,
-    required String fleetId,
-    required FleetBalanceCallback onBalanceChanged,
-  }) async {
-    final snapshot = _snapshotState();
-    emit(
-      FleetActionLoading(
-        fleet: snapshot.fleet,
-        catalog: snapshot.catalog,
-        selectedManufacturers: snapshot.selectedManufacturers,
-        selectedCategories: snapshot.selectedCategories,
-        selectedRangeBrackets: snapshot.selectedRangeBrackets,
-        sortBy: snapshot.sortBy,
-      ),
-    );
-    try {
-      if (DevModeManager.isDevMode) {
-        final index = _cachedFleet.indexWhere(
-          (aircraft) => aircraft.id == fleetId,
-        );
-        if (index == -1) {
-          emit(
-            FleetError(
-              message: AppStrings.aircraftNotFound,
-              hasData: true,
-              fleet: snapshot.fleet,
-              catalog: snapshot.catalog,
-              selectedManufacturers: snapshot.selectedManufacturers,
-              selectedCategories: snapshot.selectedCategories,
-              selectedRangeBrackets: snapshot.selectedRangeBrackets,
-              sortBy: snapshot.sortBy,
-            ),
-          );
-          _emitLoaded();
-          return false;
+    return _executeFleetAction(
+      actionName: 'sell_aircraft',
+      failureMessage: AppStrings.saleFailed,
+      errorPrefix: 'Failed to sell aircraft: ',
+      rpcParams: {'p_user_id': userId, 'p_fleet_id': fleetId},
+      rpcCall: () => _gateway.sellAircraft({'p_fleet_id': fleetId}),
+      onSuccess: (result, snapshot) async {
+        final message =
+            result['message'] as String? ?? AppStrings.saleFailed;
+        final newCash = (result['new_cash'] as num?)?.toDouble();
+
+        if (newCash != null) {
+          await onBalanceChanged(newCash);
         }
 
-        _cachedFleet.removeAt(index);
+        _suppressNextFleetRealtimeReload = true;
+        _cachedFleet.removeWhere((aircraft) => aircraft.id == fleetId);
         emit(
           FleetActionSuccess(
-            message: 'Aircraft sold successfully!',
+            message: message,
             fleet: List<UserFleetAircraft>.from(_cachedFleet),
             catalog: snapshot.catalog,
             selectedManufacturers: snapshot.selectedManufacturers,
@@ -664,76 +587,8 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         );
         _emitLoaded();
         return true;
-      }
-
-      final List<dynamic> response = await _gateway.sellAircraft({
-        'p_fleet_id': fleetId,
-      });
-
-      final result = response.isNotEmpty
-          ? response[0] as Map<String, dynamic>
-          : <String, dynamic>{};
-      final success = result['success'] as bool? ?? false;
-      final message = result['message'] as String? ?? AppStrings.saleFailed;
-      final newCash = (result['new_cash'] as num?)?.toDouble();
-
-      if (!success) {
-        SupabaseManager.logRpcFailure('sell_aircraft', {
-          'p_user_id': userId,
-          'p_fleet_id': fleetId,
-        }, message);
-        emit(
-          FleetError(
-            message: message,
-            hasData: true,
-            fleet: snapshot.fleet,
-            catalog: snapshot.catalog,
-            selectedManufacturers: snapshot.selectedManufacturers,
-            selectedCategories: snapshot.selectedCategories,
-            selectedRangeBrackets: snapshot.selectedRangeBrackets,
-            sortBy: snapshot.sortBy,
-          ),
-        );
-        _emitLoaded();
-        return false;
-      }
-
-      if (newCash != null) {
-        await onBalanceChanged(newCash);
-      }
-
-      _suppressNextFleetRealtimeReload = true;
-      _cachedFleet.removeWhere((aircraft) => aircraft.id == fleetId);
-      emit(
-        FleetActionSuccess(
-          message: message,
-          fleet: List<UserFleetAircraft>.from(_cachedFleet),
-          catalog: snapshot.catalog,
-          selectedManufacturers: snapshot.selectedManufacturers,
-          selectedCategories: snapshot.selectedCategories,
-          selectedRangeBrackets: snapshot.selectedRangeBrackets,
-          sortBy: snapshot.sortBy,
-        ),
-      );
-      _emitLoaded();
-      return true;
-    } catch (e, stack) {
-      SupabaseManager.logError('sell_aircraft', e, stack);
-      emit(
-        FleetError(
-          message: 'Failed to sell aircraft: ${e.toString()}',
-          hasData: true,
-          fleet: snapshot.fleet,
-          catalog: snapshot.catalog,
-          selectedManufacturers: snapshot.selectedManufacturers,
-          selectedCategories: snapshot.selectedCategories,
-          selectedRangeBrackets: snapshot.selectedRangeBrackets,
-          sortBy: snapshot.sortBy,
-        ),
-      );
-      _emitLoaded();
-      return false;
-    }
+      },
+    );
   }
 
   Future<bool> terminateLease({
@@ -741,43 +596,63 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
     required String fleetId,
     required FleetBalanceCallback onBalanceChanged,
   }) async {
-    final snapshot = _snapshotState();
-    emit(
-      FleetActionLoading(
-        fleet: snapshot.fleet,
-        catalog: snapshot.catalog,
-        selectedManufacturers: snapshot.selectedManufacturers,
-        selectedCategories: snapshot.selectedCategories,
-        selectedRangeBrackets: snapshot.selectedRangeBrackets,
-        sortBy: snapshot.sortBy,
-      ),
-    );
-    try {
-      if (DevModeManager.isDevMode) {
-        final index = _cachedFleet.indexWhere(
-          (aircraft) => aircraft.id == fleetId,
+    if (DevModeManager.isDevMode) {
+      final index = _cachedFleet.indexWhere(
+        (aircraft) => aircraft.id == fleetId,
+      );
+      if (index == -1) {
+        emit(
+          FleetError(
+            message: AppStrings.aircraftNotFound,
+            hasData: true,
+            fleet: List<UserFleetAircraft>.from(_cachedFleet),
+            catalog: List<AircraftModel>.from(_cachedCatalog),
+            selectedManufacturers: _selectedManufacturers,
+            selectedCategories: _selectedCategories,
+            selectedRangeBrackets: _selectedRangeBrackets,
+            sortBy: _sortBy,
+          ),
         );
-        if (index == -1) {
-          emit(
-            FleetError(
-              message: AppStrings.aircraftNotFound,
-              hasData: true,
-              fleet: snapshot.fleet,
-              catalog: snapshot.catalog,
-              selectedManufacturers: snapshot.selectedManufacturers,
-              selectedCategories: snapshot.selectedCategories,
-              selectedRangeBrackets: snapshot.selectedRangeBrackets,
-              sortBy: snapshot.sortBy,
-            ),
-          );
-          _emitLoaded();
-          return false;
+        _emitLoaded();
+        return false;
+      }
+
+      _cachedFleet.removeAt(index);
+      emit(
+        FleetActionSuccess(
+          message: 'Lease terminated successfully!',
+          fleet: List<UserFleetAircraft>.from(_cachedFleet),
+          catalog: List<AircraftModel>.from(_cachedCatalog),
+          selectedManufacturers: _selectedManufacturers,
+          selectedCategories: _selectedCategories,
+          selectedRangeBrackets: _selectedRangeBrackets,
+          sortBy: _sortBy,
+        ),
+      );
+      _emitLoaded();
+      return true;
+    }
+
+    return _executeFleetAction(
+      actionName: 'terminate_aircraft_lease',
+      failureMessage: AppStrings.leaseTerminationFailed,
+      errorPrefix: 'Failed to terminate lease: ',
+      rpcParams: {'p_user_id': userId, 'p_fleet_id': fleetId},
+      rpcCall: () => _gateway.terminateLease({'p_fleet_id': fleetId}),
+      onSuccess: (result, snapshot) async {
+        final message =
+            result['message'] as String? ?? AppStrings.leaseTerminationFailed;
+        final newCash = (result['new_cash'] as num?)?.toDouble();
+
+        if (newCash != null) {
+          await onBalanceChanged(newCash);
         }
 
-        _cachedFleet.removeAt(index);
+        _suppressNextFleetRealtimeReload = true;
+        _cachedFleet.removeWhere((aircraft) => aircraft.id == fleetId);
         emit(
           FleetActionSuccess(
-            message: 'Lease terminated successfully!',
+            message: message,
             fleet: List<UserFleetAircraft>.from(_cachedFleet),
             catalog: snapshot.catalog,
             selectedManufacturers: snapshot.selectedManufacturers,
@@ -788,77 +663,8 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         );
         _emitLoaded();
         return true;
-      }
-
-      final List<dynamic> response = await _gateway.terminateLease({
-        'p_fleet_id': fleetId,
-      });
-
-      final result = response.isNotEmpty
-          ? response[0] as Map<String, dynamic>
-          : <String, dynamic>{};
-      final success = result['success'] as bool? ?? false;
-      final message =
-          result['message'] as String? ?? AppStrings.leaseTerminationFailed;
-      final newCash = (result['new_cash'] as num?)?.toDouble();
-
-      if (!success) {
-        SupabaseManager.logRpcFailure('terminate_aircraft_lease', {
-          'p_user_id': userId,
-          'p_fleet_id': fleetId,
-        }, message);
-        emit(
-          FleetError(
-            message: message,
-            hasData: true,
-            fleet: snapshot.fleet,
-            catalog: snapshot.catalog,
-            selectedManufacturers: snapshot.selectedManufacturers,
-            selectedCategories: snapshot.selectedCategories,
-            selectedRangeBrackets: snapshot.selectedRangeBrackets,
-            sortBy: snapshot.sortBy,
-          ),
-        );
-        _emitLoaded();
-        return false;
-      }
-
-      if (newCash != null) {
-        await onBalanceChanged(newCash);
-      }
-
-      _suppressNextFleetRealtimeReload = true;
-      _cachedFleet.removeWhere((aircraft) => aircraft.id == fleetId);
-      emit(
-        FleetActionSuccess(
-          message: message,
-          fleet: List<UserFleetAircraft>.from(_cachedFleet),
-          catalog: snapshot.catalog,
-          selectedManufacturers: snapshot.selectedManufacturers,
-          selectedCategories: snapshot.selectedCategories,
-          selectedRangeBrackets: snapshot.selectedRangeBrackets,
-          sortBy: snapshot.sortBy,
-        ),
-      );
-      _emitLoaded();
-      return true;
-    } catch (e, stack) {
-      SupabaseManager.logError('terminate_aircraft_lease', e, stack);
-      emit(
-        FleetError(
-          message: 'Failed to terminate lease: ${e.toString()}',
-          hasData: true,
-          fleet: snapshot.fleet,
-          catalog: snapshot.catalog,
-          selectedManufacturers: snapshot.selectedManufacturers,
-          selectedCategories: snapshot.selectedCategories,
-          selectedRangeBrackets: snapshot.selectedRangeBrackets,
-          sortBy: snapshot.sortBy,
-        ),
-      );
-      _emitLoaded();
-      return false;
-    }
+      },
+    );
   }
 
   // Configure aircraft seat allocations
@@ -869,71 +675,53 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
     required int business,
     required int firstClass,
   }) async {
-    final snapshot = _snapshotState();
-    emit(
-      FleetActionLoading(
-        fleet: snapshot.fleet,
-        catalog: snapshot.catalog,
-        selectedManufacturers: snapshot.selectedManufacturers,
-        selectedCategories: snapshot.selectedCategories,
-        selectedRangeBrackets: snapshot.selectedRangeBrackets,
-        sortBy: snapshot.sortBy,
-      ),
-    );
-    try {
-      if (DevModeManager.isDevMode) {
-        // Dev Fallback
-        final index = _cachedFleet.indexWhere((a) => a.id == aircraftId);
-        if (index != -1) {
-          final old = _cachedFleet[index];
-          _cachedFleet[index] = UserFleetAircraft(
-            id: old.id,
-            nickname: old.nickname,
-            acquisitionType: old.acquisitionType,
-            condition: old.condition,
-            status: old.status,
-            acquiredAt: old.acquiredAt,
-            model: old.model,
-            economySeats: economy,
-            businessSeats: business,
-            firstClassSeats: firstClass,
-            tailNumber: old.tailNumber,
-          );
-        }
-        emit(
-          FleetActionSuccess(
-            message: AppStrings.seatConfigSuccess,
-            fleet: List<UserFleetAircraft>.from(_cachedFleet),
-            catalog: List<AircraftModel>.from(_cachedCatalog),
-            selectedManufacturers: _selectedManufacturers,
-            selectedCategories: _selectedCategories,
-            selectedRangeBrackets: _selectedRangeBrackets,
-            sortBy: _sortBy,
-          ),
+    if (DevModeManager.isDevMode) {
+      final index = _cachedFleet.indexWhere((a) => a.id == aircraftId);
+      if (index != -1) {
+        final old = _cachedFleet[index];
+        _cachedFleet[index] = UserFleetAircraft(
+          id: old.id,
+          nickname: old.nickname,
+          acquisitionType: old.acquisitionType,
+          condition: old.condition,
+          status: old.status,
+          acquiredAt: old.acquiredAt,
+          model: old.model,
+          economySeats: economy,
+          businessSeats: business,
+          firstClassSeats: firstClass,
+          tailNumber: old.tailNumber,
         );
-        _emitLoaded();
-        return true;
       }
+      emit(
+        FleetActionSuccess(
+          message: AppStrings.seatConfigSuccess,
+          fleet: List<UserFleetAircraft>.from(_cachedFleet),
+          catalog: List<AircraftModel>.from(_cachedCatalog),
+          selectedManufacturers: _selectedManufacturers,
+          selectedCategories: _selectedCategories,
+          selectedRangeBrackets: _selectedRangeBrackets,
+          sortBy: _sortBy,
+        ),
+      );
+      _emitLoaded();
+      return true;
+    }
 
-      final List<dynamic> response = await _gateway.configureSeats({
+    return _executeFleetAction(
+      actionName: 'configure_seats',
+      failureMessage: 'Failed to update seat configuration.',
+      errorPrefix: 'Failed to configure seats: ',
+      rpcCall: () => _gateway.configureSeats({
         'p_fleet_id': aircraftId,
         'p_economy_seats': economy,
         'p_business_seats': business,
         'p_first_class_seats': firstClass,
-      });
-
-      final result = response.isNotEmpty
-          ? response[0] as Map<String, dynamic>
-          : <String, dynamic>{};
-      final success = result['success'] as bool? ?? false;
-      final message =
-          result['message'] as String? ??
-          'Failed to update seat configuration.';
-      if (!success) {
+      }),
+      onSuccess: (result, snapshot) async {
         emit(
-          FleetError(
-            message: message,
-            hasData: true,
+          FleetActionSuccess(
+            message: 'Successfully updated seat configuration!',
             fleet: snapshot.fleet,
             catalog: snapshot.catalog,
             selectedManufacturers: snapshot.selectedManufacturers,
@@ -942,41 +730,12 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
             sortBy: snapshot.sortBy,
           ),
         );
+        _suppressNextFleetRealtimeReload = true;
+        await _reloadSingleAircraftIntoCache(aircraftId);
         _emitLoaded();
-        return false;
-      }
-
-      emit(
-        FleetActionSuccess(
-          message: 'Successfully updated seat configuration!',
-          fleet: snapshot.fleet,
-          catalog: snapshot.catalog,
-          selectedManufacturers: snapshot.selectedManufacturers,
-          selectedCategories: snapshot.selectedCategories,
-          selectedRangeBrackets: snapshot.selectedRangeBrackets,
-          sortBy: snapshot.sortBy,
-        ),
-      );
-      _suppressNextFleetRealtimeReload = true;
-      await _reloadSingleAircraftIntoCache(aircraftId);
-      _emitLoaded();
-      return true;
-    } catch (e) {
-      emit(
-        FleetError(
-          message: 'Failed to configure seats: ${e.toString()}',
-          hasData: true,
-          fleet: snapshot.fleet,
-          catalog: snapshot.catalog,
-          selectedManufacturers: snapshot.selectedManufacturers,
-          selectedCategories: snapshot.selectedCategories,
-          selectedRangeBrackets: snapshot.selectedRangeBrackets,
-          sortBy: snapshot.sortBy,
-        ),
-      );
-      _emitLoaded();
-      return false;
-    }
+        return true;
+      },
+    );
   }
 
   void setManufacturerFilter(List<String> manufacturers) {
