@@ -6,33 +6,33 @@ import 'skyward_colors.dart';
 
 class AppTheme {
   // ── COLOR TOKENS ──
-  static Color get primary => SkywardColors.darkAccent;
-  static Color get accentSubtle => SkywardColors.darkAccentSubtle;
-  static Color get background => SkywardColors.darkBg;
-  static Color get surface => SkywardColors.darkSurface;
-  static Color get surfaceRaised => SkywardColors.darkSurface2;
-  static Color get surfaceElevated => SkywardColors.darkSurface3;
-  static Color get border => SkywardColors.darkBorder;
-  static Color get borderSubtle => SkywardColors.darkBorder2;
+  static const Color primary = SkywardColors.darkAccent;
+  static const Color accentSubtle = SkywardColors.darkAccentSubtle;
+  static const Color background = SkywardColors.darkBg;
+  static const Color surface = SkywardColors.darkSurface;
+  static const Color surfaceRaised = SkywardColors.darkSurface2;
+  static const Color surfaceElevated = SkywardColors.darkSurface3;
+  static const Color border = SkywardColors.darkBorder;
+  static const Color borderSubtle = SkywardColors.darkBorder2;
 
   // ── SEMANTIC COLORS ──
-  static Color get success => SkywardColors.darkGreen;
-  static Color get successSubtle => SkywardColors.darkGreenSubtle;
-  static Color get error => SkywardColors.darkRed;
-  static Color get errorSubtle => SkywardColors.darkRedSubtle;
-  static Color get warning => SkywardColors.darkAmber;
-  static Color get warningSubtle => SkywardColors.darkAmberSubtle;
-  static Color get info => SkywardColors.darkAccent;
-  static Color get neutral => SkywardColors.darkNeutral;
+  static const Color success = SkywardColors.darkGreen;
+  static const Color successSubtle = SkywardColors.darkGreenSubtle;
+  static const Color error = SkywardColors.darkRed;
+  static const Color errorSubtle = SkywardColors.darkRedSubtle;
+  static const Color warning = SkywardColors.darkAmber;
+  static const Color warningSubtle = SkywardColors.darkAmberSubtle;
+  static const Color info = SkywardColors.darkAccent;
+  static const Color neutral = SkywardColors.darkNeutral;
 
   // ── TEXT COLORS ──
-  static Color get textPrimary => SkywardColors.darkTextPri;
-  static Color get textSecondary => SkywardColors.darkTextSec;
-  static Color get textMuted => SkywardColors.darkTextDim;
+  static const Color textPrimary = SkywardColors.darkTextPri;
+  static const Color textSecondary = SkywardColors.darkTextSec;
+  static const Color textMuted = SkywardColors.darkTextDim;
 
   // ── ACCENT EXTRAS ──
-  static Color get accentBright => SkywardColors.darkAccentBright;
-  static Color get accentGhost => SkywardColors.darkAccentGhost;
+  static const Color accentBright = SkywardColors.darkAccentBright;
+  static const Color accentGhost = SkywardColors.darkAccentGhost;
 
   // ── GRADIENT FALLBACKS ──
   static Gradient get primaryGradient => const LinearGradient(

@@ -7,8 +7,7 @@ import '../theme/app_theme.dart';
 class TickerTape extends StatefulWidget {
   const TickerTape({super.key});
 
-  static TextStyle? _cachedMonoStyle;
-  static TextStyle get _monoStyle => _cachedMonoStyle ??= GoogleFonts.ibmPlexMono(
+  static final TextStyle _monoStyle = GoogleFonts.ibmPlexMono(
     fontSize: 10,
     fontWeight: FontWeight.w400,
     color: AppTheme.textMuted,

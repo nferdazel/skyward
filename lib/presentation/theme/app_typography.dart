@@ -10,7 +10,7 @@ class AppTypography {
   static Color get primaryAccent => AppTheme.primary;
 
   // ── DISPLAY / SCREEN TITLES (IBM Plex Mono) ──
-  static TextStyle get screenTitleLarge => GoogleFonts.ibmPlexMono(
+  static final TextStyle screenTitleLarge = GoogleFonts.ibmPlexMono(
     fontSize: 14,
     fontWeight: FontWeight.w600,
     color: textPrimary,
@@ -18,8 +18,8 @@ class AppTypography {
     letterSpacing: 0.08,
   );
 
-  static TextStyle get screenTitleMedium => GoogleFonts.ibmPlexMono(
-    fontSize: 14,
+  static final TextStyle screenTitleMedium = GoogleFonts.ibmPlexMono(
+    fontSize: 13,
     fontWeight: FontWeight.w600,
     color: textPrimary,
     height: 1.2,
@@ -27,7 +27,7 @@ class AppTypography {
   );
 
   // ── SECTION HEADERS (IBM Plex Mono, ALL CAPS) ──
-  static TextStyle get sectionHeaderLarge => GoogleFonts.ibmPlexMono(
+  static final TextStyle sectionHeaderLarge = GoogleFonts.ibmPlexMono(
     fontSize: 11,
     fontWeight: FontWeight.w600,
     color: textSecondary,
@@ -35,7 +35,7 @@ class AppTypography {
     letterSpacing: 0.12,
   );
 
-  static TextStyle get sectionHeaderMedium => GoogleFonts.ibmPlexMono(
+  static final TextStyle sectionHeaderMedium = GoogleFonts.ibmPlexMono(
     fontSize: 10,
     fontWeight: FontWeight.w600,
     color: textSecondary,
@@ -44,14 +44,14 @@ class AppTypography {
   );
 
   // ── BODY TEXT (Inter) ──
-  static TextStyle get bodyLarge => GoogleFonts.inter(
+  static final TextStyle bodyLarge = GoogleFonts.inter(
     fontSize: 13,
     fontWeight: FontWeight.normal,
     color: textPrimary,
     height: 1.4,
   );
 
-  static TextStyle get bodyMedium => GoogleFonts.inter(
+  static final TextStyle bodyMedium = GoogleFonts.inter(
     fontSize: 13,
     fontWeight: FontWeight.normal,
     color: textSecondary,
@@ -59,7 +59,7 @@ class AppTypography {
   );
 
   // ── MICRO LABELS (IBM Plex Mono, ALL CAPS) ──
-  static TextStyle get microLabel => GoogleFonts.ibmPlexMono(
+  static final TextStyle microLabel = GoogleFonts.ibmPlexMono(
     fontSize: 10,
     fontWeight: FontWeight.w600,
     color: textSecondary,
@@ -68,14 +68,14 @@ class AppTypography {
   );
 
   // ── CAPTIONS / HINTS (Inter) ──
-  static TextStyle get captionRegular => GoogleFonts.inter(
+  static final TextStyle captionRegular = GoogleFonts.inter(
     fontSize: 12,
     fontWeight: FontWeight.normal,
     color: textSecondary,
     height: 1.25,
   );
 
-  static TextStyle get captionLight => GoogleFonts.inter(
+  static final TextStyle captionLight = GoogleFonts.inter(
     fontSize: 11,
     fontWeight: FontWeight.w400,
     color: textMuted,
@@ -83,7 +83,7 @@ class AppTypography {
   );
 
   // ── BADGE TEXT (IBM Plex Mono, ALL CAPS) ──
-  static TextStyle get badgeText => GoogleFonts.ibmPlexMono(
+  static final TextStyle badgeText = GoogleFonts.ibmPlexMono(
     fontSize: 11,
     fontWeight: FontWeight.w600,
     color: primaryAccent,
@@ -91,7 +91,7 @@ class AppTypography {
   );
 
   // ── BUTTON TEXT (IBM Plex Mono) ──
-  static TextStyle get buttonText => GoogleFonts.ibmPlexMono(
+  static final TextStyle buttonText = GoogleFonts.ibmPlexMono(
     fontSize: 12,
     fontWeight: FontWeight.w600,
     color: Colors.black,
@@ -99,40 +99,40 @@ class AppTypography {
   );
 
   // ── DATA / MONO STYLES (IBM Plex Mono) ──
-  static TextStyle get hudValue => GoogleFonts.ibmPlexMono(
+  static final TextStyle hudValue = GoogleFonts.ibmPlexMono(
     fontSize: 13,
     fontWeight: FontWeight.w600,
     color: textPrimary,
   );
 
-  static TextStyle get dataEmphasis => GoogleFonts.ibmPlexMono(
+  static final TextStyle dataEmphasis = GoogleFonts.ibmPlexMono(
     fontSize: 16,
     fontWeight: FontWeight.w700,
     color: textPrimary,
   );
 
-  static TextStyle get largeKpi => GoogleFonts.ibmPlexMono(
+  static final TextStyle largeKpi = GoogleFonts.ibmPlexMono(
     fontSize: 22,
     fontWeight: FontWeight.w700,
     color: textPrimary,
     letterSpacing: -0.02,
   );
 
-  static TextStyle get telemetry => GoogleFonts.ibmPlexMono(
+  static final TextStyle telemetry = GoogleFonts.ibmPlexMono(
     fontSize: 12,
     fontWeight: FontWeight.w500,
     color: textPrimary,
   );
 
   // ── MONO VALUE (IBM Plex Mono, for metric values) ──
-  static TextStyle get monoValue => GoogleFonts.ibmPlexMono(
+  static final TextStyle monoValue = GoogleFonts.ibmPlexMono(
     fontSize: 13,
     fontWeight: FontWeight.w600,
     color: textPrimary,
   );
 
   // ── MONO LABEL (IBM Plex Mono, for compact labels) ──
-  static TextStyle get monoLabel => GoogleFonts.ibmPlexMono(
+  static final TextStyle monoLabel = GoogleFonts.ibmPlexMono(
     fontSize: 11,
     fontWeight: FontWeight.w600,
     color: textPrimary,
