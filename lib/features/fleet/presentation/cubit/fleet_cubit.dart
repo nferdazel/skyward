@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/database/supabase_client.dart';
 import '../../../../core/mixins/simulation_reactive_mixin.dart';
 import '../../../../core/realtime/realtime_subscription_bag.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 import '../../../../core/utils/perf_debug.dart';
 import '../../../simulation/presentation/cubit/simulation_cubit.dart';
+import '../../data/fleet_gateway.dart';
 import '../../domain/fleet_models.dart';
 import 'fleet_state.dart';
 
@@ -27,8 +29,11 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
   bool _suppressNextFleetRealtimeReload = false;
   Timer? _realtimeRefreshDebounce;
   Future<void>? _activeLoad;
+  final FleetGateway _gateway;
 
-  FleetCubit() : super(const FleetInitial());
+  FleetCubit({FleetGateway? gateway})
+      : _gateway = gateway ?? SupabaseFleetGateway(),
+        super(const FleetInitial());
 
   FleetDataState _snapshotState() {
     return FleetLoaded(
@@ -100,21 +105,14 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
       }
 
       // 1. Fetch available aircraft catalog models
-      final List<dynamic> catalogResponse = await SupabaseManager.client
-          .from('aircraft_models')
-          .select()
-          .order('purchase_price', ascending: true);
+      final List<dynamic> catalogResponse = await _gateway.loadCatalog();
 
       final catalog = catalogResponse
           .map((m) => AircraftModel.fromMap(m))
           .toList();
 
       // 2. Fetch user owned/leased fleet with nested aircraft model details
-      final List<dynamic> fleetResponse = await SupabaseManager.client
-          .from('user_fleet')
-          .select('*, aircraft_models(*)')
-          .eq('user_id', userId)
-          .order('acquired_at', ascending: false);
+      final List<dynamic> fleetResponse = await _gateway.loadFleet(userId);
 
       final fleet = fleetResponse
           .map((f) => UserFleetAircraft.fromMap(f))
@@ -151,7 +149,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
       SupabaseManager.logError('loadFleetAndCatalog', e, stack);
       emit(
         FleetError(
-          message: 'Failed to load fleet: ${e.toString()}',
+          message: '${AppStrings.fleetLoadFailed}${e.toString()}',
           hasData: _cachedFleet.isNotEmpty || _cachedCatalog.isNotEmpty,
           fleet: List<UserFleetAircraft>.from(_cachedFleet),
           catalog: List<AircraftModel>.from(_cachedCatalog),
@@ -213,7 +211,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
 
         emit(
           FleetActionSuccess(
-            message: 'Successfully purchased aircraft!',
+            message: AppStrings.purchaseSuccess,
             fleet: List<UserFleetAircraft>.from(_cachedFleet),
             catalog: List<AircraftModel>.from(_cachedCatalog),
             selectedManufacturers: _selectedManufacturers,
@@ -226,21 +224,18 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         return true;
       }
 
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'purchase_aircraft',
-        params: {
-          'p_model_id': modelId,
-          'p_nickname': nickname,
-          'p_economy_seats': economy,
-          'p_business_seats': business,
-          'p_first_class_seats': firstClass,
-        },
-      );
+      final List<dynamic> response = await _gateway.purchaseAircraft({
+        'p_model_id': modelId,
+        'p_nickname': nickname,
+        'p_economy_seats': economy,
+        'p_business_seats': business,
+        'p_first_class_seats': firstClass,
+      });
 
       if (response.isNotEmpty) {
         final result = response[0] as Map<String, dynamic>;
         final success = result['success'] as bool? ?? false;
-        final message = result['message'] as String? ?? 'Purchase failed';
+        final message = result['message'] as String? ?? AppStrings.purchaseFailed;
         final newCash = (result['new_cash'] as num?)?.toDouble();
 
         if (success) {
@@ -286,7 +281,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
           return false;
         }
       } else {
-        const errorMsg = 'Database transaction returned an empty response.';
+        const errorMsg = AppStrings.dbEmptyResponse;
         SupabaseManager.logRpcFailure('purchase_aircraft', {
           'p_user_id': userId,
           'p_model_id': modelId,
@@ -310,7 +305,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
       SupabaseManager.logError('purchase_aircraft', e, stack);
       emit(
         FleetError(
-          message: 'Database connection failed: ${e.toString()}',
+          message: '${AppStrings.dbConnectionFailed}${e.toString()}',
           hasData: true,
           fleet: snapshot.fleet,
           catalog: snapshot.catalog,
@@ -366,7 +361,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
 
         emit(
           FleetActionSuccess(
-            message: 'Successfully leased aircraft!',
+            message: AppStrings.leaseSuccess,
             fleet: List<UserFleetAircraft>.from(_cachedFleet),
             catalog: List<AircraftModel>.from(_cachedCatalog),
             selectedManufacturers: _selectedManufacturers,
@@ -379,21 +374,18 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         return true;
       }
 
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'lease_aircraft',
-        params: {
-          'p_model_id': modelId,
-          'p_nickname': nickname,
-          'p_economy_seats': economy,
-          'p_business_seats': business,
-          'p_first_class_seats': firstClass,
-        },
-      );
+      final List<dynamic> response = await _gateway.leaseAircraft({
+        'p_model_id': modelId,
+        'p_nickname': nickname,
+        'p_economy_seats': economy,
+        'p_business_seats': business,
+        'p_first_class_seats': firstClass,
+      });
 
       if (response.isNotEmpty) {
         final result = response[0] as Map<String, dynamic>;
         final success = result['success'] as bool? ?? false;
-        final message = result['message'] as String? ?? 'Lease failed';
+        final message = result['message'] as String? ?? AppStrings.leaseFailed;
         final newCash = (result['new_cash'] as num?)?.toDouble();
 
         if (success) {
@@ -439,7 +431,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
           return false;
         }
       } else {
-        const errorMsg = 'Database transaction returned an empty response.';
+        const errorMsg = AppStrings.dbEmptyResponse;
         SupabaseManager.logRpcFailure('lease_aircraft', {
           'p_user_id': userId,
           'p_model_id': modelId,
@@ -463,7 +455,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
       SupabaseManager.logError('lease_aircraft', e, stack);
       emit(
         FleetError(
-          message: 'Database connection failed: ${e.toString()}',
+          message: '${AppStrings.dbConnectionFailed}${e.toString()}',
           hasData: true,
           fleet: snapshot.fleet,
           catalog: snapshot.catalog,
@@ -530,15 +522,14 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         return true;
       }
 
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'repair_aircraft',
-        params: {'p_fleet_id': fleetId},
-      );
+      final List<dynamic> response = await _gateway.repairAircraft({
+        'p_fleet_id': fleetId,
+      });
 
       if (response.isNotEmpty) {
         final result = response[0] as Map<String, dynamic>;
         final success = result['success'] as bool? ?? false;
-        final message = result['message'] as String? ?? 'Repair failed';
+        final message = result['message'] as String? ?? AppStrings.repairFailed;
         final newCash = (result['new_cash'] as num?)?.toDouble();
 
         if (success) {
@@ -582,7 +573,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
           return false;
         }
       } else {
-        const errorMsg = 'Database transaction returned an empty response.';
+        const errorMsg = AppStrings.dbEmptyResponse;
         SupabaseManager.logRpcFailure('repair_aircraft', {
           'p_user_id': userId,
           'p_fleet_id': fleetId,
@@ -606,7 +597,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
       SupabaseManager.logError('repair_aircraft', e, stack);
       emit(
         FleetError(
-          message: 'Database connection failed: ${e.toString()}',
+          message: '${AppStrings.dbConnectionFailed}${e.toString()}',
           hasData: true,
           fleet: snapshot.fleet,
           catalog: snapshot.catalog,
@@ -645,7 +636,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         if (index == -1) {
           emit(
             FleetError(
-              message: 'Aircraft not found.',
+              message: AppStrings.aircraftNotFound,
               hasData: true,
               fleet: snapshot.fleet,
               catalog: snapshot.catalog,
@@ -675,16 +666,15 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         return true;
       }
 
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'sell_aircraft',
-        params: {'p_fleet_id': fleetId},
-      );
+      final List<dynamic> response = await _gateway.sellAircraft({
+        'p_fleet_id': fleetId,
+      });
 
       final result = response.isNotEmpty
           ? response[0] as Map<String, dynamic>
           : <String, dynamic>{};
       final success = result['success'] as bool? ?? false;
-      final message = result['message'] as String? ?? 'Aircraft sale failed.';
+      final message = result['message'] as String? ?? AppStrings.saleFailed;
       final newCash = (result['new_cash'] as num?)?.toDouble();
 
       if (!success) {
@@ -770,7 +760,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         if (index == -1) {
           emit(
             FleetError(
-              message: 'Aircraft not found.',
+              message: AppStrings.aircraftNotFound,
               hasData: true,
               fleet: snapshot.fleet,
               catalog: snapshot.catalog,
@@ -800,17 +790,16 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         return true;
       }
 
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'terminate_aircraft_lease',
-        params: {'p_fleet_id': fleetId},
-      );
+      final List<dynamic> response = await _gateway.terminateLease({
+        'p_fleet_id': fleetId,
+      });
 
       final result = response.isNotEmpty
           ? response[0] as Map<String, dynamic>
           : <String, dynamic>{};
       final success = result['success'] as bool? ?? false;
       final message =
-          result['message'] as String? ?? 'Lease termination failed.';
+          result['message'] as String? ?? AppStrings.leaseTerminationFailed;
       final newCash = (result['new_cash'] as num?)?.toDouble();
 
       if (!success) {
@@ -913,7 +902,7 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         }
         emit(
           FleetActionSuccess(
-            message: 'Successfully updated seat configuration!',
+            message: AppStrings.seatConfigSuccess,
             fleet: List<UserFleetAircraft>.from(_cachedFleet),
             catalog: List<AircraftModel>.from(_cachedCatalog),
             selectedManufacturers: _selectedManufacturers,
@@ -926,15 +915,12 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
         return true;
       }
 
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'configure_aircraft_seats',
-        params: {
-          'p_fleet_id': aircraftId,
-          'p_economy_seats': economy,
-          'p_business_seats': business,
-          'p_first_class_seats': firstClass,
-        },
-      );
+      final List<dynamic> response = await _gateway.configureSeats({
+        'p_fleet_id': aircraftId,
+        'p_economy_seats': economy,
+        'p_business_seats': business,
+        'p_first_class_seats': firstClass,
+      });
 
       final result = response.isNotEmpty
           ? response[0] as Map<String, dynamic>
@@ -1017,13 +1003,8 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
     required String userId,
     required String modelId,
   }) async {
-    final List<dynamic> fleetRecords = await SupabaseManager.client
-        .from('user_fleet')
-        .select('*, aircraft_models(*)')
-        .eq('user_id', userId)
-        .eq('aircraft_model_id', modelId)
-        .order('acquired_at', ascending: false)
-        .limit(1);
+    final List<dynamic> fleetRecords =
+        await _gateway.fetchLatestAircraftForModel(userId, modelId);
 
     if (fleetRecords.isEmpty) return;
 
@@ -1033,11 +1014,8 @@ class FleetCubit extends Cubit<FleetState> with SimulationReactiveMixin {
   }
 
   Future<void> _reloadSingleAircraftIntoCache(String aircraftId) async {
-    final Map<String, dynamic> fleetRecord = await SupabaseManager.client
-        .from('user_fleet')
-        .select('*, aircraft_models(*)')
-        .eq('id', aircraftId)
-        .single();
+    final Map<String, dynamic> fleetRecord =
+        await _gateway.fetchSingleAircraft(aircraftId);
 
     final aircraft = UserFleetAircraft.fromMap(fleetRecord);
     final index = _cachedFleet.indexWhere((item) => item.id == aircraft.id);
