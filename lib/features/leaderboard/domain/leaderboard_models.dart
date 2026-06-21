@@ -11,7 +11,7 @@ class LeaderboardEntry {
   final String status;
   final int consecutiveNegativeDays;
 
-  LeaderboardEntry({
+  const LeaderboardEntry({
     required this.id,
     required this.companyName,
     required this.ceoName,
@@ -51,7 +51,7 @@ class CompetitorInsights {
   final Map<String, int> fleetBreakdown;
   final List<String> networkRoutes;
 
-  CompetitorInsights({
+  const CompetitorInsights({
     required this.companyName,
     required this.ceoName,
     required this.cash,

@@ -73,7 +73,7 @@ class Airport {
   final int demandIndex;
   final double airportTax;
 
-  Airport({
+  const Airport({
     required this.iata,
     required this.name,
     required this.city,
@@ -132,7 +132,7 @@ class UserRoute {
   final Airport destination;
   final UserFleetAircraft? assignedAircraft;
 
-  UserRoute({
+  const UserRoute({
     required this.id,
     required this.originIata,
     required this.destinationIata,

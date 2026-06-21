@@ -7,7 +7,7 @@ class LedgerEntry {
   final DateTime gameDate;
   final DateTime createdAt;
 
-  LedgerEntry({
+  const LedgerEntry({
     required this.id,
     required this.transactionType,
     required this.category,

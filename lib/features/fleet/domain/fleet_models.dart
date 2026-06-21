@@ -13,7 +13,7 @@ class AircraftModel {
   final double purchasePrice;
   final double leasePricePerMonth;
 
-  AircraftModel({
+  const AircraftModel({
     required this.id,
     required this.manufacturer,
     required this.modelName,
@@ -59,7 +59,7 @@ class UserFleetAircraft {
   final int firstClassSeats;
   final String tailNumber;
 
-  UserFleetAircraft({
+  const UserFleetAircraft({
     required this.id,
     required this.nickname,
     required this.acquisitionType,
