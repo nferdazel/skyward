@@ -24,6 +24,10 @@ class SimulationCubit extends Cubit<SimulationState>
   bool _lifecycleObserverRegistered = false;
   Future<User?>? _activeSync;
 
+  // Cache for global_game_settings to avoid redundant fetches
+  static Map<String, dynamic>? _cachedGameSettings;
+  static DateTime? _cachedSettingsTime;
+
   SimulationCubit()
     : super(
         SimulationState.initial(DateTime.parse('2020-01-01T00:00:00Z'), 0.00),
@@ -126,7 +130,6 @@ class SimulationCubit extends Cubit<SimulationState>
   void applyBackendUserUpdate(User updatedUser) {
     // Reuse the sync-complete transition so dependent cubits refresh after
     // backend world ticks that arrive through realtime.
-    _safeEmit(state.copyWith(isSyncing: true, errorMessage: null));
     _safeEmit(
       state.copyWith(
         gameTime: updatedUser.gameCurrentTime,
@@ -203,21 +206,36 @@ class SimulationCubit extends Cubit<SimulationState>
       final authoritativeUser = User.fromMap(userProfile);
 
       // Fetch global settings dynamically to retrieve live fuel price (Pillar 3.2)
-      final List<dynamic> settingsResponse = await SupabaseManager.client
-          .from('global_game_settings')
-          .select('fuel_price_per_liter, time_scale_multiplier')
-          .limit(1);
-
+      // Cached for 5 minutes to avoid redundant round-trips.
       double fuelPrice = 0.85;
       double gameSpeedMultiplier = GameConstants.defaultGameSpeedMultiplier;
-      if (settingsResponse.isNotEmpty) {
+
+      if (_cachedGameSettings != null && _cachedSettingsTime != null &&
+          DateTime.now().difference(_cachedSettingsTime!) < const Duration(minutes: 5)) {
         fuelPrice =
-            (settingsResponse[0]['fuel_price_per_liter'] as num?)?.toDouble() ??
+            (_cachedGameSettings!['fuel_price_per_liter'] as num?)?.toDouble() ??
             0.85;
         gameSpeedMultiplier =
-            (settingsResponse[0]['time_scale_multiplier'] as num?)
+            (_cachedGameSettings!['time_scale_multiplier'] as num?)
                 ?.toDouble() ??
             GameConstants.defaultGameSpeedMultiplier;
+      } else {
+        final List<dynamic> settingsResponse = await SupabaseManager.client
+            .from('global_game_settings')
+            .select('fuel_price_per_liter, time_scale_multiplier')
+            .limit(1);
+
+        if (settingsResponse.isNotEmpty) {
+          _cachedGameSettings = settingsResponse[0] as Map<String, dynamic>;
+          _cachedSettingsTime = DateTime.now();
+          fuelPrice =
+              (_cachedGameSettings!['fuel_price_per_liter'] as num?)?.toDouble() ??
+              0.85;
+          gameSpeedMultiplier =
+              (_cachedGameSettings!['time_scale_multiplier'] as num?)
+                  ?.toDouble() ??
+              GameConstants.defaultGameSpeedMultiplier;
+        }
       }
 
       // 3. Update local simulation state from backend-owned actor state.
