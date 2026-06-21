@@ -10,9 +10,14 @@ class RealtimeSubscriptionBag {
   }
 
   Future<void> clear() async {
-    for (final channel in _channels) {
-      await SupabaseManager.client.removeChannel(channel);
-    }
+    final channels = List.of(_channels);
     _channels.clear();
+    for (final channel in channels) {
+      try {
+        await SupabaseManager.client.removeChannel(channel);
+      } catch (_) {
+        // Channel removal failed; already cleared from our list
+      }
+    }
   }
 }
