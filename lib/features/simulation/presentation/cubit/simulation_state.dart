@@ -1,3 +1,5 @@
+import '../../../../core/constants/app_strings.dart';
+
 class SimulationState {
   static const Object _unset = Object();
   final DateTime gameTime;
@@ -20,7 +22,7 @@ class SimulationState {
     this.isSyncing = false,
     this.lastFlightsRun = 0,
     this.lastElapsedDays = 0.0,
-    this.operationalStatus = 'Active',
+    this.operationalStatus = AppStrings.statusActive,
     this.consecutiveNegativeDays = 0,
     this.recoveryStreakDays = 0,
     this.errorMessage,
@@ -32,7 +34,7 @@ class SimulationState {
       cashBalance: initialCash,
       fuelPricePerLiter: 0.85,
       gameSpeedMultiplier: 60.0,
-      operationalStatus: 'Active',
+      operationalStatus: AppStrings.statusActive,
       consecutiveNegativeDays: 0,
       recoveryStreakDays: 0,
     );

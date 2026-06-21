@@ -605,6 +605,34 @@ class AppStrings {
   static const String financialAuditSheetEmptyDesc =
       'Your ledger logs will populate once flights are dispatched or assets acquired.';
 
+  // Status values
+  static const String statusActive = 'Active';
+
+  // Fleet operation messages
+  static const String purchaseSuccess = 'Successfully purchased aircraft!';
+  static const String leaseSuccess = 'Successfully leased aircraft!';
+  static const String seatConfigSuccess =
+      'Successfully updated seat configuration!';
+  static const String purchaseFailed = 'Purchase failed';
+  static const String leaseFailed = 'Lease failed';
+  static const String repairFailed = 'Repair failed';
+  static const String saleFailed = 'Aircraft sale failed.';
+  static const String leaseTerminationFailed = 'Lease termination failed.';
+  static const String aircraftNotFound = 'Aircraft not found.';
+  static const String dbConnectionFailed = 'Database connection failed: ';
+  static const String dbEmptyResponse =
+      'Database transaction returned an empty response.';
+  static const String fleetLoadFailed = 'Failed to load fleet: ';
+
+  // Route operation messages
+  static const String routeCreatedSuccess = 'Route established successfully!';
+  static const String routeAssignmentSuccess = 'Aircraft assignment updated!';
+  static const String routeDeletedSuccess =
+      'Route closed and aircraft grounded!';
+  static const String routeCreateFailed = 'Route creation failed.';
+  static const String routeDeleteFailed = 'Route deletion failed.';
+  static const String routesLoadFailed = 'Failed to load routes: ';
+
   // Shared widgets
   static const String dialogDismissButton = 'DISMISS';
 }
