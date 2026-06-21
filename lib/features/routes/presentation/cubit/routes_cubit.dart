@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/game_constants.dart';
 import '../../../../core/database/supabase_client.dart';
 import '../../../../core/mixins/simulation_reactive_mixin.dart';
@@ -11,10 +12,12 @@ import '../../../../core/utils/dev_mode_manager.dart';
 import '../../../../core/utils/perf_debug.dart';
 import '../../../fleet/domain/fleet_models.dart';
 import '../../../simulation/presentation/cubit/simulation_cubit.dart';
+import '../../data/routes_gateway.dart';
 import '../../domain/route_models.dart';
 import 'routes_state.dart';
 
 class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
+  final RoutesGateway _gateway;
   List<UserRoute> _cachedRoutes = [];
   List<Airport> _cachedAirports = [];
   List<UserFleetAircraft> _cachedAvailableAircraft = [];
@@ -27,7 +30,9 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
   Timer? _realtimeRefreshDebounce;
   Future<void>? _activeLoad;
 
-  RoutesCubit() : super(const RoutesInitial());
+  RoutesCubit({RoutesGateway? gateway})
+      : _gateway = gateway ?? const SupabaseRoutesGateway(),
+        super(const RoutesInitial());
 
   RoutesDataState _snapshotState() {
     return RoutesLoaded(
@@ -189,29 +194,16 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
       }
 
       // 1. Fetch all airports
-      final List<dynamic> airportsResponse = await SupabaseManager.client
-          .from('airports')
-          .select()
-          .order('iata', ascending: true);
+      final List<dynamic> airportsResponse = await _gateway.loadAirports();
 
       final airports = airportsResponse.map((a) => Airport.fromMap(a)).toList();
 
       // 2. Fetch user's active routes, joining origin & destination airports plus assigned aircraft
-      final List<dynamic> routesResponse = await SupabaseManager.client
-          .from('user_routes')
-          .select(
-            '*, origin:airports!origin_iata(*), destination:airports!destination_iata(*), user_fleet(*, aircraft_models(*))',
-          )
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
+      final List<dynamic> routesResponse = await _gateway.loadRoutes(userId);
 
       final routes = routesResponse.map((r) => UserRoute.fromMap(r)).toList();
 
-      final userThresholdRecord = await SupabaseManager.client
-          .from('users')
-          .select('auto_grounding_threshold')
-          .eq('id', userId)
-          .single();
+      final userThresholdRecord = await _gateway.loadUserThreshold(userId);
       final userThreshold =
           (userThresholdRecord['auto_grounding_threshold'] as num?)
               ?.toDouble() ??
@@ -222,10 +214,7 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
           : GameConstants.absoluteMinimumSafetyLimit;
 
       // 3. Fetch user's active fleet aircraft to filter unassigned ones
-      final List<dynamic> fleetResponse = await SupabaseManager.client
-          .from('user_fleet')
-          .select('*, aircraft_models(*)')
-          .eq('user_id', userId);
+      final List<dynamic> fleetResponse = await _gateway.loadAvailableFleet(userId);
 
       final allFleet = fleetResponse
           .map((f) => UserFleetAircraft.fromMap(f))
@@ -277,7 +266,7 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
       SupabaseManager.logError('loadRoutesAndData', e, stack);
       emit(
         RoutesError(
-          message: 'Failed to load routes: ${e.toString()}',
+          message: '${AppStrings.routesLoadFailed}${e.toString()}',
           hasData: _cachedRoutes.isNotEmpty || _cachedAirports.isNotEmpty,
           routes: List<UserRoute>.from(_cachedRoutes),
           airports: List<Airport>.from(_cachedAirports),
@@ -341,7 +330,7 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
         _cachedRoutes.insert(0, newRoute);
         emit(
           RoutesActionSuccess(
-            message: 'Route established successfully!',
+            message: AppStrings.routeCreatedSuccess,
             routes: List<UserRoute>.from(_cachedRoutes),
             airports: List<Airport>.from(_cachedAirports),
             availableAircraft: List<UserFleetAircraft>.from(
@@ -355,22 +344,19 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
         return true;
       }
 
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'create_route',
-        params: {
-          'p_origin_iata': originIata,
-          'p_destination_iata': destinationIata,
-          'p_distance_km': distanceKm,
-          'p_ticket_price': ticketPrice,
-          'p_flights_per_week': flightsPerWeek,
-        },
+      final List<dynamic> response = await _gateway.createRoute(
+        originIata: originIata,
+        destinationIata: destinationIata,
+        distanceKm: distanceKm,
+        ticketPrice: ticketPrice,
+        flightsPerWeek: flightsPerWeek,
       );
 
       final result = response.isNotEmpty
           ? response[0] as Map<String, dynamic>
           : <String, dynamic>{};
       final success = result['success'] as bool? ?? false;
-      final message = result['message'] as String? ?? 'Route creation failed.';
+      final message = result['message'] as String? ?? AppStrings.routeCreateFailed;
       if (!success) {
         SupabaseManager.logRpcFailure('create_route', {
           'p_user_id': userId,
@@ -474,7 +460,7 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
         }
         emit(
           RoutesActionSuccess(
-            message: 'Aircraft assignment updated!',
+            message: AppStrings.routeAssignmentSuccess,
             routes: List<UserRoute>.from(_cachedRoutes),
             airports: List<Airport>.from(_cachedAirports),
             availableAircraft: List<UserFleetAircraft>.from(
@@ -488,12 +474,9 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
         return true;
       }
 
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'assign_aircraft_to_route',
-        params: {
-          'p_route_id': routeId,
-          'p_aircraft_id': aircraftId,
-        },
+      final List<dynamic> response = await _gateway.assignAircraft(
+        routeId: routeId,
+        aircraftId: aircraftId,
       );
 
       final result = response.isNotEmpty
@@ -605,13 +588,11 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
         return true;
       }
 
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'update_route_frequency_and_price',
-        params: {
-          'p_route_id': routeId,
-          'p_ticket_price': ticketPrice,
-          'p_flights_per_week': flightsPerWeek,
-        },
+      final List<dynamic> response =
+          await _gateway.updateRouteFrequencyAndPrice(
+        routeId: routeId,
+        ticketPrice: ticketPrice,
+        flightsPerWeek: flightsPerWeek,
       );
 
       final result = response.isNotEmpty
@@ -699,7 +680,7 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
         }
         emit(
           RoutesActionSuccess(
-            message: 'Route closed and aircraft grounded!',
+            message: AppStrings.routeDeletedSuccess,
             routes: List<UserRoute>.from(_cachedRoutes),
             airports: List<Airport>.from(_cachedAirports),
             availableAircraft: List<UserFleetAircraft>.from(
@@ -713,16 +694,15 @@ class RoutesCubit extends Cubit<RoutesState> with SimulationReactiveMixin {
         return true;
       }
 
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'delete_route',
-        params: {'p_route_id': routeId},
+      final List<dynamic> response = await _gateway.deleteRoute(
+        routeId: routeId,
       );
 
       final result = response.isNotEmpty
           ? response[0] as Map<String, dynamic>
           : <String, dynamic>{};
       final success = result['success'] as bool? ?? false;
-      final message = result['message'] as String? ?? 'Route deletion failed.';
+      final message = result['message'] as String? ?? AppStrings.routeDeleteFailed;
       if (!success) {
         SupabaseManager.logRpcFailure('delete_route', {
           'p_user_id': userId,
