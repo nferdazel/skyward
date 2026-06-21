@@ -159,7 +159,7 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: GestureDetector(
+                    child: InkWell(
                       onTap: () {
                         if (!isLoginMode) {
                           context.read<AuthCubit>().clearError();
@@ -167,6 +167,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           _formKey.currentState?.reset();
                         }
                       },
+                      borderRadius: BorderRadius.circular(4),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           vertical: AppSpacing.sm,
@@ -194,7 +195,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                   Expanded(
-                    child: GestureDetector(
+                    child: InkWell(
                       onTap: () {
                         if (isLoginMode) {
                           context.read<AuthCubit>().clearError();
@@ -202,6 +203,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           _formKey.currentState?.reset();
                         }
                       },
+                      borderRadius: BorderRadius.circular(4),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           vertical: AppSpacing.sm,

@@ -31,7 +31,7 @@ class AppSnackBar {
     scaffoldMessenger.showSnackBar(
       SnackBar(
         content: Text(
-          message.toUpperCase(),
+          message,
           style: AppTypography.buttonText.copyWith(
             color: textColor,
           ),

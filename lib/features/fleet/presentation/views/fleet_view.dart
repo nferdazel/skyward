@@ -153,9 +153,9 @@ class _FleetViewState extends State<FleetView>
     required int index,
   }) {
     final isActive = _tabController.index == index;
-    return GestureDetector(
+    return InkWell(
       onTap: () => _onTabTap(index),
-      behavior: HitTestBehavior.opaque,
+      borderRadius: BorderRadius.circular(4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

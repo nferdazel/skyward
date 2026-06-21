@@ -7,6 +7,14 @@ import '../theme/app_theme.dart';
 class TickerTape extends StatefulWidget {
   const TickerTape({super.key});
 
+  static TextStyle? _cachedMonoStyle;
+  static TextStyle get _monoStyle => _cachedMonoStyle ??= GoogleFonts.ibmPlexMono(
+    fontSize: 10,
+    fontWeight: FontWeight.w400,
+    color: AppTheme.textMuted,
+    letterSpacing: 0.1,
+  );
+
   @override
   State<TickerTape> createState() => _TickerTapeState();
 }
@@ -38,6 +46,24 @@ class _TickerTapeState extends State<TickerTape>
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Container(
+        height: 24,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+        ),
+        child: Center(
+          child: Text(
+            _message,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TickerTape._monoStyle,
+          ),
+        ),
+      );
+    }
+
     return Container(
       height: 24,
       width: double.infinity,
@@ -61,12 +87,7 @@ class _TickerTapeState extends State<TickerTape>
               _message,
               maxLines: 1,
               overflow: TextOverflow.visible,
-              style: GoogleFonts.ibmPlexMono(
-                fontSize: 10,
-                fontWeight: FontWeight.w400,
-                color: AppTheme.textMuted,
-                letterSpacing: 0.1,
-              ),
+              style: TickerTape._monoStyle,
             ),
           ),
         ),

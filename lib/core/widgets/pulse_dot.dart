@@ -39,43 +39,60 @@ class _PulseDotState extends State<PulseDot>
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: widget.size + 8,
-      height: widget.size + 8,
-      child: Center(
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            final pulse = _controller.value;
-            return Stack(
-              alignment: Alignment.center,
-              children: [
-                // Expanding ring
-                Container(
-                  width: widget.size + (8 * pulse),
-                  height: widget.size + (8 * pulse),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: widget.color.withValues(
-                        alpha: 0.5 * (1 - pulse),
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Semantics(
+        label: 'System status indicator',
+        child: Container(
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: widget.color,
+          ),
+        ),
+      );
+    }
+
+    return Semantics(
+      label: 'System status indicator',
+      child: SizedBox(
+        width: widget.size + 8,
+        height: widget.size + 8,
+        child: Center(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              final pulse = _controller.value;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Expanding ring
+                  Container(
+                    width: widget.size + (8 * pulse),
+                    height: widget.size + (8 * pulse),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: widget.color.withValues(
+                          alpha: 0.5 * (1 - pulse),
+                        ),
+                        width: 1.0,
                       ),
-                      width: 1.0,
                     ),
                   ),
-                ),
-                // Solid core dot
-                Container(
-                  width: widget.size,
-                  height: widget.size,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: widget.color,
+                  // Solid core dot
+                  Container(
+                    width: widget.size,
+                    height: widget.size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.color,
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

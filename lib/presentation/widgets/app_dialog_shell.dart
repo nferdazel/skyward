@@ -26,56 +26,61 @@ class AppDialogShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(AppSpacing.xl),
-      child: Material(
-        color: AppTheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(4),
-          side: BorderSide(color: AppTheme.border, width: 1.0),
-        ),
-        child: Container(
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      title.toUpperCase(),
-                      style: AppTypography.badgeText.copyWith(
-                        color: titleColor ?? AppTheme.primary,
-                        letterSpacing: 0.8,
+    return Semantics(
+      label: title,
+      namesRoute: true,
+      explicitChildNodes: true,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(AppSpacing.xl),
+        child: Material(
+          color: AppTheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+            side: BorderSide(color: AppTheme.border, width: 1.0),
+          ),
+          child: Container(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title.toUpperCase(),
+                        style: AppTypography.badgeText.copyWith(
+                          color: titleColor ?? AppTheme.primary,
+                          letterSpacing: 0.8,
+                        ),
                       ),
                     ),
-                  ),
-                  if (headerTrailing != null) ...[
-                    const SizedBox(width: AppSpacing.md),
-                    headerTrailing!,
+                    if (headerTrailing != null) ...[
+                      const SizedBox(width: AppSpacing.md),
+                      headerTrailing!,
+                    ],
                   ],
-                ],
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  subtitle!,
-                  style: AppTypography.captionRegular.copyWith(
-                    color: AppTypography.textSecondary,
-                  ),
                 ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    subtitle!,
+                    style: AppTypography.captionRegular.copyWith(
+                      color: AppTypography.textSecondary,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.lg),
+                content,
+                if (actions != null) ...[
+                  const SizedBox(height: AppSpacing.xl),
+                  actions!,
+                ],
               ],
-              const SizedBox(height: AppSpacing.lg),
-              content,
-              if (actions != null) ...[
-                const SizedBox(height: AppSpacing.xl),
-                actions!,
-              ],
-            ],
+            ),
           ),
         ),
       ),
