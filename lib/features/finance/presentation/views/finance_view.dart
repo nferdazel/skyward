@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
 import '../../../../presentation/widgets/app_badge.dart';
@@ -187,62 +186,35 @@ class FinanceView extends StatelessWidget {
     final rollingNet = state.snapshot.rollingNet30d;
     final netColor = rollingNet >= 0 ? AppTheme.success : AppTheme.error;
 
-    return ResponsiveLayout(
-      desktopBody: Row(
-        children: [
-          Expanded(
-            child: _buildSummaryCard(
-              AppStrings.totalCashInflow,
-              currencyFormat.format(rollingRevenue),
-              AppTheme.success,
-              Icons.trending_up,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xl),
-          Expanded(
-            child: _buildSummaryCard(
-              AppStrings.totalCashOutflow,
-              currencyFormat.format(rollingExpense),
-              AppTheme.error,
-              Icons.trending_down,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xl),
-          Expanded(
-            child: _buildSummaryCard(
-              AppStrings.netOperationsYield,
-              currencyFormat.format(rollingNet),
-              netColor,
-              Icons.account_balance_outlined,
-            ),
-          ),
-        ],
-      ),
-      mobileBody: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildSummaryCard(
+    return Row(
+      children: [
+        Expanded(
+          child: _buildSummaryCard(
             AppStrings.totalCashInflow,
             currencyFormat.format(rollingRevenue),
             AppTheme.success,
             Icons.trending_up,
           ),
-          const SizedBox(height: AppSpacing.blockGap),
-          _buildSummaryCard(
+        ),
+        const SizedBox(width: AppSpacing.xl),
+        Expanded(
+          child: _buildSummaryCard(
             AppStrings.totalCashOutflow,
             currencyFormat.format(rollingExpense),
             AppTheme.error,
             Icons.trending_down,
           ),
-          const SizedBox(height: AppSpacing.blockGap),
-          _buildSummaryCard(
+        ),
+        const SizedBox(width: AppSpacing.xl),
+        Expanded(
+          child: _buildSummaryCard(
             AppStrings.netOperationsYield,
             currencyFormat.format(rollingNet),
             netColor,
             Icons.account_balance_outlined,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -300,58 +272,30 @@ class FinanceView extends StatelessWidget {
     NumberFormat currencyFormat,
   ) {
     return AppInfoStrip(
-      child: ResponsiveLayout(
-        desktopBody: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            AppStatText(
-              label: AppStrings.financeCashRunwayLabel,
-              value: overview.runwayLabel,
-              valueColor: overview.runwayColor,
-            ),
-            AppStatText(
-              label: AppStrings.financeBurnRatioLabel,
-              value: overview.burnMixLabel,
-              valueColor: AppTypography.textPrimary,
-            ),
-            AppStatText(
-              label: AppStrings.financeLargestExpenseLabel,
-              value: overview.largestExpenseLabel,
-              valueColor: AppTheme.warning,
-            ),
-            AppStatText(
-              label: AppStrings.financeRevenueCoverageLabel,
-              value: overview.coverageLabel,
-              valueColor: overview.coverageColor,
-            ),
-          ],
-        ),
-        mobileBody: Wrap(
-          spacing: AppSpacing.md,
-          runSpacing: AppSpacing.sm,
-          children: [
-            AppStatText(
-              label: AppStrings.financeCashRunwayLabel,
-              value: overview.runwayLabel,
-              valueColor: overview.runwayColor,
-            ),
-            AppStatText(
-              label: AppStrings.financeBurnRatioLabel,
-              value: overview.burnMixLabel,
-              valueColor: AppTypography.textPrimary,
-            ),
-            AppStatText(
-              label: AppStrings.financeLargestExpenseLabel,
-              value: overview.largestExpenseLabel,
-              valueColor: AppTheme.warning,
-            ),
-            AppStatText(
-              label: AppStrings.financeRevenueCoverageLabel,
-              value: overview.coverageLabel,
-              valueColor: overview.coverageColor,
-            ),
-          ],
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          AppStatText(
+            label: AppStrings.financeCashRunwayLabel,
+            value: overview.runwayLabel,
+            valueColor: overview.runwayColor,
+          ),
+          AppStatText(
+            label: AppStrings.financeBurnRatioLabel,
+            value: overview.burnMixLabel,
+            valueColor: AppTypography.textPrimary,
+          ),
+          AppStatText(
+            label: AppStrings.financeLargestExpenseLabel,
+            value: overview.largestExpenseLabel,
+            valueColor: AppTheme.warning,
+          ),
+          AppStatText(
+            label: AppStrings.financeRevenueCoverageLabel,
+            value: overview.coverageLabel,
+            valueColor: overview.coverageColor,
+          ),
+        ],
       ),
     );
   }
@@ -457,41 +401,27 @@ class FinanceView extends StatelessWidget {
     }
 
     return AppTableShell(
-      child: ResponsiveLayout(
-        // Desktop Layout: Structured tabular sheet
-        desktopBody: Table(
-          columnWidths: const {
-            0: FlexColumnWidth(3), // Category Badge
-            1: FlexColumnWidth(11), // Detailed description
-            2: FlexColumnWidth(3), // Game calendar date
-            3: FlexColumnWidth(3), // Cash flow yield
-          },
-          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-          children: [
-            // Header Row
-            _buildTableHeaderRow(),
-            // Log Entries
-            ...List.generate(
-              state.logs.length,
-              (index) => _buildTableEntryRow(
-                state.logs[index],
-                currencyFormat,
-                dateFormat,
-              ),
+      child: Table(
+        columnWidths: const {
+          0: FlexColumnWidth(3), // Category Badge
+          1: FlexColumnWidth(11), // Detailed description
+          2: FlexColumnWidth(3), // Game calendar date
+          3: FlexColumnWidth(3), // Cash flow yield
+        },
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        children: [
+          // Header Row
+          _buildTableHeaderRow(),
+          // Log Entries
+          ...List.generate(
+            state.logs.length,
+            (index) => _buildTableEntryRow(
+              state.logs[index],
+              currencyFormat,
+              dateFormat,
             ),
-          ],
-        ),
-        // Mobile Layout: Stacked scroll card sheets
-        mobileBody: ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: state.logs.length,
-          itemBuilder: (context, index) => _buildMobileEntryCard(
-            state.logs[index],
-            currencyFormat,
-            dateFormat,
           ),
-        ),
+        ],
       ),
     );
   }
@@ -574,64 +504,6 @@ class FinanceView extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildMobileEntryCard(
-    LedgerEntry entry,
-    NumberFormat currencyFormat,
-    DateFormat dateFormat,
-  ) {
-    final isRev = entry.transactionType == 'revenue';
-    final sign = isRev ? '+' : '-';
-    final valueColor = isRev ? AppTheme.success : AppTheme.error;
-
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppTheme.border, width: 1.0),
-        ),
-      ),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildCategoryPill(entry.category),
-              Text(
-                '$sign${currencyFormat.format(entry.amount)}',
-                style: AppTypography.badgeText.copyWith(
-                  color: valueColor,
-                  letterSpacing: 0.0,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            entry.description,
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppTypography.textPrimary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              Icon(Icons.schedule, size: 12, color: AppTheme.textMuted),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                dateFormat.format(entry.gameDate),
-                style: AppTypography.badgeText.copyWith(
-                  color: AppTypography.textMuted,
-                  letterSpacing: 0.0,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 

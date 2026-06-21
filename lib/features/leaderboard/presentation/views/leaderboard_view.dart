@@ -4,16 +4,12 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
 import '../../../../presentation/widgets/app_badge.dart';
-import '../../../../presentation/widgets/app_button.dart';
 import '../../../../presentation/widgets/app_card.dart';
-import '../../../../presentation/widgets/app_dialog_shell.dart';
 import '../../../../presentation/widgets/app_info_strip.dart';
 import '../../../../presentation/widgets/app_section_header.dart';
-import '../../../../presentation/widgets/app_stat_text.dart';
 import '../../../../presentation/widgets/app_table_shell.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
@@ -52,15 +48,12 @@ class LeaderboardView extends StatelessWidget {
       },
       builder: (context, state) {
         final cubit = context.read<LeaderboardCubit>();
-        final isMobile = MediaQuery.of(context).size.width < 600;
 
         return SizedBox(
           width: double.infinity,
           height: double.infinity,
           child: AppCard(
-            padding: EdgeInsets.all(
-              isMobile ? AppSpacing.md : AppSpacing.cardPadding,
-            ),
+            padding: const EdgeInsets.all(AppSpacing.cardPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -94,30 +87,27 @@ class LeaderboardView extends StatelessWidget {
         ),
       );
     } else if (state is LeaderboardLoaded) {
-      return ResponsiveLayout(
-        desktopBody: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: RepaintBoundary(
-                child: _buildDesktopRankings(
-                  context,
-                  state.rankings,
-                  state,
-                  cubit,
-                ),
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: RepaintBoundary(
+              child: _buildDesktopRankings(
+                context,
+                state.rankings,
+                state,
+                cubit,
               ),
             ),
-            const SizedBox(width: AppSpacing.md),
-            SizedBox(
-              width: 300,
-              child: RepaintBoundary(
-                child: _buildDesktopIntelPanel(context, state, cubit),
-              ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          SizedBox(
+            width: 300,
+            child: RepaintBoundary(
+              child: _buildDesktopIntelPanel(context, state, cubit),
             ),
-          ],
-        ),
-        mobileBody: _buildMobileRankings(context, state.rankings),
+          ),
+        ],
       );
     }
     return const SizedBox.shrink();
@@ -557,161 +547,6 @@ class LeaderboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildMobileRankings(
-    BuildContext context,
-    List<LeaderboardEntry> rankings,
-  ) {
-    return ListView.builder(
-      itemCount: rankings.length,
-      itemBuilder: (context, index) {
-        final entry = rankings[index];
-        final rank = index + 1;
-        final isHuman = !entry.isBot;
-
-        return AppCard(
-          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-          backgroundColor: isHuman
-              ? AppTheme.primary.withValues(alpha: 0.04)
-              : AppTheme.surface,
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: InkWell(
-            onTap: () => _showCompetitorInsights(context, entry),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: rank == 1
-                                  ? AppTheme.success.withValues(alpha: 0.15)
-                                  : (rank == 2
-                                        ? AppTheme.primary.withValues(
-                                            alpha: 0.15,
-                                          )
-                                        : AppTheme.border),
-                            ),
-                            child: Text(
-                              '#$rank',
-                              style: AppTypography.badgeText.copyWith(
-                                color: rank == 1
-                                    ? AppTheme.success
-                                    : (rank == 2
-                                          ? AppTheme.primary
-                                          : AppTheme.textPrimary),
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        entry.companyName,
-                                        style: AppTypography.bodyMedium
-                                            .copyWith(
-                                              fontWeight: FontWeight.bold,
-                                              color: isHuman
-                                                  ? AppTheme.primary
-                                                  : AppTheme.textPrimary,
-                                            ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    if (!isHuman) ...[
-                                      const SizedBox(width: 8),
-                                      const AIBadge(),
-                                    ],
-                                  ],
-                                ),
-                                Text(
-                                  'CEO: ${entry.ceoName}',
-                                  style: AppTypography.captionRegular.copyWith(
-                                    color: AppTypography.textSecondary,
-                                    letterSpacing: 0.0,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          _currencyFormat.format(entry.netWorth),
-                          style: AppTypography.badgeText.copyWith(
-                            color: AppTheme.success,
-                            letterSpacing: 0.0,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          AppStrings.netWorthLabel,
-                          style: AppTypography.captionRegular.copyWith(
-                            color: AppTypography.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Divider(color: AppTheme.border, height: 1),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildMobileSubStat(
-                      AppStrings.liquidCash,
-                      _currencyFormat.format(entry.cash),
-                    ),
-                    _buildMobileSubStat(
-                      AppStrings.fleetAssets,
-                      '${entry.fleetSize} ${AppStrings.fleetLabel.toLowerCase()}',
-                    ),
-                    _buildMobileSubStat(
-                      AppStrings.monthValue,
-                      _currencyFormat.format(entry.monthlyRevenue),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildMobileSubStat(String label, String value) {
-    return AppStatText(
-      label: label,
-      value: value,
-      labelColor: AppTypography.textSecondary,
-      valueColor: AppTypography.textPrimary,
-    );
-  }
-
   Widget _buildTableHeaderCell(String text) {
     return LeaderboardTableHeaderCell(text: text);
   }
@@ -888,293 +723,4 @@ class LeaderboardView extends StatelessWidget {
     );
   }
 
-  void _showCompetitorInsights(
-    BuildContext context,
-    LeaderboardEntry competitor,
-  ) async {
-    final cubit = context.read<LeaderboardCubit>();
-    final screenWidth = MediaQuery.of(context).size.width;
-    final dialogWidth = screenWidth > 600 ? 500.0 : (screenWidth - 32);
-    final insightsFuture = cubit.getInsights(
-      competitor.id,
-      competitor.isBot,
-      fallbackName: competitor.companyName,
-      fallbackCeo: competitor.ceoName,
-      fallbackCash: competitor.cash,
-      fallbackNetWorth: competitor.netWorth,
-    );
-
-    showDialog(
-      context: context,
-      builder: (dialogCtx) {
-        return BlocBuilder<LeaderboardCubit, LeaderboardState>(
-          bloc: cubit,
-          builder: (context, state) {
-            final liveEntry = state is LeaderboardLoaded
-                ? state.rankings.firstWhere(
-                    (e) => e.id == competitor.id,
-                    orElse: () => competitor,
-                  )
-                : competitor;
-
-            return FutureBuilder<CompetitorInsights>(
-              future: insightsFuture,
-              builder: (ctx, snapshot) {
-                if (!snapshot.hasData) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return AppDialogShell(
-                      title: AppStrings.competitorIntelTitle,
-                      subtitle: AppStrings.competitorIntelLoadingSubtitle,
-                      maxWidth: dialogWidth,
-                      content: SizedBox(
-                        height: 300,
-                        width: dialogWidth,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              AppTheme.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-
-                  return AppDialogShell(
-                    title: AppStrings.competitorIntelTitle,
-                    titleColor: AppTheme.error,
-                    subtitle: liveEntry.companyName,
-                    maxWidth: dialogWidth,
-                    content: SizedBox(
-                      height: 220,
-                      width: dialogWidth,
-                      child: Center(
-                        child: Text(
-                          AppStrings.failedToLoadInsights,
-                          style: AppTypography.badgeText.copyWith(
-                            color: AppTheme.error,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                final liveInsights = snapshot.data!.copyWith(
-                  cash: liveEntry.cash,
-                  netWorth: liveEntry.netWorth,
-                  status: liveEntry.status,
-                );
-                return AppDialogShell(
-                  title: liveInsights.companyName,
-                  subtitle: '${AppStrings.ceoPrefix}: ${liveInsights.ceoName}',
-                  headerTrailing: _buildStatusPill(liveInsights.status),
-                  maxWidth: dialogWidth,
-                  content: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Divider(color: AppTheme.border),
-                        const SizedBox(height: AppSpacing.md),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildInsightsStats(
-                                AppStrings.liquidCash,
-                                _currencyFormat.format(liveInsights.cash),
-                                valueColor: liveInsights.cash >= 0
-                                    ? AppTheme.success
-                                    : AppTheme.warning,
-                                icon: Icons.account_balance_wallet_outlined,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildInsightsStats(
-                                AppStrings.estNetWorth,
-                                _currencyFormat.format(liveInsights.netWorth),
-                                valueColor: AppTheme.primary,
-                                icon: Icons.emoji_events_outlined,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-
-                        Text(
-                          AppStrings.hangarFleetBreakdown,
-                          style: AppTypography.badgeText.copyWith(
-                            color: AppTypography.textSecondary,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
-                        liveInsights.fleetBreakdown.isEmpty
-                            ? Text(
-                                AppStrings.noAircraftInHangar,
-                                style: AppTypography.captionRegular.copyWith(
-                                  color: AppTheme.textMuted,
-                                ),
-                              )
-                            : Column(
-                                children: liveInsights.fleetBreakdown.entries.map((
-                                  f,
-                                ) {
-                                  return AppCard(
-                                    margin: const EdgeInsets.only(
-                                      bottom: AppSpacing.xs + AppSpacing.xs,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: AppSpacing.sm,
-                                      vertical: AppSpacing.xs,
-                                    ),
-                                    backgroundColor: AppTheme.background,
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          f.key,
-                                          style: AppTypography.bodyMedium
-                                              .copyWith(
-                                                fontWeight: FontWeight.bold,
-                                                color:
-                                                    AppTypography.textPrimary,
-                                              ),
-                                        ),
-                                        Text(
-                                          '${f.value}${AppStrings.fleetUnitSuffix}',
-                                          style: AppTypography.badgeText
-                                              .copyWith(
-                                                color: AppTheme.primary,
-                                                letterSpacing: 0.0,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                        const SizedBox(height: AppSpacing.lg),
-
-                        Text(
-                          AppStrings.operatingRoutePathways,
-                          style: AppTypography.badgeText.copyWith(
-                            color: AppTypography.textSecondary,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
-                        liveInsights.networkRoutes.isEmpty
-                            ? Text(
-                                AppStrings.noRoutesPlanned,
-                                style: AppTypography.captionRegular.copyWith(
-                                  color: AppTheme.textMuted,
-                                ),
-                              )
-                            : ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxHeight: 220,
-                                ),
-                                child: ListView.separated(
-                                  shrinkWrap: true,
-                                  itemCount: liveInsights.networkRoutes.length,
-                                  itemBuilder: (context, index) {
-                                    final route =
-                                        liveInsights.networkRoutes[index];
-                                    return AppCard(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.sm,
-                                        vertical: AppSpacing.xs,
-                                      ),
-                                      backgroundColor: AppTheme.background,
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.alt_route,
-                                            size: 14,
-                                            color: AppTheme.primary,
-                                          ),
-                                          const SizedBox(width: AppSpacing.xs),
-                                          Expanded(
-                                            child: Text(
-                                              route,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: AppTypography.bodyMedium
-                                                  .copyWith(
-                                                    color: AppTypography
-                                                        .textPrimary,
-                                                  ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                  separatorBuilder: (_, _) =>
-                                      const SizedBox(height: AppSpacing.xs),
-                                ),
-                              ),
-
-                        const SizedBox(height: AppSpacing.xl),
-                        AppButton(
-                          text: AppStrings.dismissRadarHud,
-                          onPressed: () => Navigator.pop(dialogCtx),
-                          width: double.infinity,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildInsightsStats(
-    String label,
-    String value, {
-    required Color valueColor,
-    required IconData icon,
-  }) {
-    return AppCard(
-      padding: const EdgeInsets.all(12),
-      backgroundColor: AppTheme.background,
-      child: Row(
-        children: [
-          Icon(icon, color: valueColor, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: AppTypography.badgeText.copyWith(
-                    color: AppTypography.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  value,
-                  style: AppTypography.badgeText.copyWith(
-                    color: valueColor,
-                    letterSpacing: 0.0,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

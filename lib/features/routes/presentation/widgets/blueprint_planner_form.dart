@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/game_constants.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
 import '../../../../presentation/widgets/app_button.dart';
@@ -153,31 +152,13 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
             homeAirport: _resolveHomeAirport(context),
           );
 
-          return ResponsiveLayout(
-            desktopBody: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: plannerPanel),
-                const SizedBox(width: AppSpacing.lg),
-                Expanded(child: mapPanel),
-              ],
-            ),
-            mobileBody: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        plannerPanel,
-                        const SizedBox(height: AppSpacing.lg),
-                        SizedBox(height: 380, child: mapPanel),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: plannerPanel),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(child: mapPanel),
+            ],
           );
         },
       ),
@@ -271,56 +252,28 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
                 style: AppTypography.captionRegular,
               ),
               const SizedBox(height: AppSpacing.lg),
-              ResponsiveLayout(
-                desktopBody: Row(
-                  children: [
-                    Expanded(
-                      child: SearchableAirportDropdown(
-                        label: AppStrings.originAirportHub,
-                        airports: widget.airports,
-                        selectedValue: state.selectedOrigin,
-                        onSelected: (newVal) => cubit.selectOrigin(newVal),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Icon(Icons.swap_horiz, color: AppTheme.primary, size: 24),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: SearchableAirportDropdown(
-                        label: AppStrings.destinationAirportHub,
-                        airports: widget.airports,
-                        selectedValue: state.selectedDest,
-                        onSelected: (newVal) => cubit.selectDest(newVal),
-                      ),
-                    ),
-                  ],
-                ),
-                mobileBody: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SearchableAirportDropdown(
+              Row(
+                children: [
+                  Expanded(
+                    child: SearchableAirportDropdown(
                       label: AppStrings.originAirportHub,
                       airports: widget.airports,
                       selectedValue: state.selectedOrigin,
                       onSelected: (newVal) => cubit.selectOrigin(newVal),
                     ),
-                    const SizedBox(height: AppSpacing.compactGap),
-                    Center(
-                      child: Icon(
-                        Icons.swap_vert,
-                        color: AppTheme.primary,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.compactGap),
-                    SearchableAirportDropdown(
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Icon(Icons.swap_horiz, color: AppTheme.primary, size: 24),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: SearchableAirportDropdown(
                       label: AppStrings.destinationAirportHub,
                       airports: widget.airports,
                       selectedValue: state.selectedDest,
                       onSelected: (newVal) => cubit.selectDest(newVal),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
               const SizedBox(height: AppSpacing.lg),
               if (state.calculatedDistance > 0.0) ...[
@@ -478,25 +431,15 @@ class _BlueprintPlannerFormState extends State<BlueprintPlannerForm> {
                 ],
                 const SizedBox(height: AppSpacing.lg),
               ],
-              ResponsiveLayout(
-                desktopBody: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: _buildPriceField(cubit)),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: _buildFrequencyControl(state, planningAssessment),
-                    ),
-                  ],
-                ),
-                mobileBody: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildPriceField(cubit),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildFrequencyControl(state, planningAssessment),
-                  ],
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _buildPriceField(cubit)),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: _buildFrequencyControl(state, planningAssessment),
+                  ),
+                ],
               ),
               const SizedBox(height: AppSpacing.xxl),
               BlocBuilder<RoutesCubit, RoutesState>(

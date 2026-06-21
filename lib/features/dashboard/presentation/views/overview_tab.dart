@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
 import '../../../../presentation/widgets/app_card.dart';
@@ -34,10 +33,7 @@ class OverviewTab extends StatelessWidget {
       return const Center(child: Text(AppStrings.unauthorized));
     }
 
-    return ResponsiveLayout(
-      mobileBody: _buildMobileLayout(context, authState),
-      desktopBody: _buildDesktopLayout(context, authState),
-    );
+    return _buildDesktopLayout(context, authState);
   }
 
   // ── DESKTOP: Content-only (DashboardScreen provides sidebar + TopHud) ──
@@ -444,30 +440,6 @@ class OverviewTab extends StatelessWidget {
     return Text(
       title,
       style: AppTypography.sectionHeaderMedium.copyWith(letterSpacing: 0.08),
-    );
-  }
-
-  // ── MOBILE: Content-only (DashboardScreen provides AppBar + BottomNav) ──
-
-  Widget _buildMobileLayout(BuildContext context, AuthAuthenticated authState) {
-    final overview = _selectOverviewSnapshot(context, authState.user);
-    final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildKPICardsRow(context, overview),
-          const SizedBox(height: AppSpacing.sectionGap),
-          _buildSignalsSection(context, overview, currencyFormat),
-          const SizedBox(height: AppSpacing.sectionGap),
-          _buildActionsSection(context),
-          const SizedBox(height: AppSpacing.sectionGap),
-          _buildPrioritiesSection(context, overview),
-        ],
-      ),
     );
   }
 

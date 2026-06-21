@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
 import '../../../../presentation/widgets/app_button.dart';
@@ -89,22 +88,13 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Center(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(AppSpacing.xl),
-                  child: ResponsiveLayout(
-                    mobileBody: BlocBuilder<AuthModeCubit, bool>(
-                      builder: (context, isLoginMode) => _buildFormCard(
+                  child: BlocBuilder<AuthModeCubit, bool>(
+                    builder: (context, isLoginMode) => ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: _buildFormCard(
                         context,
                         isLoading,
                         isLoginMode,
-                      ),
-                    ),
-                    desktopBody: BlocBuilder<AuthModeCubit, bool>(
-                      builder: (context, isLoginMode) => ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 420),
-                        child: _buildFormCard(
-                          context,
-                          isLoading,
-                          isLoginMode,
-                        ),
                       ),
                     ),
                   ),

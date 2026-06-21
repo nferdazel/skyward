@@ -2,15 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/lazy_tab_cubit.dart';
 import '../../../../core/utils/perf_debug.dart';
-import '../../../../core/widgets/pulse_dot.dart';
-import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../core/widgets/ticker_tape.dart';
 import '../../../../presentation/theme/app_spacing.dart';
-import '../../../../presentation/theme/app_typography.dart';
 import '../../../auth/domain/user_model.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
@@ -236,19 +232,11 @@ class _AuthenticatedDashboardShellState
             _simulationCubit.state,
           );
         },
-        child: ResponsiveLayout(
-          mobileBody: _buildMobileLayout(
-            context,
-            authState,
-            _currencyFormat,
-            _dateFormat,
-          ),
-          desktopBody: _buildDesktopLayout(
-            context,
-            authState,
-            _currencyFormat,
-            _dateFormat,
-          ),
+        child: _buildDesktopLayout(
+          context,
+          authState,
+          _currencyFormat,
+          _dateFormat,
         ),
       ),
     );
@@ -332,155 +320,4 @@ class _AuthenticatedDashboardShellState
     );
   }
 
-  Widget _buildMobileLayout(
-    BuildContext context,
-    AuthAuthenticated authState,
-    NumberFormat currencyFormat,
-    DateFormat dateFormat,
-  ) {
-    final user = authState.user;
-    const navItems = [
-      AppStrings.dashboardOverview,
-      AppStrings.dashboardHangar,
-      AppStrings.dashboardRoutes,
-      AppStrings.dashboardLedger,
-      AppStrings.dashboardLeaderboard,
-      AppStrings.dashboardSettings,
-    ];
-    const navIcons = [
-      Icons.terminal,
-      Icons.flight,
-      Icons.map,
-      Icons.receipt_long,
-      Icons.emoji_events,
-      Icons.settings,
-    ];
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          children: [
-            Text(
-              user.companyName,
-              style: AppTypography.sectionHeaderMedium.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              '${AppStrings.ceoPrefix}: ${user.ceoName.toUpperCase()}',
-              style: AppTypography.badgeText.copyWith(
-                letterSpacing: 0.8,
-                color: AppTheme.primary,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.logout, color: AppTheme.error, size: 20),
-            onPressed: () => context.read<AuthCubit>().logout(),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(40),
-          child: BlocBuilder<SimulationCubit, SimulationState>(
-            buildWhen: (previous, current) =>
-                previous.gameTime != current.gameTime ||
-                previous.cashBalance != current.cashBalance ||
-                previous.fuelPricePerLiter != current.fuelPricePerLiter ||
-                previous.isSyncing != current.isSyncing,
-            builder: (context, simState) {
-              return Container(
-                color: AppTheme.surface,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.xs,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        PulseDot(
-                          color: simState.isSyncing
-                              ? AppTheme.warning
-                              : AppTheme.success,
-                          size: 6,
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          dateFormat.format(simState.gameTime),
-                          style: AppTypography.badgeText,
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'F: \$${simState.fuelPricePerLiter.toStringAsFixed(2)}/L',
-                      style: AppTypography.badgeText.copyWith(
-                        color: AppTheme.warning,
-                        letterSpacing: 0.0,
-                      ),
-                    ),
-                    Text(
-                      currencyFormat.format(simState.cashBalance),
-                      style: AppTypography.badgeText.copyWith(
-                        color: AppTheme.success,
-                        letterSpacing: 0.0,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: BlocBuilder<NavigationCubit, NavigationState>(
-          builder: (context, navState) {
-            return BlocBuilder<LazyTabCubit, LazyTabState>(
-              builder: (context, lazyState) {
-                return IndexedStack(
-                  index: navState.activeIndex,
-                  children: List.generate(
-                    6,
-                    (index) => RepaintBoundary(
-                      child: lazyState.loadedIndexes.contains(index)
-                          ? _buildTabChild(
-                              context,
-                              index,
-                              currencyFormat,
-                              dateFormat,
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        ),
-      ),
-      bottomNavigationBar: BlocBuilder<NavigationCubit, NavigationState>(
-        builder: (context, state) {
-          return BottomNavigationBar(
-            currentIndex: state.activeIndex,
-            onTap: (index) => context.read<NavigationCubit>().selectTab(index),
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: AppTheme.surface,
-            selectedItemColor: AppTheme.primary,
-            unselectedItemColor: AppTheme.textSecondary,
-            items: List.generate(
-              navItems.length,
-              (index) => BottomNavigationBarItem(
-                icon: Icon(navIcons[index], size: 18),
-                label: navItems[index],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 }

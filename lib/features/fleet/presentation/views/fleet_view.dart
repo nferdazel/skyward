@@ -6,12 +6,10 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/lazy_tab_cubit.dart';
 import '../../../../core/utils/perf_debug.dart';
-import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
 import '../../../../presentation/widgets/app_badge.dart';
 import '../../../../presentation/widgets/app_button.dart';
-import '../../../../presentation/widgets/app_card.dart';
 import '../../../../presentation/widgets/app_dialog_shell.dart';
 import '../../../../presentation/widgets/app_empty_state.dart';
 import '../../../../presentation/widgets/app_info_strip.dart';
@@ -214,34 +212,14 @@ class _FleetViewState extends State<FleetView>
           children: [
             Expanded(
               child: RepaintBoundary(
-                child: ResponsiveLayout(
-                  desktopBody: _buildActiveFleetTable(
-                    context,
-                    fleetList,
-                    userId,
-                    currencyFormat,
-                    isActionLoading,
-                    autoGroundingThreshold,
-                    assignedFleetIds,
-                  ),
-                  mobileBody: ListView.builder(
-                    itemCount: fleetList.length,
-                    physics: const BouncingScrollPhysics(),
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: _buildActiveFleetCard(
-                          context,
-                          fleetList[index],
-                          userId,
-                          currencyFormat,
-                          isActionLoading,
-                          autoGroundingThreshold,
-                          assignedFleetIds,
-                        ),
-                      );
-                    },
-                  ),
+                child: _buildActiveFleetTable(
+                  context,
+                  fleetList,
+                  userId,
+                  currencyFormat,
+                  isActionLoading,
+                  autoGroundingThreshold,
+                  assignedFleetIds,
                 ),
               ),
             ),
@@ -450,223 +428,6 @@ class _FleetViewState extends State<FleetView>
         title: AppStrings.yourHangarEmpty,
         description: AppStrings.yourHangarEmptyDesc,
       ),
-    );
-  }
-
-  Widget _buildActiveFleetCard(
-    BuildContext context,
-    UserFleetAircraft aircraft,
-    String userId,
-    NumberFormat currencyFormat,
-    bool isActionLoading,
-    double autoGroundingThreshold,
-    Set<String> assignedFleetIds,
-  ) {
-    final isGrounded = aircraft.isMaintenanceGrounded(autoGroundingThreshold);
-    final isAssigned = assignedFleetIds.contains(aircraft.id);
-    return AppCard(
-      borderColor: isGrounded ? AppTheme.error : AppTheme.border,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(children: [AppBadge.primary(label: aircraft.tailNumber)]),
-              Row(
-                children: [
-                  _buildAcquisitionBadge(aircraft.acquisitionType),
-                  _buildStatusBadge(aircraft.status, isGrounded),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '${aircraft.model.manufacturer.toUpperCase()} ${aircraft.model.modelName}',
-            style: AppTypography.bodyMedium.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppTypography.textPrimary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            isAssigned
-                ? AppStrings.assignedFleetLabel
-                : AppStrings.idleFleetLabel,
-            style: AppTypography.badgeText.copyWith(
-              color: isAssigned ? AppTheme.primary : AppTheme.warning,
-              letterSpacing: 0.2,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _buildWearConditionCell(aircraft.condition),
-          const SizedBox(height: AppSpacing.md),
-          Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      text: 'DETAILS',
-                      onPressed: () => _showAircraftDetailsDialog(
-                        context,
-                        aircraft,
-                        currencyFormat,
-                        isAssigned,
-                      ),
-                      type: AppButtonType.secondary,
-                      height: 40,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: AppButton(
-                      text: AppStrings.configureSeatsButton,
-                      onPressed: () =>
-                          _showSeatConfigDialog(context, aircraft, userId),
-                      type: AppButtonType.secondary,
-                      height: 40,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      text: aircraft.acquisitionType == 'lease'
-                          ? AppStrings.terminateLeaseButton
-                          : AppStrings.sellAircraftButton,
-                      onPressed: isAssigned
-                          ? null
-                          : () => _confirmDisposal(
-                              context,
-                              aircraft,
-                              userId,
-                              currencyFormat,
-                              isAssigned,
-                            ),
-                      type: AppButtonType.secondary,
-                      height: 40,
-                    ),
-                  ),
-                  if (aircraft.condition < 100.0) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: AppButton(
-                        text:
-                            '${AppStrings.repairButtonPrefix} (${currencyFormat.format(aircraft.repairCost)})',
-                        onPressed: isActionLoading
-                            ? null
-                            : () => _confirmRepair(
-                                context,
-                                aircraft,
-                                userId,
-                                currencyFormat,
-                              ),
-                        type: AppButtonType.secondary,
-                        height: 40,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAircraftDetailsDialog(
-    BuildContext context,
-    UserFleetAircraft aircraft,
-    NumberFormat currencyFormat,
-    bool isAssigned,
-  ) {
-    final capacity = aircraft.model.capacity;
-    final occupied =
-        aircraft.economySeats +
-        (aircraft.businessSeats * 2) +
-        (aircraft.firstClassSeats * 3);
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AppDialogShell(
-          title: '${aircraft.tailNumber} ${aircraft.model.modelName}',
-          content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: AppSpacing.lg,
-                  runSpacing: AppSpacing.sm,
-                  children: [
-                    AppLabeledValue(
-                      label: AppStrings.rangeHeader,
-                      value:
-                          '${aircraft.model.rangeKm} ${AppStrings.rangeKmLabel}',
-                    ),
-                    AppLabeledValue(
-                      label: AppStrings.seatsHeader,
-                      value: '${aircraft.model.capacity}',
-                    ),
-                    AppLabeledValue(
-                      label: AppStrings.assignedFleetLabel,
-                      value: isAssigned
-                          ? AppStrings.activeState
-                          : AppStrings.idleFleetLabel,
-                      valueColor: isAssigned
-                          ? AppTheme.primary
-                          : AppTheme.warning,
-                    ),
-                    AppLabeledValue(
-                      label: AppStrings.repairExposureLabel,
-                      value: currencyFormat.format(aircraft.repairCost),
-                      valueColor: aircraft.repairCost > 0
-                          ? AppTheme.warning
-                          : AppTheme.success,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppInfoStrip(
-                  backgroundColor: AppTheme.background,
-                  child: Wrap(
-                    spacing: AppSpacing.lg,
-                    runSpacing: AppSpacing.sm,
-                    children: [
-                      AppLabeledValue(
-                        label: 'ECONOMY',
-                        value: '${aircraft.economySeats}',
-                      ),
-                      AppLabeledValue(
-                        label: 'BUSINESS',
-                        value: '${aircraft.businessSeats}',
-                      ),
-                      AppLabeledValue(
-                        label: 'FIRST',
-                        value: '${aircraft.firstClassSeats}',
-                      ),
-                      AppLabeledValue(
-                        label: AppStrings.maxSlotsLabel,
-                        value: '$occupied / $capacity',
-                        valueColor: occupied <= capacity
-                            ? AppTheme.success
-                            : AppTheme.error,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -972,52 +733,24 @@ class _FleetViewState extends State<FleetView>
           }
         });
 
-        return ResponsiveLayout(
-          desktopBody: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildFilterSortBar(context, cubit, filters),
-              Expanded(
-                child: filteredCatalog.isEmpty
-                    ? const Center(
-                        child: Text(AppStrings.noAircraftMatchCriteria),
-                      )
-                    : _buildCatalogTable(
-                        context,
-                        filteredCatalog,
-                        userId,
-                        currencyFormat,
-                        isActionLoading,
-                      ),
-              ),
-            ],
-          ),
-          mobileBody: ListView(
-            physics: const BouncingScrollPhysics(),
-            children: [
-              _buildFilterSortBar(context, cubit, filters),
-              if (filteredCatalog.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(AppSpacing.xxl),
-                    child: Text(AppStrings.noAircraftMatchFilterCriteria),
-                  ),
-                )
-              else
-                ...filteredCatalog.map(
-                  (model) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    child: _buildCatalogCard(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFilterSortBar(context, cubit, filters),
+            Expanded(
+              child: filteredCatalog.isEmpty
+                  ? const Center(
+                      child: Text(AppStrings.noAircraftMatchCriteria),
+                    )
+                  : _buildCatalogTable(
                       context,
-                      model,
+                      filteredCatalog,
                       userId,
                       currencyFormat,
                       isActionLoading,
                     ),
-                  ),
-                ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
@@ -1088,55 +821,28 @@ class _FleetViewState extends State<FleetView>
             ),
           ];
 
-          return ResponsiveLayout(
-            desktopBody: constraints.maxWidth >= 1180
-                ? Row(
-                    children: [
-                      for (var i = 0; i < filterChildren.length; i++) ...[
-                        Expanded(child: filterChildren[i]),
-                        if (i < filterChildren.length - 1)
-                          const SizedBox(width: AppSpacing.sm),
-                      ],
+          return constraints.maxWidth >= 1180
+              ? Row(
+                  children: [
+                    for (var i = 0; i < filterChildren.length; i++) ...[
+                      Expanded(child: filterChildren[i]),
+                      if (i < filterChildren.length - 1)
+                        const SizedBox(width: AppSpacing.sm),
                     ],
-                  )
-                : Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    children: filterChildren
-                        .map(
-                          (child) => SizedBox(
-                            width: (constraints.maxWidth - AppSpacing.sm) / 2,
-                            child: child,
-                          ),
-                        )
-                        .toList(),
-                  ),
-            mobileBody: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AppMultiSelectField(
-                  label: AppStrings.manufacturerFilterLabel,
-                  options: manufacturers,
-                  selectedValues: filters.manufacturers,
-                  onChanged: cubit.setManufacturerFilter,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                AppMultiSelectField(
-                  label: AppStrings.categoryFilterLabel,
-                  options: categories,
-                  selectedValues: filters.categories,
-                  onChanged: cubit.setCategoryFilter,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                AppMultiSelectField(
-                  label: AppStrings.rangeFilterLabel,
-                  options: ranges,
-                  selectedValues: filters.ranges,
-                  onChanged: cubit.setRangeBracketFilter,
-                ),
-              ],
-            ),
-          );
+                  ],
+                )
+              : Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: filterChildren
+                      .map(
+                        (child) => SizedBox(
+                          width: (constraints.maxWidth - AppSpacing.sm) / 2,
+                          child: child,
+                        ),
+                      )
+                      .toList(),
+                );
         },
       ),
     );
@@ -1338,122 +1044,6 @@ class _FleetViewState extends State<FleetView>
               ],
             );
           }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCatalogCard(
-    BuildContext context,
-    AircraftModel model,
-    String userId,
-    NumberFormat currencyFormat,
-    bool isActionLoading,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        border: Border.all(color: AppTheme.border, width: 1.0),
-      ),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                model.type.replaceAll('_', ' ').toUpperCase(),
-                style: AppTypography.badgeText.copyWith(
-                  color: AppTheme.primary,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              Text(
-                '${model.fuelBurnPerKm} L/KM',
-                style: AppTypography.badgeText.copyWith(
-                  color: AppTheme.textSecondary,
-                  letterSpacing: 0.0,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(model.modelName, style: AppTypography.screenTitleMedium),
-          Text(
-            model.manufacturer.toUpperCase(),
-            style: AppTypography.badgeText.copyWith(
-              color: AppTheme.textSecondary,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              AppLabeledValue(
-                label: AppStrings.rangeHeader,
-                value: '${model.rangeKm} KM',
-              ),
-              AppLabeledValue(
-                label: AppStrings.capacitySubtitlePrefix,
-                value: '${model.capacity} PAX',
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Divider(color: AppTheme.border),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildStatItem(
-                AppStrings.leaseRateLabel,
-                '${currencyFormat.format(model.leasePricePerMonth)}/mo',
-                isHighlight: true,
-              ),
-              _buildStatItem(
-                AppStrings.acquisitionValueLabel,
-                currencyFormat.format(model.purchasePrice),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: AppButton(
-                  text: AppStrings.confirmLease,
-                  onPressed: isActionLoading
-                      ? null
-                      : () => _showAcquireSeatConfigDialog(
-                          context,
-                          model,
-                          userId,
-                          true,
-                        ),
-                  type: AppButtonType.secondary,
-                  height: 44,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: AppButton(
-                  text: AppStrings.confirmBuy,
-                  onPressed: isActionLoading
-                      ? null
-                      : () => _showAcquireSeatConfigDialog(
-                          context,
-                          model,
-                          userId,
-                          false,
-                        ),
-                  type: AppButtonType.primary,
-                  height: 44,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -1953,14 +1543,6 @@ class _FleetViewState extends State<FleetView>
     } else {
       return AppBadge.warning(label: AppStrings.maintenanceState);
     }
-  }
-
-  Widget _buildStatItem(
-    String label,
-    String value, {
-    bool isHighlight = false,
-  }) {
-    return AppLabeledValue(label: label, value: value, emphasize: isHighlight);
   }
 
   // HELPER DATA EXTRACTIONS
