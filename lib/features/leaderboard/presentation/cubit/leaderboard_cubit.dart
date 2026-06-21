@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/game_constants.dart';
 import '../../../../core/database/supabase_client.dart';
 import '../../../../core/mixins/simulation_reactive_mixin.dart';
@@ -10,6 +11,7 @@ import '../../../../core/realtime/realtime_subscription_bag.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 import '../../../../core/utils/perf_debug.dart';
 import '../../../simulation/presentation/cubit/simulation_cubit.dart';
+import '../../data/leaderboard_gateway.dart';
 import '../../domain/leaderboard_models.dart';
 import 'leaderboard_state.dart';
 
@@ -19,6 +21,8 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
     seconds: 20,
   );
   static const Duration _rankingsRefreshInterval = Duration(seconds: 45);
+
+  final LeaderboardGateway _gateway;
 
   List<LeaderboardEntry> _cachedEntries = [];
   final RealtimeSubscriptionBag _realtimeSubscriptions =
@@ -33,7 +37,9 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
   Future<void>? _activeRankingsLoad;
   Timer? _rankingsRefreshDebounce;
 
-  LeaderboardCubit() : super(const LeaderboardInitial());
+  LeaderboardCubit({LeaderboardGateway? gateway})
+      : _gateway = gateway ?? const SupabaseLeaderboardGateway(),
+        super(const LeaderboardInitial());
 
   void setupReactivity(
     SimulationCubit simCubit,
@@ -129,10 +135,8 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         return;
       }
 
-      // Call RPC on Supabase
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'get_global_leaderboard',
-      );
+      // Call RPC via gateway
+      final List<dynamic> response = await _gateway.getGlobalLeaderboard();
 
       final entries = response.map((e) => LeaderboardEntry.fromMap(e)).toList();
 
@@ -160,7 +164,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
               netWorth: humanNetWorth,
               fleetSize: resolvedFleetSize,
               monthlyRevenue: humanMonthlyRevenue,
-              status: 'Active',
+              status: AppStrings.statusActive,
             );
 
       final updatedHuman = LeaderboardEntry(
@@ -402,7 +406,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
                     netWorth: GameConstants.startingCash,
                     fleetSize: 0,
                     monthlyRevenue: 0.0,
-                    status: 'Active',
+                    status: AppStrings.statusActive,
                   ),
                 );
 
@@ -461,9 +465,9 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         return mockIns;
       }
 
-      final List<dynamic> response = await SupabaseManager.client.rpc(
-        'get_competitor_insights',
-        params: {'p_id': id, 'p_is_bot': isBot},
+      final List<dynamic> response = await _gateway.getCompetitorInsights(
+        id,
+        isBot,
       );
 
       if (response.isNotEmpty) {
@@ -579,7 +583,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         netWorth: netWorth,
         fleetSize: fleetSize,
         monthlyRevenue: monthlyRevenue,
-        status: 'Active',
+        status: AppStrings.statusActive,
       ),
       LeaderboardEntry(
         id: 'mock-bot-1',
@@ -591,7 +595,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         netWorth: 13200000.00,
         fleetSize: 1,
         monthlyRevenue: 350000.00,
-        status: 'Active',
+        status: AppStrings.statusActive,
       ),
       LeaderboardEntry(
         id: 'mock-bot-2',
@@ -603,7 +607,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         netWorth: 18500000.00,
         fleetSize: 2,
         monthlyRevenue: 550000.00,
-        status: 'Active',
+        status: AppStrings.statusActive,
       ),
       LeaderboardEntry(
         id: 'mock-bot-3',
@@ -615,7 +619,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         netWorth: 12000000.00,
         fleetSize: 1,
         monthlyRevenue: 220000.00,
-        status: 'Active',
+        status: AppStrings.statusActive,
       ),
       LeaderboardEntry(
         id: 'mock-bot-4',
@@ -627,7 +631,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         netWorth: 14000000.00,
         fleetSize: 1,
         monthlyRevenue: 310000.00,
-        status: 'Active',
+        status: AppStrings.statusActive,
       ),
       LeaderboardEntry(
         id: 'mock-bot-5',
@@ -639,7 +643,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         netWorth: 13500000.00,
         fleetSize: 1,
         monthlyRevenue: 280000.00,
-        status: 'Active',
+        status: AppStrings.statusActive,
       ),
     ];
 
@@ -679,7 +683,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         ceoName: 'Edward Falcon',
         cash: 13200000.00,
         netWorth: 13200000.00,
-        status: 'Active',
+        status: AppStrings.statusActive,
         fleetBreakdown: {'Airbus A320neo (lease)': 1},
         networkRoutes: ['CGK-SIN', 'SIN-KUL'],
       );
@@ -689,7 +693,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         ceoName: 'Sophia Rothschild',
         cash: 18500000.00,
         netWorth: 18500000.00,
-        status: 'Active',
+        status: AppStrings.statusActive,
         fleetBreakdown: {
           'Boeing 787-9 (lease)': 1,
           'Airbus A350-900 (lease)': 1,
@@ -702,7 +706,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         ceoName: 'Ahmad Hidayat',
         cash: 12000000.00,
         netWorth: 12000000.00,
-        status: 'Active',
+        status: AppStrings.statusActive,
         fleetBreakdown: {'ATR 72-600 (purchase)': 1, 'ATR 42-600 (lease)': 1},
         networkRoutes: ['SUB-DPS', 'DPS-KOE'],
       );
@@ -712,7 +716,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         ceoName: 'Viktor Reznov',
         cash: 14000000.00,
         netWorth: 14000000.00,
-        status: 'Active',
+        status: AppStrings.statusActive,
         fleetBreakdown: {'COMAC C919 (purchase)': 1},
         networkRoutes: ['HAN-PEK', 'PEK-CGK'],
       );
@@ -722,7 +726,7 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         ceoName: 'Linh Nguyen',
         cash: 13500000.00,
         netWorth: 13500000.00,
-        status: 'Active',
+        status: AppStrings.statusActive,
         fleetBreakdown: {'Embraer E195-E2 (lease)': 1},
         networkRoutes: ['SGN-HAN', 'HAN-DAD'],
       );
