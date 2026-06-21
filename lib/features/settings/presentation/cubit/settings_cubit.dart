@@ -1,6 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/database/supabase_client.dart';
+import '../../../../core/utils/app_error.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 import '../../data/settings_gateway.dart';
 
@@ -118,9 +120,12 @@ class SettingsCubit extends Cubit<SettingsState> {
         emit(state.copyWith(airports: mockList, isLoadingAirports: false));
       }
     } catch (e, stack) {
-      SupabaseManager.logError('loadAirports', e, stack);
+      AppError.log('loadAirports', e, stack);
       emit(
-        state.copyWith(isLoadingAirports: false, errorMessage: e.toString()),
+        state.copyWith(
+          isLoadingAirports: false,
+          errorMessage: AppError.extractMessage(e, AppStrings.airportsLoadFailed),
+        ),
       );
     }
   }
@@ -161,8 +166,13 @@ class SettingsCubit extends Cubit<SettingsState> {
       }
       emit(state.copyWith(isSaving: false, isSaveSuccess: true));
     } catch (e, stack) {
-      SupabaseManager.logError('saveSettings', e, stack);
-      emit(state.copyWith(isSaving: false, errorMessage: e.toString()));
+      AppError.log('saveSettings', e, stack);
+      emit(
+        state.copyWith(
+          isSaving: false,
+          errorMessage: AppError.extractMessage(e, AppStrings.settingsSaveFailed),
+        ),
+      );
     }
   }
 
@@ -195,8 +205,13 @@ class SettingsCubit extends Cubit<SettingsState> {
       emit(state.copyWith(isSaving: false, isSaveSuccess: true));
       return true;
     } catch (e, stack) {
-      SupabaseManager.logError('reset_user_airline', e, stack);
-      emit(state.copyWith(isSaving: false, errorMessage: e.toString()));
+      AppError.log('reset_user_airline', e, stack);
+      emit(
+        state.copyWith(
+          isSaving: false,
+          errorMessage: AppError.extractMessage(e, AppStrings.airlineResetFailed),
+        ),
+      );
       return false;
     }
   }

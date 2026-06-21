@@ -8,6 +8,7 @@ import '../../../../core/constants/game_constants.dart';
 import '../../../../core/database/supabase_client.dart';
 import '../../../../core/mixins/simulation_reactive_mixin.dart';
 import '../../../../core/realtime/realtime_subscription_bag.dart';
+import '../../../../core/utils/app_error.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 import '../../../../core/utils/perf_debug.dart';
 import '../../../simulation/presentation/cubit/simulation_cubit.dart';
@@ -232,13 +233,13 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
       if (selectedEntry != null && shouldRefreshSelected) {
         unawaited(_refreshSelectedInsights(selectedEntry, silent: true));
       }
-    } catch (e) {
+    } catch (e, stack) {
       PerfDebug.end(
         'leaderboard.load',
         stopwatch,
         fields: {'silent': silent, 'error': true},
       );
-      SupabaseManager.logError('loadRankings', e);
+      AppError.log('loadRankings', e, stack);
       _loadMockRankings(
         humanUserId: humanUserId,
         companyName: humanCompanyName,
@@ -352,8 +353,8 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
           ),
         );
       }
-    } catch (e) {
-      SupabaseManager.logError('refreshSelectedInsights', e);
+    } catch (e, stack) {
+      AppError.log('refreshSelectedInsights', e, stack);
       if (state is LeaderboardLoaded) {
         final loadedState = state as LeaderboardLoaded;
         if (loadedState.selectedCompetitorId != competitor.id) return;
@@ -484,8 +485,8 @@ class LeaderboardCubit extends Cubit<LeaderboardState>
         return dbIns;
       }
       throw Exception('Competitor insights returned empty payload');
-    } catch (e) {
-      SupabaseManager.logError('get_competitor_insights', e);
+    } catch (e, stack) {
+      AppError.log('get_competitor_insights', e, stack);
       final mockIns = _getMockInsights(
         id,
         fallbackName,

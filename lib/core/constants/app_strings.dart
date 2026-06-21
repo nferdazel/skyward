@@ -352,6 +352,10 @@ class AppStrings {
       'AIRLINE PROFILE RESET SUCCESSFULLY!';
   static const String airlineResetFailedPrefix = 'AIRLINE RESET FAILED: ';
   static const String unknownError = 'UNKNOWN ERROR';
+  static const String simulationSyncFailed = 'Simulation sync failed.';
+  static const String airportsLoadFailed = 'Failed to load airports.';
+  static const String settingsSaveFailed = 'Failed to save settings.';
+  static const String airlineResetFailed = 'Failed to reset airline.';
 
   // Leaderboard Screen
   static const String globalRankingsTitle = 'GLOBAL RANKINGS HUD';
@@ -395,6 +399,8 @@ class AppStrings {
   static const String worldLeaderLabel = 'CURRENT WORLD LEADER';
   static const String dismissRadarHud = 'DISMISS RADAR HUD';
   static const String failedToLoadInsights = 'Failed to load insights details';
+  static const String rankingsLoadFailed = 'Failed to load rankings.';
+  static const String insightsLoadFailed = 'Failed to load competitor insights.';
   static const String competitorIntelTitle = 'Competitor Intelligence';
   static const String competitorIntelLoadingSubtitle =
       'Loading competitor intelligence';
@@ -567,6 +573,8 @@ class AppStrings {
 
   // Finance Screen
   static const String failedToLoadLedgerLogs = 'Failed to load ledger logs.';
+  static const String ledgerLoadFailed = 'Failed to load ledger.';
+  static const String snapshotRefreshFailed = 'Failed to refresh finance snapshot.';
   static const String currentPositionTitle = 'CURRENT POSITION';
   static const String currentPositionDesc =
       'Backend-authoritative balance sheet and network footprint at the current game time.';
@@ -622,7 +630,8 @@ class AppStrings {
   static const String dbConnectionFailed = 'Database connection failed: ';
   static const String dbEmptyResponse =
       'Database transaction returned an empty response.';
-  static const String fleetLoadFailed = 'Failed to load fleet: ';
+  static const String fleetLoadFailed = 'Failed to load fleet.';
+  static const String seatConfigFailed = 'Seat configuration failed.';
 
   // Route operation messages
   static const String routeCreatedSuccess = 'Route established successfully!';
@@ -631,7 +640,9 @@ class AppStrings {
       'Route closed and aircraft grounded!';
   static const String routeCreateFailed = 'Route creation failed.';
   static const String routeDeleteFailed = 'Route deletion failed.';
-  static const String routesLoadFailed = 'Failed to load routes: ';
+  static const String routesLoadFailed = 'Failed to load routes.';
+  static const String routeAssignFailed = 'Aircraft assignment failed.';
+  static const String routeFrequencyUpdateFailed = 'Route update failed.';
 
   // Shared widgets
   static const String dialogDismissButton = 'DISMISS';

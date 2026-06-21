@@ -10,6 +10,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/game_constants.dart';
 import '../../../../core/database/supabase_client.dart';
 import '../../../../core/realtime/realtime_subscription_bag.dart';
+import '../../../../core/utils/app_error.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 import '../../../auth/domain/user_model.dart';
 import '../../data/simulation_gateway.dart';
@@ -250,11 +251,11 @@ class SimulationCubit extends Cubit<SimulationState>
       // 4. Return the updated user for the caller to handle (event-based communication)
       return authoritativeUser;
     } catch (e, stack) {
-      SupabaseManager.logError('simulation_delta_sync', e, stack);
+      AppError.log('simulation_delta_sync', e, stack);
       _safeEmit(
         state.copyWith(
           isSyncing: false,
-          errorMessage: 'Simulation Sync Error: ${e.toString()}',
+          errorMessage: AppError.extractMessage(e, AppStrings.simulationSyncFailed),
         ),
       );
       return null;
