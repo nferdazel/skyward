@@ -187,25 +187,47 @@ class OverviewTab extends StatelessWidget {
   }
 
   Widget _buildRunwayCard(OverviewSnapshot snapshot) {
+    final inactiveColor = AppTheme.textMuted.withValues(alpha: 0.25);
+
     return AppCard(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Title + icon row
           Row(
             children: [
               Icon(Icons.timer_outlined, color: AppTheme.textMuted, size: 14),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 'CASH RUNWAY',
-                style: AppTypography.microLabel.copyWith(color: AppTheme.textMuted),
+                style: AppTypography.microLabel.copyWith(
+                  color: AppTheme.textMuted,
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
+          // Large value
           Text(
             snapshot.runwayLabel,
             style: AppTypography.largeKpi.copyWith(color: snapshot.runwayColor),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // 10-segment progress bar (all inactive — raw days not available)
+          Row(
+            children: List.generate(10, (index) {
+              return Expanded(
+                child: Container(
+                  height: 3,
+                  margin: EdgeInsets.only(right: index < 9 ? 2 : 0),
+                  decoration: BoxDecoration(
+                    color: inactiveColor,
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              );
+            }),
           ),
         ],
       ),
