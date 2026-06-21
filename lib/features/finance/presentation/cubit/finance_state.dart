@@ -19,7 +19,9 @@ class FinanceDailySnapshot {
   });
 }
 
-abstract class FinanceDataState extends FinanceState {
+/// Immutable value object bundling all computed finance metrics.
+/// Adding a new metric requires editing only this class and the cubit builder.
+class FinanceMetrics {
   final FinanceSnapshot snapshot;
   final List<LedgerEntry> logs;
   final List<FinanceDailySnapshot> dailySnapshots;
@@ -38,7 +40,7 @@ abstract class FinanceDataState extends FinanceState {
   final double leaseExpenseShare;
   final double repairExpenseShare;
 
-  const FinanceDataState({
+  const FinanceMetrics({
     required this.snapshot,
     required this.logs,
     required this.dailySnapshots,
@@ -57,6 +59,51 @@ abstract class FinanceDataState extends FinanceState {
     required this.leaseExpenseShare,
     required this.repairExpenseShare,
   });
+
+  /// Default/empty constructor for use in [FinanceError] fallbacks.
+  const FinanceMetrics.empty()
+      : snapshot = const FinanceSnapshot.empty(),
+        logs = const [],
+        dailySnapshots = const [],
+        totalTicketSales = 0.0,
+        totalOperations = 0.0,
+        totalLease = 0.0,
+        totalRepair = 0.0,
+        totalPurchase = 0.0,
+        totalRevenue = 0.0,
+        totalExpense = 0.0,
+        netProfit = 0.0,
+        averageDailyNet = 0.0,
+        latestDailyNet = 0.0,
+        worstDailyNet = 0.0,
+        expenseConcentration = 0.0,
+        leaseExpenseShare = 0.0,
+        repairExpenseShare = 0.0;
+}
+
+abstract class FinanceDataState extends FinanceState {
+  final FinanceMetrics metrics;
+
+  const FinanceDataState({required this.metrics});
+
+  // ── Delegating getters so view code is unchanged ──
+  FinanceSnapshot get snapshot => metrics.snapshot;
+  List<LedgerEntry> get logs => metrics.logs;
+  List<FinanceDailySnapshot> get dailySnapshots => metrics.dailySnapshots;
+  double get totalTicketSales => metrics.totalTicketSales;
+  double get totalOperations => metrics.totalOperations;
+  double get totalLease => metrics.totalLease;
+  double get totalRepair => metrics.totalRepair;
+  double get totalPurchase => metrics.totalPurchase;
+  double get totalRevenue => metrics.totalRevenue;
+  double get totalExpense => metrics.totalExpense;
+  double get netProfit => metrics.netProfit;
+  double get averageDailyNet => metrics.averageDailyNet;
+  double get latestDailyNet => metrics.latestDailyNet;
+  double get worstDailyNet => metrics.worstDailyNet;
+  double get expenseConcentration => metrics.expenseConcentration;
+  double get leaseExpenseShare => metrics.leaseExpenseShare;
+  double get repairExpenseShare => metrics.repairExpenseShare;
 }
 
 class FinanceInitial extends FinanceState {
@@ -64,73 +111,20 @@ class FinanceInitial extends FinanceState {
 }
 
 class FinanceLoading extends FinanceDataState {
-  const FinanceLoading({
-    required super.snapshot,
-    required super.logs,
-    required super.dailySnapshots,
-    required super.totalTicketSales,
-    required super.totalOperations,
-    required super.totalLease,
-    required super.totalRepair,
-    required super.totalPurchase,
-    required super.totalRevenue,
-    required super.totalExpense,
-    required super.netProfit,
-    required super.averageDailyNet,
-    required super.latestDailyNet,
-    required super.worstDailyNet,
-    required super.expenseConcentration,
-    required super.leaseExpenseShare,
-    required super.repairExpenseShare,
-  });
+  const FinanceLoading({required super.metrics});
 }
 
 class FinanceLoaded extends FinanceDataState {
-  const FinanceLoaded({
-    required super.snapshot,
-    required super.logs,
-    required super.dailySnapshots,
-    required super.totalTicketSales,
-    required super.totalOperations,
-    required super.totalLease,
-    required super.totalRepair,
-    required super.totalPurchase,
-    required super.totalRevenue,
-    required super.totalExpense,
-    required super.netProfit,
-    required super.averageDailyNet,
-    required super.latestDailyNet,
-    required super.worstDailyNet,
-    required super.expenseConcentration,
-    required super.leaseExpenseShare,
-    required super.repairExpenseShare,
-  });
+  const FinanceLoaded({required super.metrics});
 }
 
 class FinanceError extends FinanceDataState {
   final String message;
-
   final bool hasData;
 
   const FinanceError({
     required this.message,
     this.hasData = false,
-    super.snapshot = const FinanceSnapshot.empty(),
-    super.logs = const [],
-    super.dailySnapshots = const [],
-    super.totalTicketSales = 0.0,
-    super.totalOperations = 0.0,
-    super.totalLease = 0.0,
-    super.totalRepair = 0.0,
-    super.totalPurchase = 0.0,
-    super.totalRevenue = 0.0,
-    super.totalExpense = 0.0,
-    super.netProfit = 0.0,
-    super.averageDailyNet = 0.0,
-    super.latestDailyNet = 0.0,
-    super.worstDailyNet = 0.0,
-    super.expenseConcentration = 0.0,
-    super.leaseExpenseShare = 0.0,
-    super.repairExpenseShare = 0.0,
+    super.metrics = const FinanceMetrics.empty(),
   });
 }

@@ -341,30 +341,32 @@ void main() {
         ];
 
         final loadingState = FinanceLoading(
-          snapshot: const FinanceSnapshot.empty(),
-          logs: logs,
-          dailySnapshots: [
-            FinanceDailySnapshot(
-              gameDate: DateTime.parse('2026-05-31T00:00:00Z'),
-              revenue: 12345.0,
-              expense: 0.0,
-              net: 12345.0,
-            ),
-          ],
-          totalTicketSales: 12345.0,
-          totalOperations: 0.0,
-          totalLease: 0.0,
-          totalRepair: 0.0,
-          totalPurchase: 0.0,
-          totalRevenue: 12345.0,
-          totalExpense: 0.0,
-          netProfit: 12345.0,
-          averageDailyNet: 12345.0,
-          latestDailyNet: 12345.0,
-          worstDailyNet: 12345.0,
-          expenseConcentration: 0.0,
-          leaseExpenseShare: 0.0,
-          repairExpenseShare: 0.0,
+          metrics: FinanceMetrics(
+            snapshot: const FinanceSnapshot.empty(),
+            logs: logs,
+            dailySnapshots: [
+              FinanceDailySnapshot(
+                gameDate: DateTime.parse('2026-05-31T00:00:00Z'),
+                revenue: 12345.0,
+                expense: 0.0,
+                net: 12345.0,
+              ),
+            ],
+            totalTicketSales: 12345.0,
+            totalOperations: 0.0,
+            totalLease: 0.0,
+            totalRepair: 0.0,
+            totalPurchase: 0.0,
+            totalRevenue: 12345.0,
+            totalExpense: 0.0,
+            netProfit: 12345.0,
+            averageDailyNet: 12345.0,
+            latestDailyNet: 12345.0,
+            worstDailyNet: 12345.0,
+            expenseConcentration: 0.0,
+            leaseExpenseShare: 0.0,
+            repairExpenseShare: 0.0,
+          ),
         );
 
         expect(loadingState.logs, hasLength(1));

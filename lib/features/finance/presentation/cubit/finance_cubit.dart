@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/database/supabase_client.dart';
 import '../../../../core/mixins/simulation_reactive_mixin.dart';
 import '../../../../core/realtime/realtime_subscription_bag.dart';
+import '../../../../core/utils/app_error.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 import '../../../../core/utils/perf_debug.dart';
 import '../../../simulation/presentation/cubit/simulation_cubit.dart';
@@ -128,23 +130,25 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
         : totalRepair / totalExpense;
 
     return FinanceLoaded(
-      snapshot: effectiveSnapshot,
-      logs: logs,
-      dailySnapshots: dailySnapshots,
-      totalTicketSales: totalTicketSales,
-      totalOperations: totalOperations,
-      totalLease: totalLease,
-      totalRepair: totalRepair,
-      totalPurchase: totalPurchase,
-      totalRevenue: totalRevenue,
-      totalExpense: totalExpense,
-      netProfit: totalRevenue - totalExpense,
-      averageDailyNet: averageDailyNet,
-      latestDailyNet: latestDailyNet,
-      worstDailyNet: worstDailyNet,
-      expenseConcentration: expenseConcentration,
-      leaseExpenseShare: leaseExpenseShare,
-      repairExpenseShare: repairExpenseShare,
+      metrics: FinanceMetrics(
+        snapshot: effectiveSnapshot,
+        logs: logs,
+        dailySnapshots: dailySnapshots,
+        totalTicketSales: totalTicketSales,
+        totalOperations: totalOperations,
+        totalLease: totalLease,
+        totalRepair: totalRepair,
+        totalPurchase: totalPurchase,
+        totalRevenue: totalRevenue,
+        totalExpense: totalExpense,
+        netProfit: totalRevenue - totalExpense,
+        averageDailyNet: averageDailyNet,
+        latestDailyNet: latestDailyNet,
+        worstDailyNet: worstDailyNet,
+        expenseConcentration: expenseConcentration,
+        leaseExpenseShare: leaseExpenseShare,
+        repairExpenseShare: repairExpenseShare,
+      ),
     );
   }
 
@@ -152,25 +156,7 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
     if (state is FinanceDataState) {
       return state as FinanceDataState;
     }
-    return const FinanceLoaded(
-      snapshot: FinanceSnapshot.empty(),
-      logs: [],
-      dailySnapshots: [],
-      totalTicketSales: 0.0,
-      totalOperations: 0.0,
-      totalLease: 0.0,
-      totalRepair: 0.0,
-      totalPurchase: 0.0,
-      totalRevenue: 0.0,
-      totalExpense: 0.0,
-      netProfit: 0.0,
-      averageDailyNet: 0.0,
-      latestDailyNet: 0.0,
-      worstDailyNet: 0.0,
-      expenseConcentration: 0.0,
-      leaseExpenseShare: 0.0,
-      repairExpenseShare: 0.0,
-    );
+    return const FinanceLoaded(metrics: FinanceMetrics.empty());
   }
 
   void setupReactivity(SimulationCubit simCubit, String userId) {
@@ -208,27 +194,7 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
     final stopwatch = PerfDebug.start('finance.ledger_load');
     if (!silent) {
       final snapshot = _snapshotState();
-      emit(
-        FinanceLoading(
-          snapshot: snapshot.snapshot,
-          logs: snapshot.logs,
-          dailySnapshots: snapshot.dailySnapshots,
-          totalTicketSales: snapshot.totalTicketSales,
-          totalOperations: snapshot.totalOperations,
-          totalLease: snapshot.totalLease,
-          totalRepair: snapshot.totalRepair,
-          totalPurchase: snapshot.totalPurchase,
-          totalRevenue: snapshot.totalRevenue,
-          totalExpense: snapshot.totalExpense,
-          netProfit: snapshot.netProfit,
-          averageDailyNet: snapshot.averageDailyNet,
-          latestDailyNet: snapshot.latestDailyNet,
-          worstDailyNet: snapshot.worstDailyNet,
-          expenseConcentration: snapshot.expenseConcentration,
-          leaseExpenseShare: snapshot.leaseExpenseShare,
-          repairExpenseShare: snapshot.repairExpenseShare,
-        ),
-      );
+      emit(FinanceLoading(metrics: snapshot.metrics));
     }
     try {
       if (DevModeManager.isDevMode) {
@@ -264,29 +230,13 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
         stopwatch,
         fields: {'silent': silent, 'error': true},
       );
-      SupabaseManager.logError('loadLedger', e, stack);
+      AppError.log('loadLedger', e, stack);
       final snapshot = _snapshotState();
       emit(
         FinanceError(
-          message: 'Failed to load ledger: ${e.toString()}',
+          message: AppError.extractMessage(e, AppStrings.ledgerLoadFailed),
           hasData: snapshot.logs.isNotEmpty,
-          snapshot: snapshot.snapshot,
-          logs: snapshot.logs,
-          totalTicketSales: snapshot.totalTicketSales,
-          totalOperations: snapshot.totalOperations,
-          totalLease: snapshot.totalLease,
-          totalRepair: snapshot.totalRepair,
-          totalPurchase: snapshot.totalPurchase,
-          totalRevenue: snapshot.totalRevenue,
-          totalExpense: snapshot.totalExpense,
-          netProfit: snapshot.netProfit,
-          dailySnapshots: snapshot.dailySnapshots,
-          averageDailyNet: snapshot.averageDailyNet,
-          latestDailyNet: snapshot.latestDailyNet,
-          worstDailyNet: snapshot.worstDailyNet,
-          expenseConcentration: snapshot.expenseConcentration,
-          leaseExpenseShare: snapshot.leaseExpenseShare,
-          repairExpenseShare: snapshot.repairExpenseShare,
+          metrics: snapshot.metrics,
         ),
       );
     }
@@ -326,7 +276,7 @@ class FinanceCubit extends Cubit<FinanceState> with SimulationReactiveMixin {
         fields: {'silent': silent, 'error': true},
       );
       if (!silent) {
-        SupabaseManager.logError('refreshFinanceSnapshot', e);
+        AppError.log('refreshFinanceSnapshot', e);
       }
     }
   }

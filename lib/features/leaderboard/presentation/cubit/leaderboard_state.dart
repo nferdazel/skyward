@@ -14,14 +14,21 @@ class LeaderboardLoading extends LeaderboardState {
   const LeaderboardLoading();
 }
 
-class LeaderboardLoaded extends LeaderboardState {
+/// Intermediate state that carries cached rankings.
+/// Both [LeaderboardLoaded] and [LeaderboardError] extend this so that
+/// views (and the dashboard overview) can access `rankings` even during errors.
+abstract class LeaderboardDataState extends LeaderboardState {
   final List<LeaderboardEntry> rankings;
+  const LeaderboardDataState({required this.rankings});
+}
+
+class LeaderboardLoaded extends LeaderboardDataState {
   final String? selectedCompetitorId;
   final CompetitorInsights? selectedInsights;
   final bool isLoadingInsights;
 
   const LeaderboardLoaded({
-    required this.rankings,
+    required super.rankings,
     this.selectedCompetitorId,
     this.selectedInsights,
     this.isLoadingInsights = false,
@@ -49,7 +56,11 @@ class LeaderboardLoaded extends LeaderboardState {
   }
 }
 
-class LeaderboardError extends LeaderboardState {
+class LeaderboardError extends LeaderboardDataState {
   final String message;
-  const LeaderboardError({required this.message});
+
+  const LeaderboardError({
+    required this.message,
+    super.rankings = const [],
+  });
 }

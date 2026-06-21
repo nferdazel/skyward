@@ -108,7 +108,7 @@ class OverviewSnapshot {
         ? routesState.routes
         : const <UserRoute>[];
     final finance = financeState is FinanceDataState ? financeState : null;
-    final rankings = leaderboardState is LeaderboardLoaded
+    final rankings = leaderboardState is LeaderboardDataState
         ? leaderboardState.rankings
         : const <LeaderboardEntry>[];
 
