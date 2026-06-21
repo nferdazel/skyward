@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 ══════════════════════════════════════════════════════ */
 
 class SkywardColors {
+  const SkywardColors._();
   // ── Backgrounds ──
   static const darkBg        = Color(0xFF0A0C0F);
   static const darkSurface   = Color(0xFF111318);

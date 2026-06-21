@@ -1,4 +1,5 @@
 class AppStrings {
+  const AppStrings._();
   // Common
   static const String abortOperation = 'ABORT OPERATION';
   static const String confirmReset = 'CONFIRM RESET';

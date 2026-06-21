@@ -1,4 +1,5 @@
 class AppSpacing {
+  const AppSpacing._();
   // Scale tokens (4px grid)
   static const double xs = 4.0;
   static const double sm = 8.0;

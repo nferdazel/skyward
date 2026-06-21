@@ -1,4 +1,5 @@
 class GameConstants {
+  const GameConstants._();
   // ==========================================
   // TIME & CLOCK CONFIGURATIONS
   // ==========================================
