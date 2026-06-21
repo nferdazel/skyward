@@ -67,7 +67,7 @@ All UI code must use the design system tokens defined in the theme files.
 
 ### Colors
 
-- Use `AppTheme.*` static getters for all colors (e.g., `AppTheme.primary`, `AppTheme.success`)
+- Use `AppTheme.*` static const fields for all colors (e.g., `AppTheme.primary`, `AppTheme.success`)
 - Use semantic variants for subtle backgrounds: `successSubtle`, `dangerSubtle`, `warningSubtle`
 - Use `surfaceRaised` for elevated surfaces (table headers, raised panels)
 - Use `borderSubtle` for subtle container backgrounds
@@ -75,7 +75,7 @@ All UI code must use the design system tokens defined in the theme files.
 ### Spacing
 
 - Use `AppSpacing.*` tokens only — never hardcode pixel values for spacing
-- Available tokens: `xs` (4), `sm` (6), `md` (10), `lg` (14), `xl` (16), `xxl` (20), `xxxl` (24)
+- Available tokens: `xs` (4), `sm` (8), `md` (12), `lg` (16), `xl` (20), `xxl` (24), `xxxl` (32)
 - Use semantic tokens for layout: `pagePadding`, `cardPadding`, `sectionGap`, `blockGap`
 
 ### Typography
