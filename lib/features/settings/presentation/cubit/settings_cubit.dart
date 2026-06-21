@@ -4,6 +4,8 @@ import '../../../../core/database/supabase_client.dart';
 import '../../../../core/utils/dev_mode_manager.dart';
 
 class SettingsState {
+  static const Object _unset = Object();
+
   final double uiScale;
   final List<Map<String, dynamic>> airports;
   final bool isLoadingAirports;
@@ -28,21 +30,27 @@ class SettingsState {
     double? uiScale,
     List<Map<String, dynamic>>? airports,
     bool? isLoadingAirports,
-    String? selectedHq,
+    Object? selectedHq = _unset,
     double? groundingThreshold,
     bool? isSaving,
-    String? errorMessage,
-    bool? isSaveSuccess,
+    Object? errorMessage = _unset,
+    Object? isSaveSuccess = _unset,
   }) {
     return SettingsState(
       uiScale: uiScale ?? this.uiScale,
       airports: airports ?? this.airports,
       isLoadingAirports: isLoadingAirports ?? this.isLoadingAirports,
-      selectedHq: selectedHq ?? this.selectedHq,
+      selectedHq: identical(selectedHq, _unset)
+          ? this.selectedHq
+          : selectedHq as String?,
       groundingThreshold: groundingThreshold ?? this.groundingThreshold,
       isSaving: isSaving ?? this.isSaving,
-      errorMessage: errorMessage,
-      isSaveSuccess: isSaveSuccess ?? false,
+      errorMessage: identical(errorMessage, _unset)
+          ? this.errorMessage
+          : errorMessage as String?,
+      isSaveSuccess: identical(isSaveSuccess, _unset)
+          ? this.isSaveSuccess
+          : isSaveSuccess as bool,
     );
   }
 }

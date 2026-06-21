@@ -1,4 +1,5 @@
 class SimulationState {
+  static const Object _unset = Object();
   final DateTime gameTime;
   final double cashBalance;
   final double fuelPricePerLiter;
@@ -48,7 +49,7 @@ class SimulationState {
     String? operationalStatus,
     int? consecutiveNegativeDays,
     int? recoveryStreakDays,
-    String? errorMessage,
+    Object? errorMessage = _unset,
   }) {
     return SimulationState(
       gameTime: gameTime ?? this.gameTime,
@@ -62,7 +63,9 @@ class SimulationState {
       consecutiveNegativeDays:
           consecutiveNegativeDays ?? this.consecutiveNegativeDays,
       recoveryStreakDays: recoveryStreakDays ?? this.recoveryStreakDays,
-      errorMessage: errorMessage,
+      errorMessage: identical(errorMessage, _unset)
+          ? this.errorMessage
+          : errorMessage as String?,
     );
   }
 }
