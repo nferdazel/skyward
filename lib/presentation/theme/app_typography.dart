@@ -28,7 +28,7 @@ class AppTypography {
 
   // ── SECTION HEADERS (IBM Plex Mono, ALL CAPS) ──
   static TextStyle get sectionHeaderLarge => GoogleFonts.ibmPlexMono(
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: FontWeight.w600,
     color: textSecondary,
     height: 1.2,

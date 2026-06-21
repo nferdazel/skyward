@@ -33,8 +33,8 @@ class SkywardColors {
 
   // ── Text ──
   static const darkTextPri   = Color(0xFFE8EAF0);
-  static const darkTextSec   = Color(0xFF6B7280);
-  static const darkTextDim   = Color(0xFF3A3F4A);
+  static const darkTextSec   = Color(0xFF8A919D);
+  static const darkTextDim   = Color(0xFF5A6170);
 
   // Light mode (not actively used, kept for compilation)
   static const lightBg       = Color(0xFFF6F8FA);
