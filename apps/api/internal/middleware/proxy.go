@@ -16,7 +16,7 @@ import (
 // header untuk mem-bypass rate limiter per-IP.
 
 var (
-	proxyMu      sync.RWMutex
+	proxyMu        sync.RWMutex
 	trustedProxies = mustNets("127.0.0.0/8", "::1/128")
 )
 

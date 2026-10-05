@@ -160,4 +160,3 @@ func (h *Hub) BroadcastAll(event string) {
 		c.TrySend(msg)
 	}
 }
-

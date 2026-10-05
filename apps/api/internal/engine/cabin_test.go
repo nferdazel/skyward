@@ -75,10 +75,10 @@ func TestAllocateCabinsSmallPool(t *testing.T) {
 // The defining requirement: no single configuration is strictly optimal.
 // Slot budget 180 (economy 1, business 2, first 3); both configs below are
 // slot-valid. The trade-off is demand-driven:
-// - Thin pool: premium-willing demand fits in premium cabins, so a balanced
-//   config captures the yield premium and beats all-economy.
-// - Thick pool: all-economy sells more (cheaper) seats and beats the balanced
-//   config, which sacrificed economy seats for premium ones.
+//   - Thin pool: premium-willing demand fits in premium cabins, so a balanced
+//     config captures the yield premium and beats all-economy.
+//   - Thick pool: all-economy sells more (cheaper) seats and beats the balanced
+//     config, which sacrificed economy seats for premium ones.
 func TestCabinTradeOffIsReal(t *testing.T) {
 	// econ 150 + biz 15 (30 slots) = 180 slots.
 	thinMix := alloc(150, 15, 0, 100.0)

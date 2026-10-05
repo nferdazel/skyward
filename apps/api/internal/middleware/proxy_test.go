@@ -20,9 +20,9 @@ func TestClientIPTrustBoundary(t *testing.T) {
 
 	// 1. Untrusted remote (langsung ke port API): header DIABAIKAN.
 	got := clientIP(reqFrom("203.0.113.7:5555", map[string]string{
-		"X-Forwarded-For":   "198.51.100.1",
-		"CF-Connecting-IP":  "198.51.100.2",
-		"X-Real-IP":         "198.51.100.3",
+		"X-Forwarded-For":  "198.51.100.1",
+		"CF-Connecting-IP": "198.51.100.2",
+		"X-Real-IP":        "198.51.100.3",
 	}))
 	if got != "203.0.113.7" {
 		t.Fatalf("untrusted spoof headers must be ignored, got %q", got)
