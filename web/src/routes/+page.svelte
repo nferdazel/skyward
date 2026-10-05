@@ -197,7 +197,10 @@
 	{/if}
 </main>
 
-<SkywardSonner store={stores.notification} />
+<SkywardSonner
+	items={stores.notification.toasts}
+	ondismiss={(id) => stores.notification.dismiss(id)}
+/>
 
 <style>
 	.shell {

@@ -34,10 +34,13 @@ describe('NotificationStore + SkywardSonner', () => {
 	it('renders toasts and removes them on click', async () => {
 		const store = new NotificationStore();
 		store.push({ type: 'warning', title: 'Wear tinggi' });
-		render(SkywardSonner, { props: { store } });
+		const { rerender } = render(SkywardSonner, {
+			props: { items: store.toasts, ondismiss: (id) => store.dismiss(id) }
+		});
 
 		const toast = screen.getByText('Wear tinggi').closest('button') as HTMLButtonElement;
 		await toast.click();
+		rerender({ items: store.toasts, ondismiss: (id) => store.dismiss(id) });
 
 		expect(store.toasts).toHaveLength(0);
 	});

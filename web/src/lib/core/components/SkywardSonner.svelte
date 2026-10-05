@@ -1,18 +1,29 @@
 <script lang="ts">
-	import type { NotificationStore } from '$lib/features/notification/state/notification-store.svelte';
+	/**
+	 * Toast stack (sonner). Port ringkas dari `SkywardSonner`.
+	 *
+	 * Komponen generik: menerima `items` + `ondismiss`, bukan store fitur —
+	 * supaya `core/` tidak bergantung pada `features/`.
+	 */
+	export interface ToastItem {
+		id: string;
+		type: string;
+		title: string;
+		message?: string;
+	}
 
-	/** Toast stack (sonner). Port ringkas dari `SkywardSonner`. */
 	type Props = {
-		store: NotificationStore;
+		items: ToastItem[];
+		ondismiss: (id: string) => void;
 	};
 
-	let { store }: Props = $props();
+	let { items, ondismiss }: Props = $props();
 </script>
 
-{#if store.toasts.length > 0}
+{#if items.length > 0}
 	<div class="sonner" role="status" aria-live="polite">
-		{#each store.toasts as toast (toast.id)}
-			<button class="toast {toast.type}" onclick={() => store.dismiss(toast.id)}>
+		{#each items as toast (toast.id)}
+			<button class="toast {toast.type}" onclick={() => ondismiss(toast.id)}>
 				<span class="title">{toast.title}</span>
 				{#if toast.message}
 					<span class="message">{toast.message}</span>
