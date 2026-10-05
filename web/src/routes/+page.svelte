@@ -2,6 +2,7 @@
 	import AppButton from '$lib/core/components/AppButton.svelte';
 	import AppCard from '$lib/core/components/AppCard.svelte';
 	import AppBadge from '$lib/core/components/AppBadge.svelte';
+	import FleetView from '$lib/features/fleet/ui/FleetView.svelte';
 	import { getAuthStore } from '$lib/features/auth/state/auth-context.svelte';
 	import { getAppStores } from '$lib/core/di/stores-context.svelte';
 
@@ -10,6 +11,10 @@
 
 	const fmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 	const money = (n: number) => `$${fmt.format(Math.round(n))}`;
+
+	const tabs = ['Overview', 'Armada', 'Rute', 'Bank', 'Keuangan'] as const;
+	type Tab = (typeof tabs)[number];
+	let tab = $state<Tab>('Overview');
 </script>
 
 <svelte:head><title>Skyward — Dashboard</title></svelte:head>
@@ -23,106 +28,126 @@
 		<AppButton text="Keluar" variant="secondary" onclick={() => auth.logout()} />
 	</header>
 
-	<section class="grid">
-		<AppCard>
-			<h2>Simulasi</h2>
-			<p class="muted">
-				Waktu game: {stores.simulation.state.gameTime}
-				{#if stores.simulation.state.isSyncing}<AppBadge label="sync" tone="primary" />{/if}
-			</p>
-			<dl>
-				<div>
-					<dt>Kas</dt>
-					<dd>{money(stores.simulation.state.cashBalance)}</dd>
-				</div>
-				<div>
-					<dt>Penerbangan terakhir</dt>
-					<dd>{stores.simulation.state.lastFlightsRun}</dd>
-				</div>
-				<div>
-					<dt>Status</dt>
-					<dd>{stores.simulation.state.operationalStatus}</dd>
-				</div>
-			</dl>
-		</AppCard>
+	<nav class="tabs">
+		{#each tabs as t (t)}
+			<button
+				class:active={tab === t}
+				aria-current={tab === t ? 'page' : undefined}
+				onclick={() => (tab = t)}
+			>
+				{t}
+			</button>
+		{/each}
+	</nav>
 
-		<AppCard>
-			<h2>Armada</h2>
-			<p class="muted">{stores.fleet.state.aircraft.length} pesawat</p>
-			<ul>
-				{#each stores.fleet.state.aircraft as a (a.id)}
-					<li>
-						{a.nickname || a.tailNumber || a.model.modelName}
-						— <span class="muted">{Math.round(a.condition)}%</span>
-					</li>
-				{:else}
-					<li class="muted">Belum ada pesawat.</li>
-				{/each}
-			</ul>
-		</AppCard>
+	{#if tab === 'Overview'}
+		<section class="grid">
+			<AppCard>
+				<h2>Simulasi</h2>
+				<p class="muted">
+					Waktu game: {stores.simulation.state.gameTime}
+					{#if stores.simulation.state.isSyncing}<AppBadge label="sync" tone="primary" />{/if}
+				</p>
+				<dl>
+					<div>
+						<dt>Kas</dt>
+						<dd>{money(stores.simulation.state.cashBalance)}</dd>
+					</div>
+					<div>
+						<dt>Penerbangan terakhir</dt>
+						<dd>{stores.simulation.state.lastFlightsRun}</dd>
+					</div>
+					<div>
+						<dt>Status</dt>
+						<dd>{stores.simulation.state.operationalStatus}</dd>
+					</div>
+				</dl>
+			</AppCard>
 
-		<AppCard>
-			<h2>Rute</h2>
-			<p class="muted">{stores.routes.state.routes.length} rute aktif</p>
-			<ul>
-				{#each stores.routes.state.routes as r (r.id)}
-					<li>
-						{r.originIata}→{r.destinationIata}
-						<span class="muted">({Math.round(r.distanceKm)} km, {r.flightsPerWeek}/wk)</span>
-					</li>
-				{:else}
-					<li class="muted">Belum ada rute.</li>
-				{/each}
-			</ul>
-		</AppCard>
+			<AppCard>
+				<h2>Armada</h2>
+				<p class="muted">{stores.fleet.state.aircraft.length} pesawat</p>
+				<ul>
+					{#each stores.fleet.state.aircraft as a (a.id)}
+						<li>
+							{a.nickname || a.tailNumber || a.model.modelName}
+							— <span class="muted">{Math.round(a.condition)}%</span>
+						</li>
+					{:else}
+						<li class="muted">Belum ada pesawat.</li>
+					{/each}
+				</ul>
+			</AppCard>
 
-		<AppCard>
-			<h2>Bank</h2>
-			<dl>
-				<div>
-					<dt>Akun operasional</dt>
-					<dd>{money(stores.bank.operatingAccount?.balance ?? 0)}</dd>
-				</div>
-				<div>
-					<dt>Pinjaman</dt>
-					<dd>{stores.bank.state.loans.length}</dd>
-				</div>
-				<div>
-					<dt>Tier kredit</dt>
-					<dd>{stores.bank.state.credit?.creditTier ?? '—'}</dd>
-				</div>
-			</dl>
-		</AppCard>
+			<AppCard>
+				<h2>Rute</h2>
+				<p class="muted">{stores.routes.state.routes.length} rute aktif</p>
+				<ul>
+					{#each stores.routes.state.routes as r (r.id)}
+						<li>
+							{r.originIata}→{r.destinationIata}
+							<span class="muted">({Math.round(r.distanceKm)} km, {r.flightsPerWeek}/wk)</span>
+						</li>
+					{:else}
+						<li class="muted">Belum ada rute.</li>
+					{/each}
+				</ul>
+			</AppCard>
 
-		<AppCard>
-			<h2>Keuangan</h2>
-			<dl>
-				<div>
-					<dt>Pendapatan 30h</dt>
-					<dd>{money(stores.finance.state.snapshot.rollingRevenue30d)}</dd>
-				</div>
-				<div>
-					<dt>Beban 30h</dt>
-					<dd>{money(stores.finance.state.snapshot.rollingExpense30d)}</dd>
-				</div>
-				<div>
-					<dt>Bersih 30h</dt>
-					<dd>{money(stores.finance.state.snapshot.rollingNet30d)}</dd>
-				</div>
-			</dl>
-		</AppCard>
+			<AppCard>
+				<h2>Bank</h2>
+				<dl>
+					<div>
+						<dt>Akun operasional</dt>
+						<dd>{money(stores.bank.operatingAccount?.balance ?? 0)}</dd>
+					</div>
+					<div>
+						<dt>Pinjaman</dt>
+						<dd>{stores.bank.state.loans.length}</dd>
+					</div>
+					<div>
+						<dt>Tier kredit</dt>
+						<dd>{stores.bank.state.credit?.creditTier ?? '—'}</dd>
+					</div>
+				</dl>
+			</AppCard>
 
+			<AppCard>
+				<h2>Keuangan</h2>
+				<dl>
+					<div>
+						<dt>Pendapatan 30h</dt>
+						<dd>{money(stores.finance.state.snapshot.rollingRevenue30d)}</dd>
+					</div>
+					<div>
+						<dt>Beban 30h</dt>
+						<dd>{money(stores.finance.state.snapshot.rollingExpense30d)}</dd>
+					</div>
+					<div>
+						<dt>Bersih 30h</dt>
+						<dd>{money(stores.finance.state.snapshot.rollingNet30d)}</dd>
+					</div>
+				</dl>
+			</AppCard>
+
+			<AppCard>
+				<h2>Event dunia</h2>
+				<ul>
+					{#each stores.events.state.events as e (e.id)}
+						<li>{e.title} <span class="muted">{e.eventType}</span></li>
+					{:else}
+						<li class="muted">Tidak ada event aktif.</li>
+					{/each}
+				</ul>
+			</AppCard>
+		</section>
+	{:else if tab === 'Armada'}
+		<FleetView store={stores.fleet} />
+	{:else}
 		<AppCard>
-			<h2>Event dunia</h2>
-			<ul>
-				{#each stores.events.state.events as e (e.id)}
-					<li>{e.title} <span class="muted">{e.eventType}</span></li>
-				{:else}
-					<li class="muted">Tidak ada event aktif.</li>
-				{/each}
-			</ul>
+			<p class="muted">Tab «{tab}» menyusul sesuai backlog.</p>
 		</AppCard>
-	</section>
+	{/if}
 </main>
 
 <style>
@@ -146,6 +171,28 @@
 		margin-left: auto;
 		color: var(--color-text-secondary);
 		font-size: 13px;
+	}
+	.tabs {
+		display: flex;
+		gap: var(--space-sm);
+		margin-bottom: var(--space-lg);
+		border-bottom: 0.5px solid var(--color-border);
+	}
+	.tabs button {
+		background: transparent;
+		border: none;
+		border-bottom: 2px solid transparent;
+		color: var(--color-text-secondary);
+		padding: var(--space-sm) var(--space-md);
+		cursor: pointer;
+		font-family: var(--font-sans);
+		font-weight: 600;
+		font-size: 12px;
+		letter-spacing: 0.06em;
+	}
+	.tabs button.active {
+		color: var(--color-accent);
+		border-bottom-color: var(--color-accent);
 	}
 	.grid {
 		display: grid;
