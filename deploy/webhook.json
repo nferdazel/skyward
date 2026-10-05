@@ -1,6 +1,6 @@
 [
   {
-    "id": "skyward-web",
+    "id": "skyward",
     "execute-command": "/srv/qouver/apps/skyward/scripts/deploy-vps.sh",
     "command-working-directory": "/srv/qouver/apps/skyward",
     "pass-arguments-to-command": [

@@ -2,9 +2,7 @@
 
 # Skyward
 
-**Web client untuk Skyward — airline tycoon simulation.**
-
-SvelteKit · TypeScript · static · tanpa SSR
+**Airline tycoon simulation — backend Go + web client SvelteKit.**
 
 </div>
 
@@ -14,81 +12,63 @@ Skyward adalah simulasi manajemen maskapai: dirikan maskapai, beli atau sewa
 pesawat, buka rute, pasang tarif, dan jaga neraca tetap hidup sementara sebuah
 dunia bersama berjalan di bawahmu.
 
-Repo ini adalah **klien web**. Seluruh logika ekonomi — demand, tarif, keausan,
-kredit, arus kas — diputuskan oleh backend (Go, repo terpisah) yang bersifat
-otoritatif. Klien merender apa yang dikatakan server dan mengirim perintah.
-Jika server dan klien berbeda pendapat, server benar menurut definisi.
+## Struktur monorepo
 
-## Stack
+| Bagian | Stack | Fungsi |
+|---|---|---|
+| **`apps/api`** | Go + PostgreSQL (`pgx`) | Backend otoritatif: REST, WebSocket, engine simulasi, worker world-tick |
+| **`apps/web`** | SvelteKit + TypeScript | Klien web statis (tanpa SSR) |
+| `migrations/` | SQL | Migrasi skema (dijalankan `scripts/migrate.sh`) |
+| `deploy/` | — | Kontrak deploy (webhook, Caddy contoh, env contoh) |
+| `scripts/` | Bash | Operasi DB (migrate, prune, backup, drift-check) |
 
-- **SvelteKit** (`adapter-static`) + **TypeScript** strict
-- **Svelte 5** runes untuk state
-- **Leaflet** untuk peta rute (BSD, tile OpenStreetMap)
-- **Vitest** + Testing Library untuk test
-- Tanpa SSR, tanpa runtime Node di produksi — hasil build adalah file statis
-
-## Fitur
-
-| Area | Isi |
-|---|---|
-| **Auth** | Login/daftar, sesi JWT, auto-login |
-| **Simulasi** | Rekonsiliasi world-clock, sinkron berkala + realtime |
-| **Armada** | Beli/sewa, perbaikan, jual, atur kursi |
-| **Rute** | Buka/atur/lepas rute, penilaian ekonomi dari server, peta |
-| **Bank** | Pinjaman, bayar, refinance, laporan kredit |
-| **Keuangan** | KPI, arus kas, laporan gaya IFRS |
-| **Peringkat** | Papan peringkat + detail kompetitor |
-| **Pengaturan** | Profil maskapai, reset, hapus akun |
-
-## Struktur
-
-```
-web/       Klien SvelteKit (Svelte + TypeScript)
-deploy/    Kontrak deploy (skrip webhook, Caddy contoh, env contoh)
-```
-
-`web/src/lib/core/` berisi infrastruktur lintas fitur (API client, realtime,
-sync, tema, komponen, DI). `web/src/lib/features/` berisi satu folder per
-fitur, masing-masing dengan `data/` (gateway), `domain/` (tipe), `state/`
-(store), dan `ui/` (komponen).
+Server adalah **otoritatif** untuk seluruh ekonomi — demand, tarif, keausan,
+kredit, arus kas. Klien merender apa yang dikatakan server dan mengirim
+perintah. Jika server dan klien berbeda pendapat, server benar menurut definisi.
 
 ## Pengembangan lokal
 
-Butuh Node 20+ dan pnpm.
+Butuh Go 1.26+, Node 20+, pnpm, dan PostgreSQL.
 
 ```bash
-cd web
-pnpm install
-pnpm dev        # dev server di http://localhost:5173
+# Backend
+cp .env.example .env     # isi DATABASE_URL, JWT_SECRET, dst.
+cd apps/api && go run ./cmd/server     # port 8090
+
+# Frontend (terminal lain)
+cd apps/web && pnpm install && pnpm dev  # http://localhost:5173
 ```
 
-Dev server mengarah ke backend di `http://localhost:8090` (lihat
-`.env.example`). Jalankan juga `skyward-api` secara lokal agar data muncul.
+## Perintah
 
 ```bash
-pnpm check      # svelte-check (tipe)
-pnpm lint       # eslint + prettier
-pnpm test       # vitest
-pnpm build      # output statis di web/build/
+# API
+cd apps/api
+go build ./...
+go test ./...
+make check               # vet + gofmt + test
+
+# Web
+cd apps/web
+pnpm check               # svelte-check (tipe)
+pnpm lint                # eslint + prettier
+pnpm test                # vitest
+pnpm build               # output statis di apps/web/build/
 ```
 
-## Build & deploy
+## Deploy
 
-- **CI** (`.github/workflows/ci.yml`): `check`, `lint`, `test`, `build` pada
-  tiap push/PR, plus secret scan (gitleaks). Hanya verifikasi.
+- **CI** (`.github/workflows/ci.yml`): build/vet/test Go + check/lint/test/build
+  web + secret scan (gitleaks) pada tiap push/PR.
 - **Deploy**: GitHub webhook → `deploy/deploy-vps.sh` di VPS. Build dilakukan
   **di VPS**, tanpa registry dan tanpa secret GitHub — pola yang sama dengan
-  project Qouver lain. Detail: [`deploy/README.md`](deploy/README.md).
+  project Qouver lain. API memakai health gate + rollback; web di-swap atomik.
+  Detail: [`deploy/README.md`](deploy/README.md).
 
 ## Konfigurasi
 
-Lihat [`.env.example`](.env.example). Nilai build-time:
-
-| Variabel | Fungsi |
-|---|---|
-| `VITE_SKYWARD_API_URL` | Base URL `skyward-api` |
-
-Nilai asli hanya ada di server. Tidak ada secret di repo ini.
+Lihat [`.env.example`](.env.example). Nilai asli hanya ada di server. Tidak ada
+secret di repo ini.
 
 ## Lisensi
 

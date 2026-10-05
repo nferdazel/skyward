@@ -1,15 +1,15 @@
 # Go build artifacts
-api/bin/
-api/*.exe
-api/*.test
-api/*.out
+apps/api/bin/
+apps/api/*.exe
+apps/api/*.test
+apps/api/*.out
 
 # Web dependensi & build
-web/node_modules/
-web/.pnpm-store/
-web/build/
-web/.svelte-kit/
-web/dist/
+apps/web/node_modules/
+apps/web/.pnpm-store/
+apps/web/build/
+apps/web/.svelte-kit/
+apps/web/dist/
 
 # Env & secret
 .env

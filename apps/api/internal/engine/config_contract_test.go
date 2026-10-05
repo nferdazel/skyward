@@ -48,7 +48,7 @@ func TestConfigKeysAreSeeded(t *testing.T) {
 
 	// Pemetaan key -> file yang membacanya.
 	goSrc := map[string]string{} // path -> isi
-	apiDir := findRepoFile(t, "api", "go.mod")
+	apiDir := findRepoFile(t, "apps/api", "go.mod")
 	apiRoot := filepath.Dir(apiDir)
 	err = filepath.Walk(apiRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {

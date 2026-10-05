@@ -1,21 +1,48 @@
 # Arsitektur
 
-Skyward web client — konsumen `skyward-api` (Go). Lihat juga
-[`README.md`](README.md).
+Skyward — monorepo: backend `skyward-api` (Go) + klien web (SvelteKit).
+Lihat juga [`README.md`](README.md).
 
 ## Bentuk
 
-Klien **statis murni**. Tidak ada SSR, tidak ada runtime Node di produksi.
-Hasil build (`build/`) adalah kumpulan file yang diserve Caddy. Semua data
-datang dari `skyward-api` lewat REST + WebSocket.
+```
+apps/api/    Backend Go (REST + WebSocket + engine simulasi + worker)
+apps/web/    Klien SvelteKit statis (tanpa SSR)
+migrations/  Migrasi SQL (dimiliki bersama, dijalankan `scripts/migrate.sh`)
+deploy/      Kontrak deploy (skrip webhook, Caddy contoh, env contoh)
+scripts/     Operasi DB (migrate, prune, backup, drift-check)
+```
+
+Server adalah otoritatif untuk seluruh ekonomi. Klien web merender dan
+mengirim perintah.
 
 ```
 Browser ── HTTPS ──► skyward.qouver.com
-                        ├── /            → build/ (statis)
-                        └── /skyward/*   → reverse_proxy skyward-api (Go)
+                        ├── /            → apps/web/build (statis)
+                        └── /skyward/*   → reverse_proxy skyward-api (Go :8090)
 ```
 
-## Lapisan
+## Backend (`apps/api`)
+
+Modular monolith Go, satu binary (`cmd/server`) + worker tick in-process.
+
+```
+cmd/server/        Entrypoint, wiring service, worker
+internal/engine/   Simulasi, ekonomi, armada, rute, bank, bot, world tick
+internal/handler/  HTTP handler (thin glue)
+internal/store/    Query baca
+internal/realtime/ WebSocket hub
+internal/middleware/ Auth, rate limit
+internal/config/   Konfigurasi env
+```
+
+Aturan: engine berjalan dalam satu transaksi per mutasi; uang dibulatkan di
+pintu ledger; server otoritatif untuk ekonomi. Refactor struktural harus
+paritas-perilaku (lihat `docs/ARCHITECTURE.md` §3 untuk rencana B1–B7).
+
+## Frontend (`apps/web`)
+
+Klien statis murni. Tidak ada SSR, tidak ada runtime Node di produksi.
 
 ```
 src/routes/          Halaman + guard auth (SvelteKit)
