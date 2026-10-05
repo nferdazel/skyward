@@ -1,0 +1,107 @@
+/**
+ * Skyward design tokens — dark-only "aviation command" system.
+ * Ported from the Flutter client (core/theme/skyward_colors.dart,
+ * presentation/theme/app_spacing.dart, app_typography.dart).
+ *
+ * Colour encodes operational meaning only; the base is monochrome.
+ */
+
+:root {
+	/* ── Backgrounds ── */
+	--color-bg: #080b10;
+	--color-surface: #0f1319;
+	--color-surface-2: #161c25;
+	--color-surface-3: #1e2633;
+	--color-surface-active: #242e3d;
+
+	/* ── Borders (zero-shadow architecture) ── */
+	--color-border: rgb(255 255 255 / 0.1);
+	--color-border-subtle: rgb(255 255 255 / 0.05);
+	--color-border-highlight: rgb(255 255 255 / 0.15);
+	--color-border-focus: #5b9ee0;
+
+	/* ── Primary: HUD Blue ── */
+	--color-accent: #5b9ee0;
+	--color-accent-bright: #8dbff0;
+	--color-accent-subtle: rgb(91 158 224 / 0.1);
+	--color-accent-ghost: rgb(91 158 224 / 0.05);
+
+	/* ── Secondary: ATC Teal ── */
+	--color-teal: #3aafa0;
+	--color-teal-subtle: rgb(58 175 160 / 0.1);
+
+	/* ── Semantic ── */
+	--color-success: #34d07b;
+	--color-success-subtle: rgb(52 208 123 / 0.1);
+	--color-warning: #e6a817;
+	--color-warning-subtle: rgb(230 168 23 / 0.1);
+	--color-error: #e05555;
+	--color-error-subtle: rgb(224 85 85 / 0.1);
+	--color-neutral: #758489;
+
+	/* ── Tier / condition ── */
+	--color-tier-platinum: #e5e4e2;
+	--color-tier-gold: #ffd700;
+	--color-orange: #d98e4e;
+
+	/* ── Text ── */
+	--color-text-primary: #dde2ea;
+	--color-text-secondary: #8090a3;
+	--color-text-muted: #64748b;
+
+	/* ── Opacity scale ── */
+	--opacity-subtle: 0.06;
+	--opacity-light: 0.12;
+	--opacity-medium: 0.24;
+	--opacity-heavy: 0.48;
+
+	/* ── Spacing (4px grid) ── */
+	--space-xs: 4px;
+	--space-sm: 8px;
+	--space-md: 12px;
+	--space-lg: 16px;
+	--space-xl: 20px;
+	--space-xxl: 24px;
+	--space-xxxl: 32px;
+	--space-xxxxl: 40px;
+	--space-xxxxxl: 48px;
+
+	/* Semantic spacing */
+	--space-page: 16px;
+	--space-card: 12px;
+	--space-section: 16px;
+	--space-block: 12px;
+	--space-compact: 8px;
+	--space-micro: 4px;
+
+	/* ── Radius ── */
+	--radius-tight: 2px;
+	--radius-default: 4px;
+	--radius-soft: 8px;
+	--radius-round: 12px;
+
+	/* ── Typography ── */
+	--font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+	/* ── Motion ── */
+	--motion-fast: 120ms;
+	--motion-base: 180ms;
+	--motion-slow: 280ms;
+	--motion-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	background: var(--color-bg);
+	color: var(--color-text-primary);
+	font-family: var(--font-sans);
+	color-scheme: dark;
+}
