@@ -3,7 +3,6 @@ import { ApiError } from '../api/errors';
 import { LocalStorageAuthTokenStore } from '../api/auth-token-store';
 import { env } from '../config/env';
 import { RealtimeClient } from '../realtime/realtime-client';
-import { AuthGateway } from '$lib/features/auth/data/auth-gateway';
 
 /**
  * Wiring bersama aplikasi (pengganti Flutter `GatewayFactory`).
@@ -78,8 +77,4 @@ export function configureServices(configure: (s: Services) => void): void {
 
 export function resetServices(): void {
 	services.reset();
-}
-
-export function createAuthGateway(): AuthGateway {
-	return new AuthGateway(services.apiClient, services.tokenStore);
 }

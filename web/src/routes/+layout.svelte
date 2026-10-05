@@ -3,9 +3,10 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { services, createAuthGateway } from '$lib/core/di/services';
+	import { services } from '$lib/core/di/services';
 	import { AuthStore } from '$lib/features/auth/state/auth-store.svelte';
 	import { setAuthStore } from '$lib/features/auth/state/auth-context.svelte';
+	import { createAuthGateway } from '$lib/features/auth/data/create-auth-gateway';
 
 	let { children } = $props();
 
