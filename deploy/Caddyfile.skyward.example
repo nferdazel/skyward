@@ -1,0 +1,26 @@
+# Contoh blok Caddy untuk skyward.qouver.com.
+# Salin ke /etc/caddy/Caddyfile di server (edit manual + `caddy validate` +
+# `systemctl reload caddy`). File Caddyfile server adalah sumber kebenaran.
+#
+# Web statis diserve langsung; API skyward di-reverse-proxy di bawah /skyward
+# (sesuai Caddy server yang sudah ada: /skyward* -> 8090).
+
+skyward.qouver.com {
+	encode gzip
+
+	# Static build (SPA fallback ditangani index.html hasil adapter-static).
+	handle {
+		root * /srv/qouver/apps/skyward/web
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}
+
+# Catatan: API di-serve di api.qouver.com/skyward* (Caddy server yang sudah ada),
+# BUKAN di sini. Klien memakai VITE_SKYWARD_API_URL yang menunjuk ke sana.
