@@ -1,4 +1,4 @@
-# CI skyward-web — check, lint, test, build.
+# CI skyward — check, lint, test, build (api + web).
 #
 # Hanya verifikasi. Build & deploy dilakukan DI VPS lewat webhook
 # (lihat deploy/README.md), sama seperti project Qouver lain.
@@ -19,6 +19,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  api:
+    name: API (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+          cache-dependency-path: api/go.sum
+
+      - name: go build ./...
+        run: go build ./...
+
+      - name: go vet ./...
+        run: go vet ./...
+
+      - name: gofmt (berkas yang berubah)
+        working-directory: .
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then base="${{ github.event.before }}"; fi
+          if [ -z "$base" ] \
+            || [ "$base" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "Basis perubahan tidak tersedia; melaporkan drift gofmt saat ini:"
+            gofmt -l api || true
+            exit 0
+          fi
+          changed="$(git diff --name-only --diff-filter=ACMR "$base" HEAD -- 'api' | grep '\.go$' || true)"
+          if [ -z "$changed" ]; then echo "Tidak ada berkas Go yang berubah."; exit 0; fi
+          bad="$(printf '%s\n' "$changed" | xargs gofmt -l)"
+          if [ -n "$bad" ]; then
+            echo "Berkas Go berikut belum gofmt-clean:"; printf '%s\n' "$bad"; exit 1
+          fi
+          echo "Semua berkas Go yang berubah sudah gofmt-clean."
+
+      - name: go test ./...
+        run: go test ./...
+
   web:
     name: Web (check + lint + test + build)
     runs-on: ubuntu-latest
@@ -32,7 +77,6 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          # Versi dibaca dari web/package.json (packageManager).
           package_json_file: web/package.json
 
       - name: Setup Node

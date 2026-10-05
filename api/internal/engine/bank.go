@@ -1,0 +1,398 @@
+// Package engine — bank mutations (Fase 5), faithful ke fungsi SQL.
+package engine
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strconv"
+
+	"github.com/jackc/pgx/v5"
+)
+
+// BankService — bank & credit mutations.
+type BankService struct{ engine *Engine }
+
+// TakeLoanParams — input take_loan.
+type TakeLoanParams struct {
+	Principal            float64 `json:"principal"`
+	TermWeeks            int     `json:"term_weeks"`
+	LoanType             string  `json:"loan_type"`
+	CollateralAircraftID *string `json:"collateral_aircraft_id,omitempty"`
+}
+
+// TakeLoan — POST /bank/loans. Faithful port of take_loan(p_user_id,...).
+func (b *BankService) TakeLoan(ctx context.Context, userID string, p TakeLoanParams) (*MutationResult, error) {
+	if p.Principal <= 0 {
+		return &MutationResult{Success: false, Message: "Loan amount must be positive."}, nil
+	}
+	if p.TermWeeks <= 0 {
+		p.TermWeeks = 52
+	}
+	loanType := p.LoanType
+	if loanType == "" {
+		loanType = "unsecured"
+	}
+	// AUDIT-12: collateral dulu diterima lalu diabaikan senyap — pemain
+	// mengira mendapat secured loan padahal unsecured. Tolak eksplisit sampai
+	// secured lending benar-benar diimplementasikan (backlog roadmap).
+	if p.CollateralAircraftID != nil && *p.CollateralAircraftID != "" {
+		return &MutationResult{Success: false, Message: "Collateral is not supported yet."}, nil
+	}
+
+	result, err := withTx(ctx, b.engine.Pool, func(tx pgx.Tx) (*MutationResult, bool, error) {
+		var maxActive int
+		err := tx.QueryRow(ctx, `SELECT COALESCE((value#>>'{max_active_loans}')::int, 3) FROM game_config WHERE key='credit_tier_config'`).Scan(&maxActive)
+		if err != nil {
+			maxActive = 3
+		}
+		var activeLoans int
+		err = tx.QueryRow(ctx, `SELECT COUNT(*) FROM loans WHERE user_id=$1 AND status='active'`, userID).Scan(&activeLoans)
+		if err != nil {
+			return nil, false, fmt.Errorf("take loan: count active loans: %w", err)
+		}
+		if activeLoans >= maxActive {
+			return &MutationResult{Success: false, Message: fmt.Sprintf("Maximum %d active loans allowed.", maxActive)}, true, nil
+		}
+
+		// Tier kredit pemain. SQL `take_loan` me-resolve dari total_score hasil
+		// calculate_credit_score(); Go menyimpan hasil yang sama di
+		// credit_scores.tier pada day boundary, jadi baris itu yang dipakai. Pemain
+		// baru tanpa baris = skor 500, sama seperti SQL.
+		tier := "Standard"
+		{
+			var stored string
+			switch err := tx.QueryRow(ctx, `SELECT tier FROM credit_scores WHERE user_id=$1`, userID).Scan(&stored); {
+			case err == nil && stored != "":
+				tier = stored
+			case err != nil && !errors.Is(err, pgx.ErrNoRows):
+				return nil, false, fmt.Errorf("take loan: load credit tier: %w", err)
+			default:
+				tier = resolveCreditTier(500)
+			}
+		}
+
+		// Whitelist jenis pinjaman, seperti SQL.
+		if loanType != "unsecured" && loanType != "secured" && loanType != "credit_line" {
+			return &MutationResult{Success: false, Message: "Invalid loan type."}, true, nil
+		}
+
+		// Plafon dan rate per jenis dari kebijakan tier (credit_tier_config).
+		var maxPrincipal, rate float64
+		switch loanType {
+		case "unsecured":
+			maxPrincipal = b.tierRate(ctx, tier, "max_unsecured", 5000000)
+			rate = b.tierRate(ctx, tier, "rate_unsecured", 0.07)
+		case "secured":
+			// AUDIT-12: collateral sudah ditolak di atas karena secured lending belum
+			// ada, jadi jalur ini hanya tercapai bila pemain meminta `secured` tanpa
+			// collateral — persis yang SQL tolak.
+			return &MutationResult{Success: false, Message: "Secured loans require collateral aircraft."}, true, nil
+		default: // credit_line
+			maxPrincipal = b.tierRate(ctx, tier, "max_unsecured", 5000000) * 0.5
+			rate = b.tierRate(ctx, tier, "rate_unsecured", 0.07) + 0.02
+		}
+
+		var minLoan float64
+		if err := tx.QueryRow(ctx, `SELECT COALESCE((value#>>'{min_loan}')::numeric, 100000) FROM game_config WHERE key='credit_tier_config'`).Scan(&minLoan); err != nil {
+			minLoan = 100000
+		}
+		if p.Principal < minLoan {
+			return &MutationResult{Success: false, Message: fmt.Sprintf("Minimum loan amount is $%s.", numText(minLoan))}, true, nil
+		}
+		if p.Principal > maxPrincipal {
+			return &MutationResult{Success: false, Message: fmt.Sprintf("Maximum for %s tier %s loan is $%s.", tier, loanType, numText(maxPrincipal))}, true, nil
+		}
+
+		weekly := p.Principal * (1 + rate) / float64(p.TermWeeks)
+		monthly := weekly * 4.33
+
+		gameTime, _ := b.engine.Ledger.GetUserGameTime(ctx, userID)
+		var loanID string
+		err = tx.QueryRow(ctx, `
+			INSERT INTO loans (user_id, loan_type, principal, interest_rate, remaining_balance, weekly_payment, monthly_payment, status, term_months, originated_game_date)
+			VALUES ($1,$2,$3,$4,$3,$5,$6,'active',CEIL($7/4.33)::int,$8)
+			RETURNING id`,
+			userID, loanType, p.Principal, rate, weekly, monthly, p.TermWeeks, gameTime).Scan(&loanID)
+		if err != nil {
+			return nil, false, fmt.Errorf("take loan: insert loan: %w", err)
+		}
+		newCash, err := b.engine.Ledger.CreditTx(ctx, tx, userID, p.Principal, "financing", "loan_disbursement",
+			fmt.Sprintf("Loan disbursement (%s)", loanType), gameTime)
+		if err != nil {
+			return nil, false, fmt.Errorf("take loan: disburse: %w", err)
+		}
+		return &MutationResult{Success: true, Message: "Loan approved and funds disbursed.", NewCash: newCash}, false, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// Repay — POST /bank/loans/{id}/repay. Faithful port of repay_loan.
+func (b *BankService) Repay(ctx context.Context, userID, loanID string, amount *float64) (*MutationResult, error) {
+	result, err := withTx(ctx, b.engine.Pool, func(tx pgx.Tx) (*MutationResult, bool, error) {
+		var remaining float64
+		var loanType string
+		var collateral *string
+		err := tx.QueryRow(ctx,
+			`SELECT remaining_balance, loan_type, collateral_aircraft_id FROM loans WHERE id=$1 AND user_id=$2 AND status='active' FOR UPDATE`,
+			loanID, userID).Scan(&remaining, &loanType, &collateral)
+		if err != nil {
+			// Tidak ketemu = penolakan bisnis (400); error DB lain = infra (500).
+			if errors.Is(err, pgx.ErrNoRows) {
+				return &MutationResult{Success: false, Message: "Loan not found or already paid off."}, true, nil
+			}
+			return nil, false, fmt.Errorf("repay: load loan: %w", err)
+		}
+		payment := remaining
+		if amount != nil {
+			if *amount < remaining {
+				payment = *amount
+			}
+		}
+		if payment <= 0 {
+			return &MutationResult{Success: false, Message: "Payment amount must be positive."}, true, nil
+		}
+
+		var cash float64
+		err = tx.QueryRow(ctx, `SELECT balance FROM bank_accounts WHERE user_id=$1 AND account_type='operating' FOR UPDATE`, userID).Scan(&cash)
+		if err != nil {
+			// Setiap user punya operating account (dibuat saat registrasi); absennya
+			// berarti data rusak, bukan permintaan buruk.
+			return nil, false, fmt.Errorf("repay: load balance: %w", err)
+		}
+		// Dibandingkan pada presisi sen: `payment` dihitung dari pembagian
+		// (pokok/bulan), jadi bisa tersimpan sedikit di atas nilai sen-nya dan
+		// menolak pemain yang uangnya persis cukup.
+		if moneyLessThan(cash, payment) {
+			return &MutationResult{Success: false, Message: fmt.Sprintf("Insufficient cash. Need $%.2f, have $%.2f.", payment, cash), NewCash: cash}, true, nil
+		}
+
+		gameTime, _ := b.engine.Ledger.GetUserGameTime(ctx, userID)
+		desc := "Loan partial repayment"
+		paidOff := (remaining - payment) <= moneyEpsilon
+		if paidOff {
+			desc = "Loan fully repaid"
+		}
+		newCash, err := b.engine.Ledger.DebitTx(ctx, tx, userID, payment, "financing", "loan_repayment", desc, gameTime)
+		if err != nil {
+			return nil, false, fmt.Errorf("repay: ledger debit: %w", err)
+		}
+		_, err = tx.Exec(ctx, `
+			UPDATE loans SET remaining_balance = GREATEST(0, remaining_balance - $1),
+			       status = CASE WHEN remaining_balance - $1 <= $3 THEN 'paid_off'::varchar ELSE status END
+			WHERE id=$2`, payment, loanID, moneyEpsilon)
+		if err != nil {
+			return nil, false, fmt.Errorf("repay: update loan: %w", err)
+		}
+		if paidOff && loanType == "aircraft_financing" && collateral != nil {
+			_, _ = tx.Exec(ctx, `UPDATE fleet_aircraft SET acquisition_type='purchase' WHERE id=$1 AND user_id=$2 AND acquisition_type='finance'`, *collateral, userID)
+		}
+		msg := "Payment applied."
+		if paidOff {
+			msg = "Loan fully repaid!"
+		}
+		return &MutationResult{Success: true, Message: msg, NewCash: newCash}, false, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// Refinance — POST /bank/loans/{id}/refinance. Faithful port of refinance_loan.
+// AUDIT-07: seluruh alur dalam SATU tx dengan row lock (dulu read di luar tx
+// lalu UPDATE tanpa user_id → lost update vs repay/refinance concurrent).
+func (b *BankService) Refinance(ctx context.Context, userID, loanID string) (*MutationResult, error) {
+	result, err := withTx(ctx, b.engine.Pool, func(tx pgx.Tx) (*MutationResult, bool, error) {
+		var loanType string
+		var rate, remaining, weeklyPay, monthlyPay float64
+		err := tx.QueryRow(ctx, `
+			SELECT loan_type, interest_rate, remaining_balance, weekly_payment, monthly_payment
+			FROM loans WHERE id=$1 AND user_id=$2 AND status='active' FOR UPDATE`, loanID, userID).
+			Scan(&loanType, &rate, &remaining, &weeklyPay, &monthlyPay)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return &MutationResult{false, "Loan not found or not active.", 0}, true, nil
+			}
+			return nil, false, fmt.Errorf("refinance: load loan: %w", err)
+		}
+		// tier rate. Baris credit_scores boleh belum ada (pemain baru → Standard),
+		// tapi error baca sungguhan tidak boleh jadi Standard: tier inilah yang
+		// menentukan rate refinance.
+		var tier string
+		if err := b.engine.Pool.QueryRow(ctx, `SELECT tier FROM credit_scores WHERE user_id=$1`, userID).Scan(&tier); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return nil, false, fmt.Errorf("refinance: load credit tier: %w", err)
+		}
+		if tier == "" {
+			tier = "Standard"
+		}
+		var newRate float64
+		if loanType == "secured" || loanType == "aircraft_financing" {
+			newRate = b.tierRate(ctx, tier, "rate_secured", 0.06)
+		} else {
+			newRate = b.tierRate(ctx, tier, "rate_unsecured", 0.07)
+		}
+		if newRate >= rate {
+			return &MutationResult{false, "Current rate is not better than existing rate.", 0}, true, nil
+		}
+		outstanding := remaining / (1 + rate)
+		periods := 1.0
+		if monthlyPay > 0 {
+			periods = maxf(1, ceilDiv(remaining, monthlyPay))
+		} else if weeklyPay > 0 {
+			periods = maxf(1, ceilDiv(remaining, weeklyPay))
+		}
+		newTotal := outstanding * (1 + newRate)
+		newMonthly := newTotal / periods
+		newWeekly := newMonthly / 4.33
+		if _, err := tx.Exec(ctx, `
+			UPDATE loans SET interest_rate=$1, remaining_balance=$2, weekly_payment=$3, monthly_payment=$4
+			WHERE id=$5 AND user_id=$6`,
+			newRate, newTotal, newWeekly, newMonthly, loanID, userID); err != nil {
+			return nil, false, fmt.Errorf("refinance: update loan: %w", err)
+		}
+		savings := maxf(0, remaining-newTotal)
+		return &MutationResult{true, fmt.Sprintf("Loan refinanced successfully (savings $%.2f).", savings), 0}, false, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// numText memformat angka seperti `numeric::TEXT` di Postgres: tanpa nol ekor,
+// dipakai untuk pesan penolakan supaya teksnya sama dengan versi SQL.
+func numText(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
+
+func (b *BankService) tierRate(ctx context.Context, tier, field string, fallback float64) float64 {
+	var r float64
+	err := b.engine.Pool.QueryRow(ctx,
+		`SELECT COALESCE((value#>>$1)::numeric, $2) FROM game_config WHERE key='credit_tier_config'`,
+		"{"+tier+","+field+"}", fallback).Scan(&r)
+	if err != nil {
+		return fallback
+	}
+	return r
+}
+
+func ceilDiv(a, b float64) float64 {
+	c := a / b
+	f := float64(int(c))
+	if c > f {
+		return f + 1
+	}
+	return f
+}
+
+// FinanceAircraftParams — input finance_aircraft.
+type FinanceAircraftParams struct {
+	ModelID        string  `json:"aircraft_model_id"`
+	DownPaymentPct float64 `json:"down_payment_pct"`
+	TermMonths     int     `json:"term_months"`
+}
+
+// FinanceAircraft — POST /bank/finance-aircraft. Faithful port of finance_aircraft.
+func (b *BankService) FinanceAircraft(ctx context.Context, userID string, p FinanceAircraftParams) (*MutationResult, error) {
+	var purchasePrice, capacity float64
+	var modelName, minTier string
+	err := b.engine.Pool.QueryRow(ctx, `SELECT purchase_price, capacity, model_name, min_credit_tier FROM aircraft_models WHERE id=$1`, p.ModelID).
+		Scan(&purchasePrice, &capacity, &modelName, &minTier)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return &MutationResult{false, "Aircraft model not found.", 0}, nil
+		}
+		return nil, fmt.Errorf("finance aircraft: load model: %w", err)
+	}
+	// tier: baris credit_scores boleh belum ada (pemain baru → Standard), tapi
+	// error baca sungguhan tidak boleh jadi Standard — tier ini yang dipakai
+	// untuk gate GAME-06 dan plafon pembiayaan.
+	var tier string
+	if err := b.engine.Pool.QueryRow(ctx, `SELECT tier FROM credit_scores WHERE user_id=$1`, userID).Scan(&tier); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("finance aircraft: load credit tier: %w", err)
+	}
+	if tier == "" {
+		tier = "Standard"
+	}
+	// GAME-06: financing an aircraft also requires its minimum credit tier.
+	// Bots are exempt (the gate is a player-progression mechanic).
+	// actor_type di-COALESCE, jadi hasil kosong = user tidak ada. Dulu error
+	// baca di sini menghasilkan "" yang != "REAL" — gate tier dilewati penuh.
+	var actorType string
+	if err := b.engine.Pool.QueryRow(ctx, `SELECT COALESCE(actor_type, 'REAL') FROM users WHERE id=$1`, userID).Scan(&actorType); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return &MutationResult{false, "User not found.", 0}, nil
+		}
+		return nil, fmt.Errorf("finance aircraft: load actor type: %w", err)
+	}
+	if actorType == "REAL" {
+		if msg := tierGateMessage(tier, minTier, modelName); msg != "" {
+			return &MutationResult{false, msg, 0}, nil
+		}
+	}
+	maxFinancing := b.tierRate(ctx, tier, "max_secured", 25000000)
+	if purchasePrice > maxFinancing {
+		return &MutationResult{false, fmt.Sprintf("Aircraft price ($%.0f) exceeds your financing limit ($%.0f) for tier %s.", purchasePrice, maxFinancing, tier), 0}, nil
+	}
+	if p.TermMonths == 0 {
+		p.TermMonths = 36
+	}
+	if p.TermMonths != 12 && p.TermMonths != 24 && p.TermMonths != 36 && p.TermMonths != 48 && p.TermMonths != 60 {
+		return &MutationResult{false, "Financing term must be 12, 24, 36, 48, or 60 months.", 0}, nil
+	}
+	if p.DownPaymentPct == 0 {
+		p.DownPaymentPct = 0.20
+	}
+	if p.DownPaymentPct < 0.10 || p.DownPaymentPct > 0.50 {
+		return &MutationResult{false, "Down payment must be between 10% and 50%.", 0}, nil
+	}
+	rate := b.tierRate(ctx, tier, "rate_secured", 0.10)
+	down := round2(purchasePrice * p.DownPaymentPct)
+	principal := purchasePrice - down
+	totalRepayable := principal * (1 + rate)
+	monthly := totalRepayable / float64(p.TermMonths)
+	weekly := monthly / 4.33
+	cash, _ := b.engine.Ledger.GetBalance(ctx, userID)
+	if moneyLessThan(cash, down) {
+		return &MutationResult{false, fmt.Sprintf("Insufficient cash for down payment of $%.0f.", down), cash}, nil
+	}
+	var hq *string
+	gameTime, err := b.engine.Ledger.GetUserGameTime(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("finance aircraft: game time: %w", err)
+	}
+	b.engine.Pool.QueryRow(ctx, `SELECT hq_airport_iata FROM users WHERE id=$1`, userID).Scan(&hq)
+	tail, err := b.engine.Ledger.GenerateTailNumber(ctx, deref(hq, "CGK"))
+	if err != nil {
+		return nil, fmt.Errorf("finance aircraft: tail number: %w", err)
+	}
+
+	_, err = withTx(ctx, b.engine.Pool, func(tx pgx.Tx) (struct{}, bool, error) {
+		_, lerr := b.engine.Ledger.DebitTx(ctx, tx, userID, down, "investing", "aircraft_purchase_deposit",
+			fmt.Sprintf("Aircraft financing down payment: %s", modelName), gameTime)
+		if lerr != nil {
+			return struct{}{}, false, fmt.Errorf("finance aircraft: down payment: %w", lerr)
+		}
+		var fleetID string
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO fleet_aircraft (user_id, aircraft_model_id, nickname, tail_number, acquisition_type, condition, status, economy_seats, business_seats, first_class_seats)
+			VALUES ($1,$2,$3,$4,'finance',100.00,'active',FLOOR($5*0.80),FLOOR($5*0.15),$5-FLOOR($5*0.80)-FLOOR($5*0.15))
+			RETURNING id`, userID, p.ModelID, modelName, tail, capacity).Scan(&fleetID); err != nil {
+			return struct{}{}, false, fmt.Errorf("finance aircraft: insert aircraft: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO loans (user_id, principal, interest_rate, remaining_balance, weekly_payment, status, loan_type, collateral_aircraft_id, term_months, monthly_payment, originated_game_date)
+			VALUES ($1,$2,$3,$4,$5,'active','aircraft_financing',$6,$7,$8,$9)`,
+			userID, principal, rate, totalRepayable, weekly, fleetID, p.TermMonths, monthly, gameTime); err != nil {
+			return struct{}{}, false, fmt.Errorf("finance aircraft: insert loan: %w", err)
+		}
+		return struct{}{}, false, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	newCash, _ := b.engine.Ledger.GetBalance(ctx, userID)
+	return &MutationResult{true, "Aircraft financed successfully.", newCash}, nil
+}

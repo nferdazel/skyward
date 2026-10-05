@@ -1,4 +1,10 @@
-# Dependensi & build (web/)
+# Go build artifacts
+api/bin/
+api/*.exe
+api/*.test
+api/*.out
+
+# Web dependensi & build
 web/node_modules/
 web/.pnpm-store/
 web/build/

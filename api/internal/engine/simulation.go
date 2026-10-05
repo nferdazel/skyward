@@ -1,0 +1,799 @@
+// Package engine — simulation engine (Fase 6): world tick, player simulation, economy.
+package engine
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"math"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+)
+
+// financeSnapshotRetentionDays caps how many daily finance_snapshots rows are
+// kept per user. The table only feeds trend sparklines, so a bounded window is
+// enough and prevents unbounded growth.
+const financeSnapshotRetentionDays = 90
+
+// WorldTickResult — hasil world tick.
+type WorldTickResult struct {
+	TicksProcessed   int    `json:"ticks_processed"`
+	PlayersProcessed int    `json:"players_processed"`
+	BotsProcessed    int    `json:"bots_processed"`
+	GameTimeAfter    string `json:"game_time_after"`
+}
+
+// WorldTick — advance season clock, process all players, write world_tick_log.
+// Mirror of process_world_tick + process_player_simulation_to_time.
+func (e *Engine) WorldTick(ctx context.Context) (*WorldTickResult, error) {
+	// AUDIT-09: cegah overlap tick dalam proses (worker vs manual admin tick).
+	// Step 1 advance-clock advisory lock bersifat autocommit sehingga tidak
+	// melindungi langkah 2-6; mutex ini penutupnya untuk single-instance.
+	if !e.tickMu.TryLock() {
+		return nil, fmt.Errorf("another world tick is already running")
+	}
+	defer e.tickMu.Unlock()
+
+	// 1. Lock & advance season
+	var seasonID string
+	var gameTimeBefore, gameTimeAfter time.Time
+	var tickInterval, timeScale int
+	err := e.Pool.QueryRow(ctx, `
+		UPDATE season_clock SET current_game_time = current_game_time + (tick_interval_seconds * time_scale_multiplier * interval '1 second')
+		WHERE status = 'active' AND pg_try_advisory_xact_lock(hashtext(id::text))
+		RETURNING id, current_game_time - (tick_interval_seconds * time_scale_multiplier * interval '1 second'), current_game_time, tick_interval_seconds, time_scale_multiplier`,
+	).Scan(&seasonID, &gameTimeBefore, &gameTimeAfter, &tickInterval, &timeScale)
+	if err != nil {
+		return nil, fmt.Errorf("no active season or lock failed: %w", err)
+	}
+
+	// 2. Generate & deactivate events (Go-native)
+	e.GenerateGameEvents(ctx, gameTimeAfter)
+	e.DeactivateExpiredEvents(ctx, gameTimeAfter)
+
+	// 2b. Snapshot konfigurasi + event aktif sekali untuk seluruh tick. Dulu
+	// setiap pemain membaca 16 key (16N query) dan setiap rutenya dua query event
+	// (2NR). Gagal di sini menggagalkan tick — bukan fallback senyap — dan player
+	// yang belum diproses akan dicoba lagi di tick berikutnya.
+	snap, serr := e.LoadTickSnapshot(ctx, gameTimeAfter)
+	if serr != nil {
+		return nil, fmt.Errorf("world tick: %w", serr)
+	}
+
+	// 3. Process REAL players (AUDIT-06: error per player dicatat, tick jalan
+	// terus; player yang gagal tidak maju clock-nya dan retry di tick berikut).
+	players := 0
+	failed := 0
+	rows, err := e.Pool.Query(ctx, `
+		SELECT id, game_current_time FROM users
+		WHERE season_id = $1 AND actor_type = 'REAL' AND COALESCE(operational_status, 'Active') != 'Bankrupt'`, seasonID)
+	if err != nil {
+		return nil, fmt.Errorf("world tick: players query: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var uid string
+		var curTime time.Time
+		if serr := rows.Scan(&uid, &curTime); serr != nil {
+			e.log().Error("world tick: players scan", "error", serr)
+			break
+		}
+		if _, perr := e.ProcessPlayer(ctx, uid, gameTimeAfter, snap); perr != nil {
+			failed++
+			e.log().Error("world tick: process player failed", "user", uid, "error", perr)
+			continue
+		}
+		players++
+	}
+	if rerr := rows.Err(); rerr != nil {
+		failed++
+		e.log().Error("world tick: players iteration", "error", rerr)
+	}
+
+	// 4. Process bots (Fase 7 — engine bot): decisions gated on the new season
+	//    time, then advanced through the shared player simulation.
+	bots, berr := e.ProcessBots(ctx, gameTimeAfter, snap)
+	if berr != nil {
+		failed++
+		e.log().Error("world tick: bots", "error", berr)
+	}
+
+	// 5. Write world_tick_log — status 'degraded' bila ada kegagalan (AUDIT-06).
+	status := "success"
+	if failed > 0 {
+		status = "degraded"
+	}
+	if _, lerr := e.Pool.Exec(ctx, `INSERT INTO world_tick_log (season_id, status, started_at, finished_at, game_time_before, game_time_after, ticks_processed, players_processed, bots_processed)
+		VALUES ($1, $2, NOW(), NOW(), $3, $4, 1, $5, $6)`, seasonID, status, gameTimeBefore, gameTimeAfter, players, bots); lerr != nil {
+		e.log().Error("world tick: log insert failed", "error", lerr)
+	}
+
+	// 6. Write finance_snapshots (Fase 6): one row per user per GAME DAY, not per
+	//    tick. Previously this inserted on every 60s tick with no retention,
+	//    growing unbounded (~100k+ rows/day). The table only feeds trend
+	//    sparklines, so a daily cadence is sufficient.
+	if !gameTimeAfter.Truncate(24 * time.Hour).Equal(gameTimeBefore.Truncate(24 * time.Hour)) {
+		if _, ierr := e.Pool.Exec(ctx, `
+			INSERT INTO finance_snapshots (user_id, snapshot_game_time, cash, net_worth, active_routes, fleet_count)
+			SELECT u.id, date_trunc('day', $1::timestamptz),
+			       COALESCE((SELECT balance FROM bank_accounts WHERE user_id=u.id AND account_type='operating' LIMIT 1), 0),
+			       COALESCE(u.net_worth, 0),
+			       (SELECT COUNT(*) FROM route_assignments WHERE user_id=u.id AND COALESCE(status,'active')='active'),
+			       (SELECT COUNT(*) FROM fleet_aircraft WHERE user_id=u.id)
+			FROM users u WHERE u.season_id = $2 AND u.actor_type = 'REAL'
+			ON CONFLICT (user_id, snapshot_game_time) DO NOTHING`, gameTimeAfter, seasonID); ierr != nil {
+			e.log().Error("world tick: finance_snapshots insert failed", "error", ierr)
+		}
+
+		// Retention: keep at most financeSnapshotRetentionDays per user.
+		if _, derr := e.Pool.Exec(ctx, `
+			DELETE FROM finance_snapshots fs
+			USING (
+				SELECT id, ROW_NUMBER() OVER (
+					PARTITION BY user_id ORDER BY snapshot_game_time DESC
+				) AS rn
+				FROM finance_snapshots
+			) ranked
+			WHERE fs.id = ranked.id AND ranked.rn > $1`, financeSnapshotRetentionDays); derr != nil {
+			e.log().Error("world tick: snapshot retention failed", "error", derr)
+		}
+
+		// Retention untuk bank_transactions dan world_tick_log. Fungsi
+		// prune_bank_transactions/prune_world_tick_log di 00_baseline.sql adalah
+		// sisa era pg_cron dan TIDAK dipanggil siapa pun (pg_cron tidak terpasang,
+		// lihat migrasi 18) — jadi kedua tabel tumbuh tanpa batas sampai 2026-10-05
+		// (bank_transactions 4.88M baris / 1062 MB). Jalankan di sini, sekali per
+		// game day, mengikuti pola finance_snapshots.
+		if _, berr := e.Pool.Exec(ctx, `
+			DELETE FROM bank_transactions bt
+			WHERE bt.game_date IS NOT NULL
+			  AND bt.game_date > '1970-01-01'::timestamptz
+			  AND bt.game_date < $1::timestamptz - (
+				COALESCE((SELECT (value#>>'{}')::numeric FROM game_config WHERE key='bank_txn_raw_retention_game_days'), 180)
+				|| ' days')::interval`, gameTimeAfter); berr != nil {
+			e.log().Error("world tick: bank_transactions retention failed", "error", berr)
+		}
+		if _, terr := e.Pool.Exec(ctx, `
+			DELETE FROM world_tick_log
+			WHERE started_at < NOW() - (
+				COALESCE((SELECT (value#>>'{}')::numeric FROM game_config WHERE key='world_tick_log_raw_real_days'), 7)
+				|| ' days')::interval`); terr != nil {
+			e.log().Error("world tick: world_tick_log retention failed", "error", terr)
+		}
+	}
+
+	// 6. Broadcast realtime notifications
+	if e.Hub != nil {
+		e.Hub.Broadcast("bank_transactions", "INSERT")
+		e.Hub.Broadcast("users", "UPDATE")
+		e.Hub.BroadcastAll("world_tick")
+	}
+	_ = timeScale
+	_ = tickInterval
+	return &WorldTickResult{
+		TicksProcessed:   1,
+		PlayersProcessed: players,
+		BotsProcessed:    bots,
+		GameTimeAfter:    gameTimeAfter.Format(time.RFC3339),
+	}, nil
+}
+
+// PlayerProcessResult — dampak satu kali proses simulasi player, dipakai
+// untuk laporan "while you were away" (GAME-07).
+type PlayerProcessResult struct {
+	ElapsedDays float64 `json:"elapsed_game_days"`
+	FlightsRun  int     `json:"flights_run"`
+	// Revenue/Expense — authoritative simulated totals for this process window,
+	// so the "while you were away" digest does not depend on client-side
+	// transaction caches that may not have been reloaded (GAME-07).
+	Revenue float64 `json:"revenue"`
+	Expense float64 `json:"expense"`
+}
+
+// ProcessPlayer — mirror of process_player_simulation_to_time inline logic.
+//
+// AUDIT-06: setiap kegagalan (query, ledger, wear, clock, commit) return
+// error dan SELURUH tx di-rollback — game_current_time player tidak maju,
+// sehingga window retry di tick berikutnya dan biaya tidak pernah hilang
+// senyap. Operating cost (fuel/crew/maintenance/lease) memakai
+// DebitTxAllowNegative: cash tidak cukup ⇒ saldo jadi negatif (mesin
+// bankruptcy berjalan), bukan debit dilewati.
+func (e *Engine) ProcessPlayer(ctx context.Context, userID string, targetTime time.Time, snap *TickSnapshot) (PlayerProcessResult, error) {
+	// Snapshot konfigurasi + event untuk tick ini. Pemanggil dari jalur tick
+	// (WorldTick/ProcessBots) sudah menyiapkannya sekali untuk semua pemain;
+	// endpoint sync satu-pemain mengirim nil dan memuatnya sendiri di sini.
+	if snap == nil {
+		var serr error
+		snap, serr = e.LoadTickSnapshot(ctx, targetTime)
+		if serr != nil {
+			return PlayerProcessResult{}, fmt.Errorf("process %s: %w", userID, serr)
+		}
+	}
+
+	fuelPrice := snap.num("fuel_price_per_liter", 0.85)
+	crewCost := snap.num("crew_cost_per_hour", 350.0)
+	ownedWear := snap.num("owned_wear_per_flight_cycle", 0.50)
+	leasedWear := snap.num("leased_wear_per_flight_cycle", 0.70)
+	autoRepair := snap.num("maintenance_auto_repair_rate", 0.85)
+	bankruptcyThreshold := snap.num("bankruptcy_cash_threshold", -5000000.0)
+	cargoPct := snap.num("cargo_revenue_percentage", 0.05)
+	ticketBase := snap.num("ticket_base_fare", 50.0)
+	ticketKM := snap.num("ticket_per_km_rate", 0.12)
+	maxWeekly := snap.num("max_weekly_flights", 168.0)
+	demandPoolScale := snap.num("demand_pool_scale", 290.0)
+	businessFareMult := snap.num("business_fare_multiplier", 1.5)
+	firstFareMult := snap.num("first_fare_multiplier", 2.5)
+	economyWilling := snap.num("economy_willing_share", 0.80)
+	businessWilling := snap.num("business_willing_share", 0.15)
+	firstWilling := snap.num("first_willing_share", 0.05)
+	demand := demandCurveFrom(snap)
+	crew := crewScaleFrom(snap)
+
+	fuelMult := snap.fuelMult()
+	maintMult := snap.maintMult()
+
+	// Serialize concurrent processing for the same user (POST /simulation/sync
+	// vs the world-tick worker). Without this, both calls read the same
+	// game_current_time and post the same route revenue/costs to the ledger;
+	// the day-advance guard below only prevents the clock/day-boundary from
+	// advancing twice, not the ledger writes.
+	var (
+		userGameTime time.Time
+		elapsed      float64
+		advancedDay  bool
+		flightsRun   float64
+		totalRevenue float64
+		totalExpense float64
+	)
+	result, err := withTx(ctx, e.Pool, func(tx pgx.Tx) (*PlayerProcessResult, bool, error) {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1))`, userID); err != nil {
+			return nil, false, fmt.Errorf("process %s: user lock: %w", userID, err)
+		}
+
+		// user data (read under the per-user lock)
+		var autoThreshold float64
+		// `auto_grounding_threshold` nullable: tanpa COALESCE, satu user ber-NULL
+		// gagal memuat barisnya dan SELURUH simulasi user itu di-rollback di setiap
+		// tick — tanpa revenue, biaya, maupun kemajuan jam. Default-nya mengikuti
+		// default kolom (40.0), sama seperti COALESCE di routes.go.
+		if err := tx.QueryRow(ctx, `SELECT game_current_time, COALESCE(auto_grounding_threshold, 40.0) FROM users WHERE id=$1`, userID).Scan(&userGameTime, &autoThreshold); err != nil {
+			return nil, false, fmt.Errorf("process %s: load user: %w", userID, err)
+		}
+
+		elapsed = targetTime.Sub(userGameTime).Hours() / 24.0
+		if elapsed <= 0 {
+			// no-op guard
+			if _, err := e.Pool.Exec(ctx, `UPDATE users SET last_active_at=NOW() WHERE id=$1`, userID); err != nil {
+				e.log().Warn("sim: touch last_active_at failed", "user", userID, "error", err)
+			}
+			return &PlayerProcessResult{}, true, nil
+		}
+		timeFraction := math.Min(elapsed/7.0, 1.0)
+		safetyThreshold := math.Max(autoThreshold, snap.num("absolute_minimum_safety_limit", 30.0))
+
+		// Route loop
+		type routeRow struct {
+			OriginIATA, DestIATA         string
+			DistanceKM, TicketPrice      float64
+			FlightsPerWeek               int
+			FuelBurnPerKM, SpeedKMH      float64
+			TurnaroundHours, Capacity    float64
+			LeasePriceMonth, MaintCostHr float64
+			AcqType                      string
+			OriginDemand, DestDemand     int
+			AircraftID                   string
+			EconomySeats, BusinessSeats  int
+			FirstClassSeats              int
+		}
+		routes := []routeRow{}
+		rrows, err := e.Pool.Query(ctx, `
+		SELECT ur.origin_iata, ur.destination_iata, ur.distance_km, ur.ticket_price, ur.flights_per_week,
+		       am.fuel_burn_per_km, am.speed_kmh, am.turnaround_hours, am.capacity,
+		       am.lease_price_per_month, am.maintenance_cost_per_hour,
+		       fa.acquisition_type, a1.demand_index, a2.demand_index, fa.id,
+		       COALESCE(fa.economy_seats, 0), COALESCE(fa.business_seats, 0), COALESCE(fa.first_class_seats, 0)
+		FROM route_assignments ur
+		JOIN fleet_aircraft fa ON fa.id=ur.assigned_aircraft_id
+		JOIN aircraft_models am ON am.id=fa.aircraft_model_id
+		JOIN airports a1 ON a1.iata=ur.origin_iata
+		JOIN airports a2 ON a2.iata=ur.destination_iata
+		WHERE ur.user_id=$1 AND ur.status='active' AND fa.status='active' AND fa.condition>=$2`, userID, safetyThreshold)
+		if err != nil {
+			return nil, false, fmt.Errorf("process %s: routes query: %w", userID, err)
+		}
+		for rrows.Next() {
+			var r routeRow
+			if serr := rrows.Scan(&r.OriginIATA, &r.DestIATA, &r.DistanceKM, &r.TicketPrice, &r.FlightsPerWeek,
+				&r.FuelBurnPerKM, &r.SpeedKMH, &r.TurnaroundHours, &r.Capacity,
+				&r.LeasePriceMonth, &r.MaintCostHr, &r.AcqType, &r.OriginDemand, &r.DestDemand, &r.AircraftID,
+				&r.EconomySeats, &r.BusinessSeats, &r.FirstClassSeats); serr != nil {
+				rrows.Close()
+				return nil, false, fmt.Errorf("process %s: routes scan: %w", userID, serr)
+			}
+			routes = append(routes, r)
+		}
+		rerr := rrows.Err()
+		rrows.Close()
+		if rerr != nil {
+			return nil, false, fmt.Errorf("process %s: routes iteration: %w", userID, rerr)
+		}
+
+		flightsRun = 0.0
+		totalRevenue = 0.0
+		totalExpense = 0.0
+
+		for _, r := range routes {
+			// Event multiplier dari snapshot (dulu dua query per rute per pemain).
+			demandEvent := snap.demandMult(r.OriginIATA, r.DestIATA)
+			capacityEvent := snap.capacityMult(r.OriginIATA, r.DestIATA)
+
+			flightHours := r.DistanceKM/r.SpeedKMH + r.TurnaroundHours
+			if flightHours <= 0 {
+				continue
+			}
+			vMaxWeekly := int(maxWeekly / flightHours)
+			flights := r.FlightsPerWeek
+			if vMaxWeekly > 0 && flights > vMaxWeekly {
+				flights = vMaxWeekly
+			}
+
+			seasonalFactor := 1.0
+
+			// GAME-03: allocate the daily demand pool across cabins by
+			// willingness-to-pay. `am.capacity` is a seat-slot budget (premium
+			// seats cost 2-3 slots), not a physical seat count; fall back to an
+			// all-economy configuration when the aircraft has no explicit config.
+			// capacityEvent scales seats for events (e.g. weather disruption).
+			econSeats, bizSeats, firstSeats := r.EconomySeats, r.BusinessSeats, r.FirstClassSeats
+			if econSeats+bizSeats+firstSeats <= 0 {
+				econSeats = int(math.Floor(r.Capacity))
+				bizSeats, firstSeats = 0, 0
+			}
+
+			// GAME-02: fixed daily demand pool. Raising frequency past saturation
+			// lowers per-flight load factor. Price elasticity is applied inside
+			// routeDailyDemand (GAME-04).
+			dailyDemand := routeDailyDemand(r.OriginDemand, r.DestDemand, r.DistanceKM,
+				r.TicketPrice, ticketBase, ticketKM, demandPoolScale, demand) * demandEvent * seasonalFactor
+			flightsPerDay := float64(flights) / 7.0
+
+			// Per-day seat capacity by cabin, then allocate the pool across them.
+			allocation := allocateCabins(
+				int(math.Round(float64(econSeats)*flightsPerDay)),
+				int(math.Round(float64(bizSeats)*flightsPerDay)),
+				int(math.Round(float64(firstSeats)*flightsPerDay)),
+				r.TicketPrice, businessFareMult, firstFareMult,
+				economyWilling, businessWilling, firstWilling,
+				dailyDemand, capacityEvent,
+			)
+			// Weekly revenue from the pool directly (not floor-then-multiply per
+			// flight), so weekly revenue is monotonic in the pool and does not
+			// oscillate with rounding at fractional frequencies.
+			weeklyRevenue := allocation.Revenue * 7.0
+			revenue := weeklyRevenue * timeFraction
+			fuelCost := float64(flights) * r.DistanceKM * r.FuelBurnPerKM * fuelPrice * fuelMult
+			crewCostTotal := float64(flights) * flightHours * crewCostFor(crewCost, r.Capacity, crew)
+			maintCost := float64(flights) * r.DistanceKM * r.MaintCostHr * maintMult / r.SpeedKMH
+			opsCost := fuelCost + crewCostTotal + maintCost
+			leaseCost := 0.0
+			if r.AcqType == "lease" {
+				leaseCost = r.LeasePriceMonth * (elapsed / 30.0)
+			}
+
+			opsCost *= timeFraction
+			cargoRev := revenue * cargoPct
+			fuelCost *= timeFraction
+			crewCostTotal *= timeFraction
+			maintCost *= timeFraction
+
+			// write ledger rows inside transaction (AUDIT-06: error ⇒ rollback;
+			// debit operasional ⇒ allow-negative, tercatat selalu)
+			if revenue > 0 {
+				if _, err := e.Ledger.CreditTx(ctx, tx, userID, revenue, "revenue", "ticket_revenue",
+					fmt.Sprintf("Route %s-%s", r.OriginIATA, r.DestIATA), targetTime); err != nil {
+					return nil, false, fmt.Errorf("process %s: credit ticket revenue: %w", userID, err)
+				}
+				totalRevenue += revenue
+			}
+			if cargoRev > 0 {
+				if _, err := e.Ledger.CreditTx(ctx, tx, userID, cargoRev, "revenue", "cargo_revenue",
+					fmt.Sprintf("Cargo: %s-%s", r.OriginIATA, r.DestIATA), targetTime); err != nil {
+					return nil, false, fmt.Errorf("process %s: credit cargo: %w", userID, err)
+				}
+				totalRevenue += cargoRev
+			}
+			if fuelCost > 0 {
+				if _, err := e.Ledger.DebitTxAllowNegative(ctx, tx, userID, fuelCost, "cogs", "fuel_cost",
+					fmt.Sprintf("Fuel: %s-%s", r.OriginIATA, r.DestIATA), targetTime); err != nil {
+					return nil, false, fmt.Errorf("process %s: debit fuel: %w", userID, err)
+				}
+				totalExpense += fuelCost
+			}
+			if crewCostTotal > 0 {
+				if _, err := e.Ledger.DebitTxAllowNegative(ctx, tx, userID, crewCostTotal, "cogs", "crew_cost",
+					fmt.Sprintf("Crew: %s-%s", r.OriginIATA, r.DestIATA), targetTime); err != nil {
+					return nil, false, fmt.Errorf("process %s: debit crew: %w", userID, err)
+				}
+				totalExpense += crewCostTotal
+			}
+			if maintCost > 0 {
+				if _, err := e.Ledger.DebitTxAllowNegative(ctx, tx, userID, maintCost, "cogs", "maintenance_cost",
+					fmt.Sprintf("Maintenance: %s-%s", r.OriginIATA, r.DestIATA), targetTime); err != nil {
+					return nil, false, fmt.Errorf("process %s: debit maintenance: %w", userID, err)
+				}
+				totalExpense += maintCost
+			}
+			if leaseCost > 0 {
+				if _, err := e.Ledger.DebitTxAllowNegative(ctx, tx, userID, leaseCost, "opex", "aircraft_lease",
+					fmt.Sprintf("Lease: %s-%s", r.OriginIATA, r.DestIATA), targetTime); err != nil {
+					return nil, false, fmt.Errorf("process %s: debit lease: %w", userID, err)
+				}
+				totalExpense += leaseCost
+			}
+
+			// wear
+			wearPerCycle := ownedWear
+			if r.AcqType == "lease" {
+				wearPerCycle = leasedWear
+			}
+			wearPerCycle += r.DistanceKM * 0.0001
+			grossDamage := wearPerCycle * float64(flights) * timeFraction
+			selfHeal := grossDamage * autoRepair
+			netDamage := math.Max(0, grossDamage-selfHeal)
+			if _, werr := tx.Exec(ctx, `UPDATE fleet_aircraft SET condition = GREATEST(0, condition - $1) WHERE id=$2 AND user_id=$3`, netDamage, r.AircraftID, userID); werr != nil {
+				return nil, false, fmt.Errorf("process %s: apply wear (%s): %w", userID, r.AircraftID, werr)
+			}
+
+			flightsRun += float64(flights) * (elapsed / 7.0)
+		}
+
+		// idle lease cost
+		var idleLeaseCost float64
+		if err := tx.QueryRow(ctx, `
+		SELECT COALESCE(SUM(am.lease_price_per_month * ($1 / 30.0)), 0)
+		FROM fleet_aircraft fa JOIN aircraft_models am ON am.id=fa.aircraft_model_id
+		WHERE fa.user_id=$2 AND fa.acquisition_type='lease' AND NOT EXISTS (
+			SELECT 1 FROM route_assignments ra WHERE ra.assigned_aircraft_id=fa.id AND ra.status='active'
+		)`, elapsed, userID).Scan(&idleLeaseCost); err != nil {
+			return nil, false, fmt.Errorf("process %s: idle lease sum: %w", userID, err)
+		}
+		if idleLeaseCost > 0 {
+			if _, err := e.Ledger.DebitTxAllowNegative(ctx, tx, userID, idleLeaseCost, "opex", "aircraft_lease_idle",
+				"Idle lease carrying cost", targetTime); err != nil {
+				return nil, false, fmt.Errorf("process %s: debit idle lease: %w", userID, err)
+			}
+			totalExpense += idleLeaseCost
+		}
+
+		// update user game time. The WHERE guard makes the day advance atomic:
+		// concurrent syncs/world-tick calls for the same user can only advance the
+		// clock once, so the day-boundary work below never double-counts a day.
+		tag, cerr := tx.Exec(ctx, `UPDATE users SET game_current_time=$1, last_active_at=NOW()
+		WHERE id=$2 AND game_current_time < $1`, targetTime, userID)
+		if cerr != nil {
+			return nil, false, fmt.Errorf("process %s: advance clock: %w", userID, cerr)
+		}
+		advancedDay = tag.RowsAffected() > 0
+		return nil, false, nil
+	})
+	if err != nil {
+		return PlayerProcessResult{}, err
+	}
+	if result != nil {
+		return *result, nil
+	}
+
+	cashAfter, balErr := e.Ledger.GetBalance(ctx, userID)
+	if balErr != nil {
+		// Post-commit: jangan menebak status finansial — log, cek threshold
+		// lewat jalur hari berikutnya (AUDIT-06).
+		e.log().Error("sim: balance read failed; bankruptcy check skipped", "user", userID, "error", balErr)
+	} else if cashAfter <= bankruptcyThreshold {
+		e.applyBankruptcy(ctx, userID)
+	}
+
+	// Insert any achievements earned since the last day roll. Claiming/delivery
+	// of un-notified achievements is done by the caller (POST /simulation/sync),
+	// not here, because the world tick also calls ProcessPlayer and must not
+	// consume a toast it cannot show.
+	curDay := userGameTime.Truncate(24 * time.Hour)
+	targetDay := targetTime.Truncate(24 * time.Hour)
+	if advancedDay && curDay != targetDay {
+		e.processDayBoundary(ctx, userID, targetTime, elapsed, snap)
+	}
+	e.EvaluateAchievements(ctx, userID, targetTime)
+
+	return PlayerProcessResult{
+		ElapsedDays: elapsed,
+		FlightsRun:  int(math.Round(flightsRun)),
+		Revenue:     totalRevenue,
+		Expense:     totalExpense,
+	}, nil
+}
+
+// Satu transaksi, dan setiap langkah diperiksa. Dulu empat Exec terpisah dengan
+// error yang dibuang: kegagalan di tengah meninggalkan pemain setengah-bangkrut
+// (mis. sudah berstatus Bankrupt tapi pinjamannya masih aktif dan tetap ditagih,
+// atau rutenya masih beroperasi).
+func (e *Engine) applyBankruptcy(ctx context.Context, userID string) {
+	_, err := withTx(ctx, e.Pool, func(tx pgx.Tx) (struct{}, bool, error) {
+		if _, err := tx.Exec(ctx, `UPDATE users SET operational_status='Bankrupt' WHERE id=$1`, userID); err != nil {
+			e.log().Error("bankruptcy: update users gagal, dibatalkan", "user", userID, "error", err)
+			return struct{}{}, true, nil
+		}
+		if _, err := tx.Exec(ctx, `UPDATE fleet_aircraft SET status='grounded' WHERE user_id=$1`, userID); err != nil {
+			e.log().Error("bankruptcy: grounding fleet gagal, dibatalkan", "user", userID, "error", err)
+			return struct{}{}, true, nil
+		}
+		if _, err := tx.Exec(ctx, `UPDATE loans SET status='defaulted', remaining_balance=0 WHERE user_id=$1 AND status='active'`, userID); err != nil {
+			e.log().Error("bankruptcy: default pinjaman gagal, dibatalkan", "user", userID, "error", err)
+			return struct{}{}, true, nil
+		}
+		if _, err := tx.Exec(ctx, `UPDATE route_assignments SET status='cancelled' WHERE user_id=$1 AND status='active'`, userID); err != nil {
+			e.log().Error("bankruptcy: pembatalan rute gagal, dibatalkan", "user", userID, "error", err)
+			return struct{}{}, true, nil
+		}
+		return struct{}{}, false, nil
+	})
+	if err != nil {
+		if errors.Is(err, ErrTxCommit) {
+			e.log().Error("bankruptcy: commit gagal", "user", userID, "error", err)
+		} else {
+			e.log().Error("bankruptcy: begin tx gagal", "user", userID, "error", err)
+		}
+	}
+}
+
+func (e *Engine) processDayBoundary(ctx context.Context, userID string, gameDate time.Time, elapsedDays float64, snap *TickSnapshot) {
+	// Go-native: credit score + history, loan payments, financing payments
+	e.ProcessCreditAtDayBoundary(ctx, userID, gameDate, snap)
+	e.ProcessLoanPayments(ctx, userID, gameDate)
+	e.ProcessAircraftFinancingPayments(ctx, userID, gameDate)
+
+	// Track consecutive negative days and trigger the day-based bankruptcy
+	// path (mirror process_actor_day_boundary). The cash-threshold path is
+	// handled in ProcessPlayer.
+	cashAfter, err := e.Ledger.GetBalance(ctx, userID)
+	if err != nil {
+		// Unknown balance: don't fabricate a recovery (which would wipe real
+		// negative-day progress). Skip the day-boundary accounting for now.
+		return
+	}
+	threshold := int(snap.num("bankruptcy_negative_days_threshold", 30.0))
+	if cashAfter < 0 {
+		if _, err := e.Pool.Exec(ctx, `UPDATE users SET consecutive_negative_days = COALESCE(consecutive_negative_days, 0) + 1,
+			recovery_streak_days = 0 WHERE id=$1`, userID); err != nil {
+			e.log().Error("sim: gagal menaikkan hari negatif", "user", userID, "error", err)
+			return
+		}
+		var consecNeg int
+		if err := e.Pool.QueryRow(ctx, `SELECT COALESCE(consecutive_negative_days, 0) FROM users WHERE id=$1`, userID).Scan(&consecNeg); err != nil {
+			// Tidak tahu hitungannya: mengarang 0 akan menunda kebangkrutan tanpa
+			// batas, dan memicu kebangkrutan tanpa bukti sama buruknya.
+			e.log().Error("sim: gagal membaca hari negatif", "user", userID, "error", err)
+			return
+		}
+		if shouldBankruptOnNegativeDays(consecNeg, threshold) {
+			e.applyBankruptcy(ctx, userID)
+		}
+	} else {
+		if _, err := e.Pool.Exec(ctx, `UPDATE users SET consecutive_negative_days = 0,
+			recovery_streak_days = COALESCE(recovery_streak_days, 0) + 1 WHERE id=$1`, userID); err != nil {
+			// Reset yang gagal berarti hari negatif lama tetap menumpuk, dan pemain
+			// bisa dibangkrutkan beberapa hari kemudian atas data basi.
+			e.log().Error("sim: gagal mereset hari negatif", "user", userID, "error", err)
+		}
+	}
+}
+
+// shouldBankruptOnNegativeDays reports whether the player has accumulated
+// enough consecutive negative days to trigger the day-based bankruptcy path.
+// A non-positive threshold disables the day-based path.
+func shouldBankruptOnNegativeDays(consecutiveNegativeDays, threshold int) bool {
+	return threshold > 0 && consecutiveNegativeDays >= threshold
+}
+
+// getConfigNum — baca game_config.key langsung dari DB.
+//
+// AUDIT-10: fresh DB tanpa seed (migration 17) akan kehilangan key dan senyap
+// memakai fallback Go; catat sekali per key supaya drift terlihat, bukan hilang.
+//
+// Sejak 3.4 jalur tick dan bot tidak lagi memakai ini — keduanya membaca
+// `snap.num` supaya satu putaran memakai satu nilai per key. Sisa pemanggil di
+// sini adalah yang benar-benar butuh nilai saat request:
+//   - `routes.go` — validasi frekuensi rute saat membuat/mengubah rute;
+//   - `fleet.go` — deposit lease saat pembelian.
+//
+// Keduanya melayani request pemain, tidak punya snapshot, dan memang harus
+// membaca nilai terbaru.
+//
+// `dayboundary.go` `calculateCreditScore` tidak ada di daftar ini karena ia
+// menerima snapshot dari pemanggilnya — termasuk dari POST /simulation/sync,
+// yang lewat `ProcessPlayer` memuat snapshot baru untuk request itu. Jadi
+// kesegaran tetap terjaga tanpa query per pemain di dalam satu putaran.
+func (e *Engine) getConfigNum(ctx context.Context, key string, fallback float64) float64 {
+	var v float64
+	err := e.Pool.QueryRow(ctx, `SELECT COALESCE((value#>>'{}')::numeric, $1) FROM game_config WHERE key=$2`, fallback, key).Scan(&v)
+	if err != nil {
+		if _, loaded := e.warnedCfg.LoadOrStore(key, struct{}{}); !loaded {
+			e.log().Warn("game_config read failed; using Go fallback", "key", key, "fallback", fallback, "err", err)
+		}
+		return fallback
+	}
+	return v
+}
+
+// demandCurve — bentuk kurva permintaan rute. Dulu konstanta di dalam
+// distanceDemandFactor/routeDailyDemand; sekarang dibaca dari game_config
+// (migrasi 25) supaya bisa di-tuning tanpa build ulang.
+type demandCurve struct {
+	ShortKM, LongKM, MinFactor         float64
+	ElasticityMax, ElasticityQuadratic float64
+}
+
+// defaultDemandCurve — fallback saat key config tidak ada. Nilainya sama dengan
+// konstanta Go yang lama, jadi DB kosong berperilaku seperti sebelumnya.
+func defaultDemandCurve() demandCurve {
+	return demandCurve{
+		ShortKM: 500.0, LongKM: 12000.0, MinFactor: 0.35,
+		ElasticityMax: 1.5, ElasticityQuadratic: 0.8,
+	}
+}
+
+// demandCurveFrom — baca kurva dari snapshot tick, fallback ke nilai Go.
+func demandCurveFrom(snap *TickSnapshot) demandCurve {
+	d := defaultDemandCurve()
+	d.ShortKM = snap.num("distance_demand_short_km", d.ShortKM)
+	d.LongKM = snap.num("distance_demand_long_km", d.LongKM)
+	d.MinFactor = snap.num("distance_demand_min_factor", d.MinFactor)
+	d.ElasticityMax = snap.num("price_elasticity_max", d.ElasticityMax)
+	d.ElasticityQuadratic = snap.num("price_elasticity_quadratic", d.ElasticityQuadratic)
+	return d
+}
+
+// crewScale — skala biaya crew terhadap ukuran pesawat.
+type crewScale struct {
+	Anchor, MinMult, MaxMult float64
+}
+
+func defaultCrewScale() crewScale {
+	return crewScale{Anchor: 180.0, MinMult: 0.5, MaxMult: 2.5}
+}
+
+func crewScaleFrom(snap *TickSnapshot) crewScale {
+	c := defaultCrewScale()
+	c.Anchor = snap.num("crew_cost_anchor_capacity", c.Anchor)
+	c.MinMult = snap.num("crew_cost_min_mult", c.MinMult)
+	c.MaxMult = snap.num("crew_cost_max_mult", c.MaxMult)
+	return c
+}
+
+// crewCostFor scales the flat crew rate by aircraft size (AVIATION-18). Real
+// crew cost rises with type: regional ~150-200/hr, narrowbody ~250-400,
+// widebody ~500-900. Anchored at `scale.Anchor` (config, 180 kursi default)
+// for a narrowbody jet.
+//
+// Skala nol (struct config yang lupa diisi) diganti default, bukan membuat
+// `capacity/0` jadi +Inf lalu dijepit ke maxMult — itu akan mengalikan biaya
+// crew semua pesawat dengan 2.5x diam-diam.
+func crewCostFor(baseRate, capacity float64, scale crewScale) float64 {
+	if capacity <= 0 {
+		return baseRate
+	}
+	if scale.Anchor <= 0 {
+		scale = defaultCrewScale()
+	}
+	mult := capacity / scale.Anchor
+	if mult < scale.MinMult {
+		mult = scale.MinMult
+	}
+	if mult > scale.MaxMult {
+		mult = scale.MaxMult
+	}
+	return baseRate * mult
+}
+
+// cabinResult is the per-day outcome of allocating a demand pool across cabins.
+type cabinResult struct {
+	Passengers float64 // total passengers carried per day
+	Revenue    float64 // total ticket revenue per day
+}
+
+// allocateCabins distributes a daily demand pool across an economy/business/
+// first configuration using willingness-to-pay tiers (GAME-03).
+//
+// Only `businessWilling` of the pool is willing to pay for business and
+// `firstWilling` for first; the remainder travels economy. Each cabin is filled
+// up to min(seats, willingDemand). Premium seats configured beyond the willing
+// share are wasted capacity — that is the trade-off against all-economy: a
+// premium-heavy cabin loses sellable economy seats without enough premium
+// demand to fill them.
+//
+// `demandPool` is the route's daily pool (passengers/day); `capacityFactor`
+// scales physical seats for events (e.g. weather disruption).
+func allocateCabins(
+	economySeats, businessSeats, firstSeats int,
+	baseFare, businessMult, firstMult,
+	economyWilling, businessWilling, firstWilling,
+	demandPool, capacityFactor float64,
+) cabinResult {
+	// Normalise willingness shares so they never exceed the pool.
+	total := economyWilling + businessWilling + firstWilling
+	if total <= 0 {
+		economyWilling, businessWilling, firstWilling, total = 1.0, 0.0, 0.0, 1.0
+	}
+	econDemand := demandPool * economyWilling / total
+	bizDemand := demandPool * businessWilling / total
+	firstDemand := demandPool * firstWilling / total
+
+	seats := func(n int) float64 { return float64(n) * capacityFactor }
+
+	// Premium cabins fill first, limited by both their seats and the willing
+	// demand. Passengers willing to pay premium but not accommodated there
+	// downgrade to economy (they still want to travel), so the economy cabin
+	// fills from its own willing share plus the premium overflow.
+	firstPax := math.Min(seats(firstSeats), firstDemand)
+	bizPax := math.Min(seats(businessSeats), bizDemand)
+	downgrades := (bizDemand - bizPax) + (firstDemand - firstPax)
+	econPax := math.Min(seats(economySeats), econDemand+downgrades)
+
+	passengers := econPax + bizPax + firstPax
+	revenue := econPax*baseFare + bizPax*baseFare*businessMult + firstPax*baseFare*firstMult
+	return cabinResult{Passengers: passengers, Revenue: revenue}
+}
+
+// demandWeight maps an airport demand_index (0..100) to a 0..1 weight.
+func demandWeight(demandIndex int) float64 {
+	return float64(demandIndex) / 100.0
+}
+
+// distanceDemandFactor thins out demand as stage length grows: short-haul
+// markets carry more passengers than long-haul ones. Linear from 1.0 at
+// `c.ShortKM` down to `c.MinFactor` at `c.LongKM` (config; lihat migrasi 25).
+//
+// `demandCurve` nol (mis. struct config yang lupa diisi) diperlakukan sebagai
+// kurva default, bukan pembagi nol: tanpa ini `LongKM-ShortKM == 0` membuat
+// seluruh permintaan rute hilang diam-diam.
+func distanceDemandFactor(distanceKM float64, c demandCurve) float64 {
+	if c.usable() {
+		c = defaultDemandCurve()
+	}
+	const maxFac = 1.0
+	if distanceKM <= c.ShortKM {
+		return maxFac
+	}
+	if c.LongKM <= c.ShortKM || distanceKM >= c.LongKM {
+		return c.MinFactor
+	}
+	t := (distanceKM - c.ShortKM) / (c.LongKM - c.ShortKM)
+	return maxFac + t*(c.MinFactor-maxFac)
+}
+
+// usable — true kalau kurva ini belum diisi (nol) sehingga harus diganti
+// default. Satu penanda cukup: ShortKM selalu > 0 pada nilai sah mana pun.
+func (c demandCurve) usable() bool { return c.ShortKM <= 0 }
+
+// routeDailyDemand computes the fixed daily passenger pool for a route. The
+// pool is split across all of the player's flights on that route, so raising
+// frequency past saturation lowers per-flight load factor (GAME-02).
+//
+// Kurva nol diganti default lewat `distanceDemandFactor`, tapi elasticity juga
+// diperiksa di sini supaya `ElasticityMax` nol tidak memusnahkan pool.
+func routeDailyDemand(originDemand, destDemand int, distanceKM, price, baseFare, perKM, poolScale float64, c demandCurve) float64 {
+	if poolScale <= 0 {
+		return 0
+	}
+	base := baseFare + distanceKM*perKM
+	if base <= 0 {
+		return 0
+	}
+	if c.usable() {
+		c = defaultDemandCurve()
+	}
+	ratio := price / base
+	// price elasticity: below reference fare fills the pool, above starves it.
+	priceElasticity := math.Max(0, math.Min(c.ElasticityMax, c.ElasticityMax-c.ElasticityQuadratic*ratio*ratio))
+	return poolScale * demandWeight(originDemand) * demandWeight(destDemand) *
+		distanceDemandFactor(distanceKM, c) * priceElasticity
+}

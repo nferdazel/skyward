@@ -1,0 +1,212 @@
+// Package engine — sole business logic Skyward.
+// Fase 5: mutation surface (fleet, routes, settings, bank) — faithful ke SQL.
+package engine
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"math/rand"
+	"sync"
+	"time"
+
+	"skyward-api/internal/store"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// moneyEpsilon — toleransi pembulatan 1-sen untuk keputusan "lunas".
+// AUDIT-11: dulu literal 0.005 tersebar di bank.go/dayboundary.go dan
+// dibandingkan dengan kolom numeric tanpa scale. Setelah migration 16 semua
+// kolom uang di loans = numeric(20,2) dan komparasi memakai konstanta ini.
+const moneyEpsilon = 0.005
+
+// Engine — root engine; aggregates services.
+type Engine struct {
+	Store *store.Store
+	// Pool dipakai di dalam paket engine saja: setiap service (Ledger, Fleet,
+	// Routes, Settings, Bank) menjalankan SQL-nya sendiri di sini.
+	//
+	// Batas ini pernah dilanggar: handler memakai `Engine.Pool` untuk menulis
+	// query season_clock dan onboarding, sehingga lapisan HTTP tahu bentuk
+	// skema dan melewati store. Query-query itu sudah dipindah ke `store`, dan
+	// sejak itu tidak ada pemakai `Pool` di luar paket ini.
+	//
+	// Kalau butuh sesuatu dari sini di lapisan lain, tambahkan fungsinya di
+	// `store` — jangan pakai field ini langsung.
+	Pool     *pgxpool.Pool
+	Ledger   *LedgerService
+	Fleet    *FleetService
+	Routes   *RoutesService
+	Settings *SettingsService
+	Bank     *BankService
+	Hub      Broadcaster // opsional — realtime notification
+
+	// Logger — opsional; fallback slog.Default (lihat log()).
+	Logger *slog.Logger
+
+	// warnedCfg — AUDIT-10: key → struct{}, supaya cache-miss game_config
+	// hanya di-Warn sekali per proses (bukan tiap tick).
+	warnedCfg sync.Map
+
+	// tickMu — AUDIT-09: hanya satu WorldTick boleh jalan per proses.
+	// Advisory xact-lock lama hanya melindungi statement UPDATE clock
+	// (autocommit), bukan steps 2-6; mutex ini menutup worker tick vs
+	// POST /admin/world/tick yang overlap. Multi-instance: tetap butuh
+	// lock DB penuh (backlog).
+	tickMu sync.Mutex
+}
+
+// log — logger engine (selalu non-nil).
+func (e *Engine) log() *slog.Logger {
+	if e.Logger != nil {
+		return e.Logger
+	}
+	return slog.Default()
+}
+
+// Broadcaster — interface broadcast (diimplementasi realtime.Hub).
+type Broadcaster interface {
+	Broadcast(channel, event string)
+	BroadcastAll(event string)
+}
+
+// New — create engine.
+func New(pool *pgxpool.Pool, st *store.Store) *Engine {
+	e := &Engine{Pool: pool, Store: st}
+	e.Ledger = &LedgerService{engine: e}
+	e.Fleet = &FleetService{engine: e}
+	e.Routes = &RoutesService{engine: e}
+	e.Settings = &SettingsService{engine: e}
+	e.Bank = &BankService{engine: e}
+	return e
+}
+
+// ── Ledger ───────────────────────────────────────────────────────────
+
+type LedgerService struct{ engine *Engine }
+
+func (l *LedgerService) GetBalance(ctx context.Context, userID string) (float64, error) {
+	var b float64
+	err := l.engine.Pool.QueryRow(ctx,
+		`SELECT COALESCE(balance, 0) FROM bank_accounts WHERE user_id=$1 AND account_type='operating' LIMIT 1`, userID).Scan(&b)
+	return b, err
+}
+
+// DebitTx — debit dalam transaksi (mirror debit_bank_account). GUARDED:
+// gagal (ErrNoRows) bila saldo tidak cukup. Untuk jalur user-initiated
+// (beli, bayar, deposit) — dana kurang harus ditolak.
+func (l *LedgerService) DebitTx(ctx context.Context, tx pgx.Tx, userID string, amount float64, ifrsCat, ifrsSubcat, desc string, gameTime time.Time) (float64, error) {
+	return l.applyTx(ctx, tx, userID, amount, ifrsCat, ifrsSubcat, desc, gameTime, false, false)
+}
+
+// DebitTxAllowNegative — debit TANPA guard saldo (AUDIT-06 step 2). Khusus
+// biaya tak-terelakkan hasil simulasi (fuel/crew/maintenance/lease): saldo
+// boleh jadi negatif supaya (a) biaya selalu tercatat di ledger dan
+// (b) mesin bangkrut (cash threshold + consecutive_negative_days) benar-benar
+// bisa terpicu. Jangan dipakai untuk aksi user.
+func (l *LedgerService) DebitTxAllowNegative(ctx context.Context, tx pgx.Tx, userID string, amount float64, ifrsCat, ifrsSubcat, desc string, gameTime time.Time) (float64, error) {
+	return l.applyTx(ctx, tx, userID, amount, ifrsCat, ifrsSubcat, desc, gameTime, false, true)
+}
+
+// CreditTx — credit dalam transaksi (mirror credit_bank_account).
+func (l *LedgerService) CreditTx(ctx context.Context, tx pgx.Tx, userID string, amount float64, ifrsCat, ifrsSubcat, desc string, gameTime time.Time) (float64, error) {
+	return l.applyTx(ctx, tx, userID, amount, ifrsCat, ifrsSubcat, desc, gameTime, true, false)
+}
+
+func (l *LedgerService) applyTx(ctx context.Context, tx pgx.Tx, userID string, amount float64, ifrsCat, ifrsSubcat, desc string, gameTime time.Time, credit, allowNegative bool) (float64, error) {
+	// Dibulatkan ke sen di PINTU MASUK ledger, bukan di setiap pemanggil: biaya
+	// hasil simulasi datang sebagai float (fuel/crew/maintenance dari pembagian
+	// dan perkalian), dan menyimpannya apa adanya membuat kolom numeric(20,2)
+	// membulatkan sendiri sementara Go membandingkan nilai yang belum dibulatkan.
+	// Satu tempat di sini membuat kedua sisi memakai angka yang sama.
+	amount = round2(amount)
+	if amount < 0 {
+		return 0, fmt.Errorf("amount must be non-negative: %v", amount)
+	}
+	if amount == 0 {
+		var b float64
+		err := tx.QueryRow(ctx, `SELECT COALESCE(balance,0) FROM bank_accounts WHERE user_id=$1 AND account_type='operating' LIMIT 1`, userID).Scan(&b)
+		return b, err
+	}
+	var newBalance float64
+	var err error
+	switch {
+	case credit:
+		err = tx.QueryRow(ctx,
+			`UPDATE bank_accounts SET balance = balance + $1 WHERE user_id=$2 AND account_type='operating' RETURNING balance`,
+			amount, userID).Scan(&newBalance)
+	case allowNegative:
+		err = tx.QueryRow(ctx,
+			`UPDATE bank_accounts SET balance = balance - $1 WHERE user_id=$2 AND account_type='operating' RETURNING balance`,
+			amount, userID).Scan(&newBalance)
+	default:
+		err = tx.QueryRow(ctx,
+			`UPDATE bank_accounts SET balance = balance - $1 WHERE user_id=$2 AND account_type='operating' AND balance >= $1 RETURNING balance`,
+			amount, userID).Scan(&newBalance)
+	}
+	if err != nil {
+		return 0, fmt.Errorf("ledger update: %w", err)
+	}
+	txType := "debit"
+	ledgerAmount := -amount
+	if credit {
+		txType = "credit"
+		ledgerAmount = amount
+	}
+	_, err = tx.Exec(ctx, `
+		INSERT INTO bank_transactions (account_id, user_id, transaction_type, amount, balance_after, description, game_date, ifrs_category, ifrs_subcategory)
+		SELECT id, $1::uuid, $2::text, $3::numeric, $4::numeric, $5::text, $6::timestamptz, $7::text, $8::text
+		FROM bank_accounts WHERE user_id=$1::uuid AND account_type='operating' LIMIT 1`,
+		userID, txType, ledgerAmount, newBalance, desc, gameTime, ifrsCat, ifrsSubcat)
+	return newBalance, err
+}
+
+// GenerateTailNumber — prefix berdasarkan HQ user.
+func (l *LedgerService) GenerateTailNumber(ctx context.Context, hqIATA string) (string, error) {
+	prefix, err := l.getHQPrefix(ctx, hqIATA)
+	if err != nil {
+		return "", err
+	}
+	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	for attempts := 0; attempts < 100; attempts++ {
+		tail := prefix
+		for i := 0; i < 3; i++ {
+			tail += string(chars[rand.Intn(len(chars))])
+		}
+		var exists bool
+		l.engine.Pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM fleet_aircraft WHERE tail_number=$1)`, tail).Scan(&exists)
+		if !exists {
+			return tail, nil
+		}
+	}
+	return "", fmt.Errorf("could not generate unique tail number after 100 attempts")
+}
+
+func (l *LedgerService) getHQPrefix(ctx context.Context, iata string) (string, error) {
+	var prefix string
+	err := l.engine.Pool.QueryRow(ctx, `SELECT get_hq_prefix($1)`, iata).Scan(&prefix)
+	return prefix, err
+}
+
+// GetUserGameTime — user game_current_time.
+func (l *LedgerService) GetUserGameTime(ctx context.Context, userID string) (time.Time, error) {
+	var t time.Time
+	err := l.engine.Pool.QueryRow(ctx, `SELECT game_current_time FROM users WHERE id=$1`, userID).Scan(&t)
+	return t, err
+}
+
+// GetUserGameTimeTx — user game_current_time dengan FOR UPDATE row lock dalam transaksi.
+func (l *LedgerService) GetUserGameTimeTx(ctx context.Context, tx pgx.Tx, userID string) (time.Time, error) {
+	var t time.Time
+	err := tx.QueryRow(ctx, `SELECT game_current_time FROM users WHERE id=$1 FOR UPDATE`, userID).Scan(&t)
+	return t, err
+}
+
+func deref(s *string, d string) string {
+	if s == nil || *s == "" {
+		return d
+	}
+	return *s
+}
