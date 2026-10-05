@@ -21,6 +21,8 @@ export const GameConstants = {
 	absoluteMaxWeeklyFlights: 168,
 	totalWeeklyHoursCap: 168.0,
 	aircraftTurnaroundHours: 0.75,
+	ownedWearPerFlightCycle: 0.5,
+	leasedWearPerFlightCycle: 0.7,
 
 	// Pricing
 	ticketBaseFare: 50.0,
