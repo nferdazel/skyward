@@ -23,8 +23,22 @@ Jika server dan klien berbeda pendapat, server benar menurut definisi.
 
 - **SvelteKit** (`adapter-static`) + **TypeScript** strict
 - **Svelte 5** runes untuk state
+- **Leaflet** untuk peta rute (BSD, tile OpenStreetMap)
 - **Vitest** + Testing Library untuk test
 - Tanpa SSR, tanpa runtime Node di produksi — hasil build adalah file statis
+
+## Fitur
+
+| Area | Isi |
+|---|---|
+| **Auth** | Login/daftar, sesi JWT, auto-login |
+| **Simulasi** | Rekonsiliasi world-clock, sinkron berkala + realtime |
+| **Armada** | Beli/sewa, perbaikan, jual, atur kursi |
+| **Rute** | Buka/atur/lepas rute, penilaian ekonomi dari server, peta |
+| **Bank** | Pinjaman, bayar, refinance, laporan kredit |
+| **Keuangan** | KPI, arus kas, laporan gaya IFRS |
+| **Peringkat** | Papan peringkat + detail kompetitor |
+| **Pengaturan** | Profil maskapai, reset, hapus akun |
 
 ## Struktur
 
@@ -34,9 +48,9 @@ deploy/    Kontrak deploy (skrip webhook, Caddy contoh, env contoh)
 ```
 
 `web/src/lib/core/` berisi infrastruktur lintas fitur (API client, realtime,
-sync, tema, komponen). `web/src/lib/features/` berisi satu folder per fitur,
-masing-masing dengan `data/` (gateway), `domain/` (tipe), `state/` (store), dan
-`ui/` (komponen).
+sync, tema, komponen, DI). `web/src/lib/features/` berisi satu folder per
+fitur, masing-masing dengan `data/` (gateway), `domain/` (tipe), `state/`
+(store), dan `ui/` (komponen).
 
 ## Pengembangan lokal
 
