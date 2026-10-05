@@ -5,6 +5,9 @@
 	import FleetView from '$lib/features/fleet/ui/FleetView.svelte';
 	import RoutesView from '$lib/features/routes/ui/RoutesView.svelte';
 	import BankView from '$lib/features/bank/ui/BankView.svelte';
+	import FinanceView from '$lib/features/finance/ui/FinanceView.svelte';
+	import LeaderboardView from '$lib/features/leaderboard/ui/LeaderboardView.svelte';
+	import SettingsView from '$lib/features/settings/ui/SettingsView.svelte';
 	import { getAuthStore } from '$lib/features/auth/state/auth-context.svelte';
 	import { getAppStores } from '$lib/core/di/stores-context.svelte';
 
@@ -14,9 +17,24 @@
 	const fmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 	const money = (n: number) => `$${fmt.format(Math.round(n))}`;
 
-	const tabs = ['Overview', 'Armada', 'Rute', 'Bank', 'Keuangan'] as const;
+	const tabs = [
+		'Overview',
+		'Armada',
+		'Rute',
+		'Bank',
+		'Keuangan',
+		'Peringkat',
+		'Pengaturan'
+	] as const;
 	type Tab = (typeof tabs)[number];
 	let tab = $state<Tab>('Overview');
+
+	// Leaderboard dimuat lazy saat tab pertama dibuka.
+	$effect(() => {
+		if (tab === 'Peringkat' && stores.leaderboard.state.entries.length === 0) {
+			void stores.leaderboard.load();
+		}
+	});
 </script>
 
 <svelte:head><title>Skyward — Dashboard</title></svelte:head>
@@ -149,6 +167,12 @@
 		<RoutesView store={stores.routes} />
 	{:else if tab === 'Bank'}
 		<BankView store={stores.bank} />
+	{:else if tab === 'Keuangan'}
+		<FinanceView store={stores.finance} />
+	{:else if tab === 'Peringkat'}
+		<LeaderboardView store={stores.leaderboard} />
+	{:else if tab === 'Pengaturan'}
+		<SettingsView store={stores.settings} {auth} />
 	{:else}
 		<AppCard>
 			<p class="muted">Tab «{tab}» menyusul sesuai backlog.</p>
