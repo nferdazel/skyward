@@ -138,4 +138,23 @@ describe('SimulationStore', () => {
 		expect(loadGameSettings).toHaveBeenCalledTimes(1);
 		store.dispose();
 	});
+
+	it('notifies sync-state listeners across a sync cycle', async () => {
+		const gateway = makeGateway({
+			loadUserProfile: vi
+				.fn()
+				.mockResolvedValue({ id: 'u1', game_current_time: '2030-01-01T00:00:00Z' })
+		});
+		const store = new SimulationStore({ gateway, realtime, sync: new SyncCoordinator() });
+		store.beginSession({ userId: 'u1', initialGameTime: '2030-01-01T00:00:00Z', initialCash: 0 });
+
+		const seen: boolean[] = [];
+		const off = store.onSyncState((s) => seen.push(s.isSyncing));
+
+		await store.syncWithDatabase();
+
+		expect(seen).toEqual([true, false]);
+		off();
+		store.dispose();
+	});
 });

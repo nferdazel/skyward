@@ -4,6 +4,9 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { services } from '$lib/core/di/services';
+	import { createAppStores, type AppStores } from '$lib/core/di/app-stores.svelte';
+	import { setAppStores } from '$lib/core/di/stores-context.svelte';
+	import { wireStores } from '$lib/core/di/wire-stores';
 	import { AuthStore } from '$lib/features/auth/state/auth-store.svelte';
 	import { setAuthStore } from '$lib/features/auth/state/auth-context.svelte';
 	import { createAuthGateway } from '$lib/features/auth/data/create-auth-gateway';
@@ -19,9 +22,43 @@
 
 	let booted = $state(false);
 
+	// Store per-user + wiring, dibangun saat auth berhasil dan dilepas saat
+	// logout / ganti user (keying oleh id).
+	let sessionKey = $state<string | null>(null);
+	let teardown: (() => void) | null = null;
+
 	onMount(async () => {
 		await auth.autoLogin();
 		booted = true;
+	});
+
+	$effect(() => {
+		const user = auth.isAuthenticated ? auth.user : null;
+		const nextKey = user ? user.id : null;
+
+		if (nextKey === sessionKey) return;
+
+		// Teardown sesi lama.
+		teardown?.();
+		teardown = null;
+
+		if (user) {
+			const stores: AppStores = createAppStores();
+			setAppStores(stores);
+			sessionKey = user.id;
+			teardown = wireStores(stores);
+			stores.simulation.startLoop({
+				userId: user.id,
+				initialGameTime: user.gameCurrentTime,
+				initialCash: 0,
+				initialOperationalStatus: user.operationalStatus,
+				initialConsecutiveNegativeDays: user.consecutiveNegativeDays,
+				initialRecoveryStreakDays: user.recoveryStreakDays
+			});
+		} else {
+			sessionKey = null;
+			services.realtimeClient.disconnect();
+		}
 	});
 
 	// Guard: setelah boot, arahkan ke /login bila belum tersesat.

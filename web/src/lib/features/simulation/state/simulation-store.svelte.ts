@@ -34,6 +34,11 @@ export interface SimulationDeps {
 	now?: () => number;
 }
 
+export interface SyncStateSnapshot {
+	isSyncing: boolean;
+	errorMessage: string | null;
+}
+
 function initial(gameTime: string, cash: number): SimulationState {
 	return {
 		gameTime,
@@ -117,6 +122,22 @@ export class SimulationStore {
 
 	get isSyncing(): boolean {
 		return this.state.isSyncing;
+	}
+
+	private readonly syncStateListeners = new Set<(state: SyncStateSnapshot) => void>();
+
+	/** Berlangganan perubahan status sinkronisasi (transisi true↔false). */
+	onSyncState(listener: (state: SyncStateSnapshot) => void): () => void {
+		this.syncStateListeners.add(listener);
+		return () => this.syncStateListeners.delete(listener);
+	}
+
+	private notifySyncState(): void {
+		const snapshot: SyncStateSnapshot = {
+			isSyncing: this.state.isSyncing,
+			errorMessage: this.state.errorMessage
+		};
+		for (const listener of this.syncStateListeners) listener(snapshot);
 	}
 
 	/** Harga tiket dasar server untuk sebuah jarak (satu tempat untuk formula). */
@@ -229,6 +250,7 @@ export class SimulationStore {
 		if (userId === null) return null;
 
 		this.state = { ...this.state, isSyncing: true };
+		this.notifySyncState();
 
 		try {
 			const [deltaRaw, profile] = await Promise.all([
@@ -300,6 +322,7 @@ export class SimulationStore {
 
 			const tickMs = Date.parse(authoritativeUser.gameCurrentTime);
 			this.deps.sync.publish(seasonClockTick({ currentTick: Number.isNaN(tickMs) ? 0 : tickMs }));
+			this.notifySyncState();
 
 			return authoritativeUser;
 		} catch (err) {
@@ -311,9 +334,11 @@ export class SimulationStore {
 					isSyncing: false,
 					errorMessage: 'Session expired. Please sign in again.'
 				};
+				this.notifySyncState();
 				return null;
 			}
 			this.state = { ...this.state, isSyncing: false, errorMessage: message };
+			this.notifySyncState();
 			this.retrySync();
 			return null;
 		}

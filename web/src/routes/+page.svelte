@@ -1,9 +1,15 @@
 <script lang="ts">
 	import AppButton from '$lib/core/components/AppButton.svelte';
 	import AppCard from '$lib/core/components/AppCard.svelte';
+	import AppBadge from '$lib/core/components/AppBadge.svelte';
 	import { getAuthStore } from '$lib/features/auth/state/auth-context.svelte';
+	import { getAppStores } from '$lib/core/di/stores-context.svelte';
 
 	const auth = getAuthStore();
+	const stores = getAppStores();
+
+	const fmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+	const money = (n: number) => `$${fmt.format(Math.round(n))}`;
 </script>
 
 <svelte:head><title>Skyward — Dashboard</title></svelte:head>
@@ -17,27 +23,104 @@
 		<AppButton text="Keluar" variant="secondary" onclick={() => auth.logout()} />
 	</header>
 
-	<section>
+	<section class="grid">
 		<AppCard>
-			<h2>Selamat datang, {auth.user?.ceoName || auth.user?.username}</h2>
-			<p>
-				Shell dashboard belum diisi. Fitur (armada, rute, keuangan, bank, dsb.) menyusul sesuai
-				backlog.
+			<h2>Simulasi</h2>
+			<p class="muted">
+				Waktu game: {stores.simulation.state.gameTime}
+				{#if stores.simulation.state.isSyncing}<AppBadge label="sync" tone="primary" />{/if}
 			</p>
 			<dl>
 				<div>
-					<dt>HQ</dt>
-					<dd>{auth.user?.hqAirportIata}</dd>
+					<dt>Kas</dt>
+					<dd>{money(stores.simulation.state.cashBalance)}</dd>
+				</div>
+				<div>
+					<dt>Penerbangan terakhir</dt>
+					<dd>{stores.simulation.state.lastFlightsRun}</dd>
 				</div>
 				<div>
 					<dt>Status</dt>
-					<dd>{auth.user?.operationalStatus}</dd>
-				</div>
-				<div>
-					<dt>Net worth</dt>
-					<dd>{auth.user?.netWorth}</dd>
+					<dd>{stores.simulation.state.operationalStatus}</dd>
 				</div>
 			</dl>
+		</AppCard>
+
+		<AppCard>
+			<h2>Armada</h2>
+			<p class="muted">{stores.fleet.state.aircraft.length} pesawat</p>
+			<ul>
+				{#each stores.fleet.state.aircraft as a (a.id)}
+					<li>
+						{a.nickname || a.tailNumber || a.model.modelName}
+						— <span class="muted">{Math.round(a.condition)}%</span>
+					</li>
+				{:else}
+					<li class="muted">Belum ada pesawat.</li>
+				{/each}
+			</ul>
+		</AppCard>
+
+		<AppCard>
+			<h2>Rute</h2>
+			<p class="muted">{stores.routes.state.routes.length} rute aktif</p>
+			<ul>
+				{#each stores.routes.state.routes as r (r.id)}
+					<li>
+						{r.originIata}→{r.destinationIata}
+						<span class="muted">({Math.round(r.distanceKm)} km, {r.flightsPerWeek}/wk)</span>
+					</li>
+				{:else}
+					<li class="muted">Belum ada rute.</li>
+				{/each}
+			</ul>
+		</AppCard>
+
+		<AppCard>
+			<h2>Bank</h2>
+			<dl>
+				<div>
+					<dt>Akun operasional</dt>
+					<dd>{money(stores.bank.operatingAccount?.balance ?? 0)}</dd>
+				</div>
+				<div>
+					<dt>Pinjaman</dt>
+					<dd>{stores.bank.state.loans.length}</dd>
+				</div>
+				<div>
+					<dt>Tier kredit</dt>
+					<dd>{stores.bank.state.credit?.creditTier ?? '—'}</dd>
+				</div>
+			</dl>
+		</AppCard>
+
+		<AppCard>
+			<h2>Keuangan</h2>
+			<dl>
+				<div>
+					<dt>Pendapatan 30h</dt>
+					<dd>{money(stores.finance.state.snapshot.rollingRevenue30d)}</dd>
+				</div>
+				<div>
+					<dt>Beban 30h</dt>
+					<dd>{money(stores.finance.state.snapshot.rollingExpense30d)}</dd>
+				</div>
+				<div>
+					<dt>Bersih 30h</dt>
+					<dd>{money(stores.finance.state.snapshot.rollingNet30d)}</dd>
+				</div>
+			</dl>
+		</AppCard>
+
+		<AppCard>
+			<h2>Event dunia</h2>
+			<ul>
+				{#each stores.events.state.events as e (e.id)}
+					<li>{e.title} <span class="muted">{e.eventType}</span></li>
+				{:else}
+					<li class="muted">Tidak ada event aktif.</li>
+				{/each}
+			</ul>
 		</AppCard>
 	</section>
 </main>
@@ -64,18 +147,42 @@
 		color: var(--color-text-secondary);
 		font-size: 13px;
 	}
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+		gap: var(--space-md);
+	}
 	h2 {
 		margin: 0 0 var(--space-sm);
-		font-size: 16px;
+		font-size: 14px;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--color-text-primary);
 	}
-	p {
-		color: var(--color-text-secondary);
+	.muted {
+		color: var(--color-text-muted);
+		font-size: 12px;
+	}
+	ul {
+		list-style: none;
+		padding: 0;
+		margin: var(--space-sm) 0 0;
 		font-size: 13px;
+	}
+	li {
+		padding: var(--space-xs) 0;
+		border-bottom: 0.5px solid var(--color-border-subtle);
 	}
 	dl {
 		display: flex;
-		gap: var(--space-xl);
-		margin: var(--space-md) 0 0;
+		flex-direction: column;
+		gap: var(--space-xs);
+		margin: var(--space-sm) 0 0;
+	}
+	dl > div {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--space-md);
 	}
 	dt {
 		color: var(--color-text-muted);
