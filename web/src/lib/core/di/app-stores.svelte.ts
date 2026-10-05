@@ -18,6 +18,7 @@ import { EventsStore } from '$lib/features/events/state/events-store.svelte';
 import { createEventsGateway } from '$lib/features/events/data/create-events-gateway';
 import { SettingsStore } from '$lib/features/settings/state/settings-store.svelte';
 import { createSettingsGateway } from '$lib/features/settings/data/create-settings-gateway';
+import { NotificationStore } from '$lib/features/notification/state/notification-store.svelte';
 
 /**
  * Kumpulan store per-user (pengganti pusat cubit di `DashboardScreen`).
@@ -35,6 +36,7 @@ export interface AppStores {
 	achievements: AchievementsStore;
 	events: EventsStore;
 	settings: SettingsStore;
+	notification: NotificationStore;
 }
 
 export function createAppStores(): AppStores {
@@ -52,6 +54,7 @@ export function createAppStores(): AppStores {
 		leaderboard: new LeaderboardStore(createLeaderboardGateway()),
 		achievements: new AchievementsStore(createAchievementsGateway()),
 		events: new EventsStore(createEventsGateway()),
-		settings: new SettingsStore(createSettingsGateway())
+		settings: new SettingsStore(createSettingsGateway()),
+		notification: new NotificationStore()
 	};
 }

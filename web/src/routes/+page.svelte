@@ -8,6 +8,7 @@
 	import FinanceView from '$lib/features/finance/ui/FinanceView.svelte';
 	import LeaderboardView from '$lib/features/leaderboard/ui/LeaderboardView.svelte';
 	import SettingsView from '$lib/features/settings/ui/SettingsView.svelte';
+	import SkywardSonner from '$lib/core/components/SkywardSonner.svelte';
 	import { getAuthStore } from '$lib/features/auth/state/auth-context.svelte';
 	import { getAppStores } from '$lib/core/di/stores-context.svelte';
 
@@ -30,9 +31,25 @@
 	let tab = $state<Tab>('Overview');
 
 	// Leaderboard dimuat lazy saat tab pertama dibuka.
+	// Leaderboard dimuat lazy saat tab pertama dibuka.
 	$effect(() => {
 		if (tab === 'Peringkat' && stores.leaderboard.state.entries.length === 0) {
 			void stores.leaderboard.load();
+		}
+	});
+
+	// Achievement baru dari sync → toast (sekali per kemunculan).
+	let seenAchievements = new Set<string>();
+	$effect(() => {
+		for (const a of stores.simulation.state.lastUnlockedAchievements) {
+			const key = String(a.achievement_type ?? a.achievement_name ?? '');
+			if (!key || seenAchievements.has(key)) continue;
+			seenAchievements.add(key);
+			stores.notification.push({
+				type: 'success',
+				title: String(a.achievement_name ?? 'Achievement'),
+				message: String(a.description ?? '')
+			});
 		}
 	});
 </script>
@@ -179,6 +196,8 @@
 		</AppCard>
 	{/if}
 </main>
+
+<SkywardSonner store={stores.notification} />
 
 <style>
 	.shell {
