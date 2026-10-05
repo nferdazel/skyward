@@ -1,0 +1,16 @@
+# Konfigurasi gitleaks — cegah secret masuk repo publik.
+# Jalankan: gitleaks detect --source . --config .gitleaks.toml
+
+title = "skyward-web gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Contoh env & placeholder"
+paths = [
+  '''deploy/env/.*\.env\.example$''',
+  '''\.env\.example$''',
+  '''\.gitleaks\.toml$''',
+  '''deploy/webhook\.json$''',
+]

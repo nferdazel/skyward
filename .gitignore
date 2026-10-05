@@ -1,0 +1,18 @@
+# Dependensi & build (web/)
+web/node_modules/
+web/.pnpm-store/
+web/build/
+web/.svelte-kit/
+web/dist/
+
+# Env & secret
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+*.log
+
+# Internal planning docs — this repo is public. Never commit these.
+docs/
