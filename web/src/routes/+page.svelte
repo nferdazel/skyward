@@ -4,6 +4,7 @@
 	import AppBadge from '$lib/core/components/AppBadge.svelte';
 	import FleetView from '$lib/features/fleet/ui/FleetView.svelte';
 	import RoutesView from '$lib/features/routes/ui/RoutesView.svelte';
+	import BankView from '$lib/features/bank/ui/BankView.svelte';
 	import { getAuthStore } from '$lib/features/auth/state/auth-context.svelte';
 	import { getAppStores } from '$lib/core/di/stores-context.svelte';
 
@@ -146,6 +147,8 @@
 		<FleetView store={stores.fleet} />
 	{:else if tab === 'Rute'}
 		<RoutesView store={stores.routes} />
+	{:else if tab === 'Bank'}
+		<BankView store={stores.bank} />
 	{:else}
 		<AppCard>
 			<p class="muted">Tab «{tab}» menyusul sesuai backlog.</p>
