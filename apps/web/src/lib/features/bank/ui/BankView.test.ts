@@ -41,16 +41,16 @@ function makeStore(over: Partial<BankStore['state']> = {}): BankStore {
 }
 
 describe('BankView', () => {
-	it('shows the operating balance, credit tier and a loan row', () => {
+	it('shows the operating balance, credit tier and a loan card', () => {
 		render(BankView, { props: { store: makeStore() } });
 		expect(screen.getByText('$12,345')).toBeInTheDocument();
 		expect(screen.getByText('Gold')).toBeInTheDocument();
-		expect(screen.getByText('$100,000')).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: 'Repay' })).toBeInTheDocument();
+		expect(screen.getAllByText('$100,000').length).toBeGreaterThan(0);
+		expect(screen.getByRole('button', { name: 'Pay off' })).toBeInTheDocument();
 	});
 
-	it('shows an empty state when there are no loans', () => {
+	it('offers a take-loan action', () => {
 		render(BankView, { props: { store: makeStore({ loans: [] }) } });
-		expect(screen.getByText('No loans')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Take loan' })).toBeInTheDocument();
 	});
 });
