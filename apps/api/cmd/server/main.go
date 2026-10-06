@@ -241,8 +241,9 @@ func registerRoutes(ctx context.Context, mux *http.ServeMux, logger *slog.Logger
 		}
 		httperr.WriteJSON(w, http.StatusOK, result)
 	}))
-	// TODO Fase 5+: /admin/owner/route-optimizer, /admin/world/guardrail-report,
-	// /admin/world/scheduler-health, POST /admin/world/tick, /admin/account/{id}/reset-password
+	// Admin ops yang belum dibangun (Fase 5+, tak dipakai pemain — tambah
+	// hanya bila ada kebutuhan nyata): /admin/owner/route-optimizer,
+	// /admin/world/guardrail-report, /admin/world/scheduler-health.
 }
 
 // parseLogLevel — map SKYWARD_LOG_LEVEL ke slog.Level.
