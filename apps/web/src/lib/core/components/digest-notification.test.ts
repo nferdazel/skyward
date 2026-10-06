@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/svelte';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WhileAwayDigest from './WhileAwayDigest.svelte';
 import { NotificationStore } from '$lib/features/notification/state/notification-store.svelte';
 
@@ -25,5 +25,27 @@ describe('NotificationStore read-state', () => {
 		store.markAllRead();
 		expect(store.unreadCount).toBe(0);
 		expect(store.state.items).toHaveLength(2);
+	});
+});
+
+describe('NotificationStore auto-dismiss', () => {
+	beforeEach(() => vi.useFakeTimers());
+	afterEach(() => vi.useRealTimers());
+
+	it('auto-dismisses a toast after 6s (so they do not pile up)', () => {
+		const store = new NotificationStore();
+		store.push({ type: 'success', title: 'Achievement unlocked' });
+		expect(store.toasts).toHaveLength(1);
+
+		vi.advanceTimersByTime(6000);
+		expect(store.toasts).toHaveLength(0);
+	});
+
+	it('keeps persistent "event" notifications (no auto-dismiss)', () => {
+		const store = new NotificationStore();
+		store.push({ type: 'event', title: 'Fuel shock' });
+
+		vi.advanceTimersByTime(60_000);
+		expect(store.state.items).toHaveLength(1);
 	});
 });

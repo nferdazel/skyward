@@ -2,6 +2,7 @@
 	import CraftCard from '$lib/core/components/CraftCard.svelte';
 	import AppBadge from '$lib/core/components/AppBadge.svelte';
 	import AppSparkline from '$lib/core/components/AppSparkline.svelte';
+	import TactileButton from '$lib/core/components/TactileButton.svelte';
 	import { buildOverviewSnapshot, financeTotals } from '../domain/overview-snapshot';
 	import type { AppUser } from '$lib/features/auth/domain/user';
 	import type { AppStores } from '$lib/core/di/app-stores.svelte';
@@ -37,6 +38,9 @@
 	);
 
 	const netWorthTrend = $derived(stores.finance.state.history.map((h) => h.netWorth));
+
+	/** A brand-new airline: nothing to operate yet → show the getting-started guide. */
+	const isNewAirline = $derived(overview.totalFleetCount === 0 && overview.activeRoutes === 0);
 </script>
 
 <div class="overview">
@@ -117,38 +121,86 @@
 		</div>
 	{/if}
 
-	<span class="section">Command deck</span>
-	<div class="deck">
+	{#if isNewAirline}
+		<span class="section">Get started</span>
 		<CraftCard>
-			<span class="k">Fleet readiness</span>
-			<span class="big tnum ok">{overview.readyFleetCount} ready</span>
-			<span class="muted"
-				>{overview.groundedCount} grounded · {overview.leasedCount} leased · avg cond {Math.round(
-					overview.averageCondition
-				)}%</span
-			>
+			<div class="onboard">
+				<p class="onboard-intro">
+					You have {money(stores.simulation.state.cashBalance)} in cash and no aircraft yet. Here is the
+					shortest path to your first revenue.
+				</p>
+				<ol class="steps">
+					<li>
+						<span class="step-n">1</span>
+						<div>
+							<span class="step-t">Acquire an aircraft</span>
+							<span class="step-d">Buy or lease one — leasing needs less upfront cash.</span>
+						</div>
+						<TactileButton text="Open Fleet" type="secondary" onclick={() => onnavigate('fleet')} />
+					</li>
+					<li>
+						<span class="step-n">2</span>
+						<div>
+							<span class="step-t">Open a route</span>
+							<span class="step-d">Wire two airports and assign the aircraft to start flying.</span>
+						</div>
+						<TactileButton
+							text="Open Routes"
+							type="secondary"
+							onclick={() => onnavigate('routes')}
+						/>
+					</li>
+					<li>
+						<span class="step-n">3</span>
+						<div>
+							<span class="step-t">Watch the ledger</span>
+							<span class="step-d">Revenue posts automatically each game day.</span>
+						</div>
+						<TactileButton
+							text="Open Financials"
+							type="secondary"
+							onclick={() => onnavigate('financials')}
+						/>
+					</li>
+				</ol>
+			</div>
 		</CraftCard>
-		<CraftCard>
-			<span class="k">Routes</span>
-			<span class="big tnum">{overview.activeRoutes}</span>
-			<span class="muted">{overview.riskyRoutes} at risk · {overview.avgFlightsPerRouteLabel}</span>
-			<span class="muted">Top risk: {overview.topRouteRiskLabel}</span>
-		</CraftCard>
-		<CraftCard>
-			<span class="k">Leader gap</span>
-			<span class="big tnum" style="color: {overview.leaderGapColor};"
-				>{overview.leaderGapLabel}</span
-			>
-			<span class="muted"
-				>Leader bot: {overview.leadingBotArchetype} · {overview.leadingBotFleet} aircraft</span
-			>
-		</CraftCard>
-		<CraftCard>
-			<span class="k">Best yield</span>
-			<span class="big">{overview.bestRouteYieldLabel}</span>
-			<span class="muted">Slack: {Math.round(overview.totalSlackHours)} h/wk</span>
-		</CraftCard>
-	</div>
+	{:else}
+		<span class="section">Command deck</span>
+		<div class="deck">
+			<CraftCard onclick={() => onnavigate('fleet')}>
+				<span class="k">Fleet readiness</span>
+				<span class="big tnum ok">{overview.readyFleetCount} ready</span>
+				<span class="muted"
+					>{overview.groundedCount} grounded · {overview.leasedCount} leased · avg cond {Math.round(
+						overview.averageCondition
+					)}%</span
+				>
+			</CraftCard>
+			<CraftCard onclick={() => onnavigate('routes')}>
+				<span class="k">Routes</span>
+				<span class="big tnum">{overview.activeRoutes}</span>
+				<span class="muted"
+					>{overview.riskyRoutes} at risk · {overview.avgFlightsPerRouteLabel}</span
+				>
+				<span class="muted">Top risk: {overview.topRouteRiskLabel}</span>
+			</CraftCard>
+			<CraftCard onclick={() => onnavigate('rankings')}>
+				<span class="k">Leader gap</span>
+				<span class="big tnum" style="color: {overview.leaderGapColor};"
+					>{overview.leaderGapLabel}</span
+				>
+				<span class="muted"
+					>Leader bot: {overview.leadingBotArchetype} · {overview.leadingBotFleet} aircraft</span
+				>
+			</CraftCard>
+			<CraftCard onclick={() => onnavigate('routes')}>
+				<span class="k">Best yield</span>
+				<span class="big">{overview.bestRouteYieldLabel}</span>
+				<span class="muted">Slack: {Math.round(overview.totalSlackHours)} h/wk</span>
+			</CraftCard>
+		</div>
+	{/if}
 
 	{#if overview.priorities.length > 0}
 		<span class="section">Priorities</span>
@@ -279,5 +331,57 @@
 	}
 	.prio-label {
 		font-weight: 600;
+	}
+	.onboard {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-md);
+	}
+	.onboard-intro {
+		margin: 0;
+		font-size: 13px;
+		color: var(--color-text-secondary);
+	}
+	.steps {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-sm);
+	}
+	.steps li {
+		display: flex;
+		align-items: center;
+		gap: var(--space-md);
+		padding: var(--space-sm) 0;
+		border-top: 1px solid var(--color-border-subtle);
+	}
+	.step-n {
+		display: grid;
+		place-items: center;
+		width: 24px;
+		height: 24px;
+		flex: 0 0 24px;
+		border-radius: 50%;
+		background: var(--color-accent-subtle);
+		color: var(--color-accent);
+		font-size: 12px;
+		font-weight: 700;
+	}
+	.steps li > div {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+	}
+	.step-t {
+		font-weight: 600;
+		font-size: 13px;
+	}
+	.step-d {
+		font-size: 12px;
+		color: var(--color-text-muted);
 	}
 </style>
