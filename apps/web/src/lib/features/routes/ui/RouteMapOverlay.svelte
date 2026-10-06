@@ -72,7 +72,9 @@
 				worldCopyJump: true,
 				zoomControl: true,
 				attributionControl: true,
-				minZoom: 0,
+				// Cap zoom-out at 3 so the world always fills the canvas — zooming
+				// further out would leave unavoidable empty bands around a globe.
+				minZoom: 3,
 				maxZoom: 18
 			}).setView([12, 108], 3);
 			// Esri "Dark Gray Canvas" — no API key required, dark theme that
@@ -83,7 +85,7 @@
 				{
 					attribution: 'Tiles © Esri — Esri, DeLorme, NAVTEQ',
 					maxZoom: 16,
-					minZoom: 0,
+					minZoom: 3,
 					crossOrigin: true
 				}
 			).addTo(map);
@@ -128,6 +130,14 @@
 					],
 					{ color: '#5B9EE0', weight: 3, opacity: 0.9, dashArray: '6 6' }
 				).addTo(map);
+			}
+
+			// Frame the drawn network (airports in use) if there is one; otherwise
+			// keep the default continental view.
+			const used = [...connected].map((iata) => byIata.get(iata)).filter(Boolean) as Airport[];
+			if (used.length > 0 && !preview) {
+				const bounds = Lmod.latLngBounds(used.map((a) => [a.latitude, a.longitude]));
+				map.fitBounds(bounds, { padding: [40, 40], maxZoom: 6 });
 			}
 
 			// Fix the classic "empty/partial map" case: Leaflet measures the
