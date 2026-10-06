@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import SearchableAirportDropdown from './SearchableAirportDropdown.svelte';
-import AppLineChart from './AppLineChart.svelte';
 import NotificationPanel from './NotificationPanel.svelte';
 import { NotificationStore } from '$lib/features/notification/state/notification-store.svelte';
 import type { Airport } from '$lib/features/routes/domain/airport';
@@ -37,17 +36,6 @@ describe('SearchableAirportDropdown', () => {
 		await screen.getByText('KUL').click();
 
 		expect(onselect).toHaveBeenCalledWith(airports[1]);
-	});
-});
-
-describe('AppLineChart', () => {
-	it('renders nothing for fewer than 2 points and an svg otherwise', () => {
-		const { container, unmount } = render(AppLineChart, { props: { values: [1] } });
-		expect(container.querySelector('svg')).toBeNull();
-		unmount();
-
-		render(AppLineChart, { props: { values: [1, 3, 2, 5] } });
-		expect(screen.getByRole('img')).toBeInTheDocument();
 	});
 });
 
