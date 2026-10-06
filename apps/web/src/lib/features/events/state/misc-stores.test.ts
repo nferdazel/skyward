@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EventsStore } from '$lib/features/events/state/events-store.svelte';
-import { EventsGateway } from '$lib/features/events/data/events-gateway';
 import { AchievementsStore } from '$lib/features/achievements/state/achievements-store.svelte';
 import { LeaderboardStore } from '$lib/features/leaderboard/state/leaderboard-store.svelte';
 import { SettingsStore } from '$lib/features/settings/state/settings-store.svelte';

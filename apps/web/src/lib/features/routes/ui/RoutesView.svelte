@@ -7,7 +7,7 @@
 	import RouteMapOverlay from './RouteMapOverlay.svelte';
 	import type { RoutesStore } from '../state/routes-store.svelte';
 	import type { UserRoute } from '../domain/route-models';
-	import { calculateDistance, type Airport } from '../domain/airport';
+	import { calculateDistance } from '../domain/airport';
 
 	type Props = { store: RoutesStore };
 	let { store }: Props = $props();

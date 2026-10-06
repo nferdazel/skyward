@@ -102,6 +102,13 @@ jobs:
         env:
           PGPASSWORD: skyward
         run: |
+          # Baseline adalah dump Supabase yang mengasumsikan role `postgres`
+          # sudah ada (OWNER TO "postgres"). Image postgres resmi hanya membuat
+          # role sesuai POSTGRES_USER (di sini `skyward`). Migrasi
+          # 22_role_provisioning.sql membuat role ini, tapi ia butuh tabel dari
+          # baseline — jadi role dibuat lebih dulu di sini (cermin prod).
+          psql -v ON_ERROR_STOP=1 -h localhost -U skyward -d skyward_test \
+            -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='postgres') THEN CREATE ROLE postgres NOLOGIN; END IF; END \$\$;"
           for f in $(ls migrations/*.sql | sort); do
             echo "==> $f"
             psql -v ON_ERROR_STOP=1 -h localhost -U skyward -d skyward_test -f "$f" >/dev/null
