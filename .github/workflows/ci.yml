@@ -64,6 +64,52 @@ jobs:
       - name: go test ./...
         run: go test ./...
 
+  db-tests:
+    name: API (Go) dengan Postgres
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: skyward
+          POSTGRES_PASSWORD: skyward
+          POSTGRES_DB: skyward_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U skyward"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Menyalakan test DB (`*_db_test.go`) yang kalau tidak diset akan di-skip.
+      TEST_DATABASE_URL: postgres://skyward:skyward@localhost:5432/skyward_test?sslmode=disable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Terapkan migrasi
+        working-directory: .
+        env:
+          PGPASSWORD: skyward
+        run: |
+          for f in $(ls migrations/*.sql | sort); do
+            echo "==> $f"
+            psql -v ON_ERROR_STOP=1 -h localhost -U skyward -d skyward_test -f "$f" >/dev/null
+          done
+
+      - name: go test ./...
+        run: go test ./...
+
   web:
     name: Web (check + lint + test + build)
     runs-on: ubuntu-latest
