@@ -1,326 +1,233 @@
 <script lang="ts">
-	import AppCard from '$lib/core/components/AppCard.svelte';
-	import AppButton from '$lib/core/components/AppButton.svelte';
 	import AppBadge from '$lib/core/components/AppBadge.svelte';
-	import AppEmptyState from '$lib/core/components/AppEmptyState.svelte';
-	import AppDialogShell from '$lib/core/components/AppDialogShell.svelte';
+	import CraftCard from '$lib/core/components/CraftCard.svelte';
+	import SegmentedPillControl from '$lib/core/components/SegmentedPillControl.svelte';
+	import FlightConditionCell from './FlightConditionCell.svelte';
+	import FleetDrawerContent from './FleetDrawerContent.svelte';
+	import AcquireTab from './AcquireTab.svelte';
 	import type { FleetStore } from '../state/fleet-store.svelte';
-	import type { AircraftModel, UserFleetAircraft } from '../domain/fleet-models';
-	import { isOwned } from '../domain/fleet-models';
+	import type { UserFleetAircraft } from '../domain/fleet-models';
+	import { isMaintenanceGrounded } from '../domain/fleet-models';
 
-	type Props = { store: FleetStore };
-	let { store }: Props = $props();
+	/**
+	 * Fleet view. Ported from Flutter `FleetView`.
+	 * Two segmented tabs (Active Fleet / Acquire Aircraft); the active tab shows
+	 * a summary strip and a master-detail (table + inspector drawer).
+	 */
+	type Props = { store: FleetStore; autoGroundingThreshold?: number };
+	let { store, autoGroundingThreshold = 40 }: Props = $props();
 
 	let tab = $state<'fleet' | 'acquire'>('fleet');
-	let dialog = $state<'acquire' | 'repair' | 'sell' | 'seats' | null>(null);
-	let selected = $state<UserFleetAircraft | null>(null);
-	let selectedModel = $state<AircraftModel | null>(null);
+	let selectedId = $state<string | null>(null);
 	let busy = $state(false);
 
-	// Form acquire
-	let nickname = $state('');
-	let economySeats = $state(0);
-	let businessSeats = $state(0);
-	let firstClassSeats = $state(0);
-	let acquireType = $state<'purchase' | 'lease'>('purchase');
+	const fmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+	const money = (n: number) => `$${fmt.format(Math.round(n))}`;
 
-	const num = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
-	const money = (n: number) => `$${num.format(Math.round(n))}`;
+	const fleet = $derived(store.state.aircraft);
+	const selected = $derived(fleet.find((a) => a.id === selectedId) ?? fleet[0] ?? null);
+	const ready = $derived(
+		fleet.filter((a) => !isMaintenanceGrounded(a, autoGroundingThreshold)).length
+	);
+	const grounded = $derived(
+		fleet.filter((a) => isMaintenanceGrounded(a, autoGroundingThreshold)).length
+	);
+	const leaseBurn = $derived(
+		fleet
+			.filter((a) => a.acquisitionType === 'lease')
+			.reduce((s, a) => s + a.model.leasePricePerMonth, 0)
+	);
+	const repairAll = $derived(fleet.reduce((s, a) => s + a.repairCost, 0));
 
-	function openAcquire(model: AircraftModel) {
-		selectedModel = model;
-		nickname = '';
-		economySeats = model.capacity;
-		businessSeats = 0;
-		firstClassSeats = 0;
-		dialog = 'acquire';
-	}
-
-	async function submitAcquire() {
-		if (!selectedModel) return;
+	async function repair(a: UserFleetAircraft) {
 		busy = true;
-		const params = {
-			modelId: selectedModel.id,
-			nickname,
-			economySeats,
-			businessSeats,
-			firstClassSeats
-		};
-		if (acquireType === 'purchase') await store.purchase(params);
-		else await store.lease(params);
+		await store.repair(a.id);
 		busy = false;
-		dialog = null;
 	}
 
-	function openRepair(a: UserFleetAircraft) {
-		selected = a;
-		dialog = 'repair';
-	}
-	function openSell(a: UserFleetAircraft) {
-		selected = a;
-		dialog = 'sell';
-	}
-	function openSeats(a: UserFleetAircraft) {
-		selected = a;
-		economySeats = a.economySeats;
-		businessSeats = a.businessSeats;
-		firstClassSeats = a.firstClassSeats;
-		dialog = 'seats';
-	}
-
-	async function confirmRepair() {
-		if (!selected) return;
+	async function saveSeats(a: UserFleetAircraft, eco: number, bus: number, first: number) {
 		busy = true;
-		await store.repair(selected.id);
+		await store.configureSeats(a.id, {
+			economySeats: eco,
+			businessSeats: bus,
+			firstClassSeats: first
+		});
 		busy = false;
-		dialog = null;
 	}
-	async function confirmSell() {
-		if (!selected) return;
-		busy = true;
-		await store.sell(selected.id);
-		busy = false;
-		dialog = null;
-	}
-	async function confirmSeats() {
-		if (!selected) return;
-		busy = true;
-		await store.configureSeats(selected.id, { economySeats, businessSeats, firstClassSeats });
-		busy = false;
-		dialog = null;
-	}
-
-	const fleetCount = $derived(store.state.aircraft.length);
-	const ownedCount = $derived(store.state.aircraft.filter(isOwned).length);
 </script>
 
 <section>
-	<div class="tabs" role="tablist">
-		<button
-			role="tab"
-			aria-selected={tab === 'fleet'}
-			class:active={tab === 'fleet'}
-			onclick={() => (tab = 'fleet')}
-		>
-			Armada
-		</button>
-		<button
-			role="tab"
-			aria-selected={tab === 'acquire'}
-			class:active={tab === 'acquire'}
-			onclick={() => (tab = 'acquire')}
-		>
-			Tambah pesawat
-		</button>
-	</div>
+	<SegmentedPillControl
+		items={[
+			{ value: 'fleet', label: 'Active Fleet' },
+			{ value: 'acquire', label: 'Acquire Aircraft' }
+		]}
+		selected={tab}
+		onselect={(v) => (tab = v === 'acquire' ? 'acquire' : 'fleet')}
+	/>
 
 	{#if store.state.error}
-		<p class="error" role="alert">{store.state.error}</p>
+		<p class="err" role="alert">{store.state.error}</p>
 	{/if}
 
 	{#if tab === 'fleet'}
-		<AppCard>
-			<div class="strip">
-				<div><span class="k">Total</span><span class="v">{fleetCount}</span></div>
-				<div><span class="k">Milik</span><span class="v">{ownedCount}</span></div>
-				<div><span class="k">Sewa</span><span class="v">{fleetCount - ownedCount}</span></div>
-			</div>
+		{#if store.state.loading && fleet.length === 0}
+			<p class="muted">Loading fleet registry…</p>
+		{:else if fleet.length === 0}
+			<CraftCard>
+				<p class="muted">No aircraft yet. Acquire one from the Fleet tab.</p>
+			</CraftCard>
+		{:else}
+			<CraftCard>
+				<div class="summary">
+					<div class="kpi"><span class="k">Ready</span><span class="v ok">{ready}</span></div>
+					<span class="vline"></span>
+					<div class="kpi">
+						<span class="k">Grounded</span><span class="v bad">{grounded}</span>
+					</div>
+					<span class="vline"></span>
+					<div class="kpi">
+						<span class="k">Lease Burn</span><span class="v warn">{money(leaseBurn)}</span>
+					</div>
+					<span class="vline"></span>
+					<div class="kpi">
+						<span class="k">Repair All</span><span class="v bad">{money(repairAll)}</span>
+					</div>
+				</div>
+			</CraftCard>
 
-			{#if fleetCount === 0 && !store.state.loading}
-				<AppEmptyState
-					title="Belum ada pesawat"
-					description="Beli atau sewa pesawat untuk mulai terbang."
-				/>
-			{:else}
-				<div class="table-wrap">
+			<div class="md">
+				<div class="master">
 					<table>
 						<thead>
 							<tr>
-								<th>Pesawat</th>
-								<th>Tipe</th>
-								<th>Kondisi</th>
+								<th>Aircraft</th>
+								<th>Acquisition</th>
+								<th>Condition</th>
 								<th>Status</th>
-								<th>Kursi</th>
-								<th>Aksi</th>
+								<th>Cabin</th>
 							</tr>
 						</thead>
 						<tbody>
-							{#each store.state.aircraft as a (a.id)}
-								<tr>
-									<td>{a.nickname || a.tailNumber || a.model.modelName}</td>
+							{#each fleet as a (a.id)}
+								<tr class:selected={a.id === selected?.id} onclick={() => (selectedId = a.id)}>
 									<td>
-										<AppBadge label={a.acquisitionType} tone={isOwned(a) ? 'primary' : 'warning'} />
+										<div class="ac">
+											<AppBadge label={a.tailNumber || '—'} tone="primary" />
+											<span class="model">{a.model.modelName || 'Unknown'}</span>
+										</div>
+										<span class="mfr">{a.model.manufacturer.toUpperCase()}</span>
 									</td>
-									<td>{Math.round(a.condition)}%</td>
-									<td>{a.status}</td>
 									<td>
-										{a.economySeats + a.businessSeats + a.firstClassSeats || a.model.capacity}
+										<AppBadge
+											label={a.acquisitionType}
+											tone={a.acquisitionType === 'lease' ? 'warning' : 'secondary'}
+										/>
 									</td>
-									<td class="actions">
-										<AppButton text="Perbaiki" variant="secondary" onclick={() => openRepair(a)} />
-										<AppButton text="Kursi" variant="secondary" onclick={() => openSeats(a)} />
-										{#if a.canBeSold}
-											<AppButton text="Jual" variant="secondary" onclick={() => openSell(a)} />
-										{/if}
+									<td><FlightConditionCell condition={a.condition} /></td>
+									<td>
+										<AppBadge
+											label={isMaintenanceGrounded(a, autoGroundingThreshold)
+												? 'grounded'
+												: a.status}
+											tone={isMaintenanceGrounded(a, autoGroundingThreshold) ? 'error' : 'success'}
+										/>
 									</td>
+									<td class="tnum">E {a.economySeats} B {a.businessSeats} F {a.firstClassSeats}</td>
 								</tr>
 							{/each}
 						</tbody>
 					</table>
 				</div>
-			{/if}
-		</AppCard>
+
+				<div class="detail">
+					{#if selected}
+						<FleetDrawerContent
+							aircraft={selected}
+							{autoGroundingThreshold}
+							{busy}
+							onRepair={() => repair(selected)}
+							onSaveSeats={(e, b, f) => saveSeats(selected, e, b, f)}
+						/>
+					{/if}
+				</div>
+			</div>
+		{/if}
 	{:else}
-		<div class="catalog">
-			{#each store.state.catalog as model (model.id)}
-				<AppCard>
-					<span class="model">{model.manufacturer} {model.modelName}</span>
-					<dl>
-						<div>
-							<dt>Jangkauan</dt>
-							<dd>{model.rangeKm} km</dd>
-						</div>
-						<div>
-							<dt>Kapasitas</dt>
-							<dd>{model.capacity}</dd>
-						</div>
-						<div>
-							<dt>Beli</dt>
-							<dd>{money(model.purchasePrice)}</dd>
-						</div>
-						<div>
-							<dt>Sewa/bln</dt>
-							<dd>{money(model.leasePricePerMonth)}</dd>
-						</div>
-						<div>
-							<dt>Tier min</dt>
-							<dd>{model.minCreditTier}</dd>
-						</div>
-					</dl>
-					<AppButton text="Beli / Sewa" onclick={() => openAcquire(model)} />
-				</AppCard>
-			{:else}
-				<AppEmptyState title="Katalog kosong" description="Katalog pesawat belum termuat." />
-			{/each}
-		</div>
+		<AcquireTab {store} />
 	{/if}
 </section>
 
-{#if dialog === 'acquire' && selectedModel}
-	{@const m = selectedModel}
-	<AppDialogShell title="Beli / Sewa pesawat" onclose={() => (dialog = null)}>
-		{#snippet children()}
-			<p class="sub">{m.manufacturer} {m.modelName}</p>
-			<label
-				><span>Tipe</span>
-				<select bind:value={acquireType}>
-					<option value="purchase">Beli</option>
-					<option value="lease">Sewa</option>
-				</select>
-			</label>
-			<label><span>Nickname</span><input bind:value={nickname} /></label>
-			<label><span>Kursi ekonomi</span><input type="number" bind:value={economySeats} /></label>
-			<label><span>Kursi bisnis</span><input type="number" bind:value={businessSeats} /></label>
-			<label><span>Kursi first</span><input type="number" bind:value={firstClassSeats} /></label>
-		{/snippet}
-		{#snippet actions()}
-			<AppButton text="Batal" variant="secondary" onclick={() => (dialog = null)} />
-			<AppButton
-				text={acquireType === 'purchase' ? 'Beli' : 'Sewa'}
-				loading={busy}
-				onclick={submitAcquire}
-			/>
-		{/snippet}
-	</AppDialogShell>
-{/if}
-
-{#if dialog === 'repair' && selected}
-	{@const a = selected}
-	<AppDialogShell
-		title="Perbaiki pesawat"
-		subtitle={a.model.modelName}
-		onclose={() => (dialog = null)}
-	>
-		{#snippet children()}
-			<p>Biaya perbaikan: <strong>{money(a.repairCost)}</strong></p>
-			<p class="sub">Kondisi sekarang {Math.round(a.condition)}%.</p>
-		{/snippet}
-		{#snippet actions()}
-			<AppButton text="Batal" variant="secondary" onclick={() => (dialog = null)} />
-			<AppButton text="Perbaiki" loading={busy} onclick={confirmRepair} />
-		{/snippet}
-	</AppDialogShell>
-{/if}
-
-{#if dialog === 'sell' && selected}
-	{@const a = selected}
-	<AppDialogShell title="Jual pesawat" subtitle={a.model.modelName} onclose={() => (dialog = null)}>
-		{#snippet children()}
-			<p>Nilai jual: <strong>{money(a.saleValue)}</strong></p>
-			{#if a.saleValueNote}<p class="sub">{a.saleValueNote}</p>{/if}
-		{/snippet}
-		{#snippet actions()}
-			<AppButton text="Batal" variant="secondary" onclick={() => (dialog = null)} />
-			<AppButton text="Jual" loading={busy} onclick={confirmSell} />
-		{/snippet}
-	</AppDialogShell>
-{/if}
-
-{#if dialog === 'seats' && selected}
-	{@const a = selected}
-	<AppDialogShell title="Atur kursi" subtitle={a.model.modelName} onclose={() => (dialog = null)}>
-		{#snippet children()}
-			<label><span>Kursi ekonomi</span><input type="number" bind:value={economySeats} /></label>
-			<label><span>Kursi bisnis</span><input type="number" bind:value={businessSeats} /></label>
-			<label><span>Kursi first</span><input type="number" bind:value={firstClassSeats} /></label>
-		{/snippet}
-		{#snippet actions()}
-			<AppButton text="Batal" variant="secondary" onclick={() => (dialog = null)} />
-			<AppButton text="Simpan" loading={busy} onclick={confirmSeats} />
-		{/snippet}
-	</AppDialogShell>
-{/if}
-
 <style>
-	.tabs {
+	section {
 		display: flex;
-		gap: var(--space-sm);
-		margin-bottom: var(--space-md);
+		flex-direction: column;
+		gap: var(--space-md);
 	}
-	.tabs button {
-		background: transparent;
-		border: none;
-		border-bottom: 2px solid transparent;
-		color: var(--color-text-secondary);
-		padding: var(--space-sm) var(--space-md);
-		cursor: pointer;
-		font-family: var(--font-sans);
-		font-weight: 600;
-		font-size: 12px;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
+	.err {
+		color: var(--color-error);
+		font-size: 13px;
 	}
-	.tabs button.active {
-		color: var(--color-accent);
-		border-bottom-color: var(--color-accent);
+	.muted {
+		color: var(--color-text-muted);
+		font-size: 13px;
 	}
-	.strip {
+	.summary {
 		display: flex;
-		gap: var(--space-xl);
-		margin-bottom: var(--space-md);
+		align-items: center;
+	}
+	.kpi {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-xs);
 	}
 	.k {
-		display: block;
-		font-size: 11px;
+		font-size: 10px;
 		color: var(--color-text-muted);
-		text-transform: uppercase;
 		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 	.v {
-		font-size: 18px;
+		font-size: 14px;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
 	}
-	.table-wrap {
-		overflow-x: auto;
+	.ok {
+		color: var(--color-success);
+	}
+	.bad {
+		color: var(--color-error);
+	}
+	.warn {
+		color: var(--color-warning);
+	}
+	.vline {
+		width: 1px;
+		height: 28px;
+		background: var(--color-border);
+	}
+	.md {
+		display: flex;
+		min-height: 0;
+		gap: 0;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-default);
+		overflow: hidden;
+	}
+	.master {
+		flex: 68;
+		min-width: 0;
+		overflow: auto;
+	}
+	.detail {
+		flex: 32;
+		min-width: 0;
+		overflow: auto;
+		background: var(--color-surface);
+		border-left: 1px solid var(--color-border);
+		padding: var(--space-md);
 	}
 	table {
 		width: 100%;
@@ -329,73 +236,46 @@
 	}
 	th {
 		text-align: left;
-		padding: var(--space-sm);
+		padding: var(--space-sm) var(--space-md);
+		background: var(--color-surface-2);
 		color: var(--color-text-secondary);
-		font-size: 11px;
+		font-size: 10px;
+		font-weight: 600;
+		letter-spacing: 0.08em;
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		border-bottom: 0.5px solid var(--color-border);
+		border-bottom: 1px solid var(--color-border);
+		white-space: nowrap;
 	}
 	td {
-		padding: var(--space-sm);
-		border-bottom: 0.5px solid var(--color-border-subtle);
+		padding: var(--space-sm) var(--space-md);
+		border-bottom: 1px solid var(--color-border);
 	}
-	.actions {
+	tbody tr {
+		cursor: pointer;
+	}
+	tbody tr:hover td {
+		background: rgb(36 46 61 / 0.4);
+	}
+	tbody tr.selected td {
+		background: var(--color-surface-active);
+	}
+	.ac {
 		display: flex;
-		gap: var(--space-xs);
-	}
-	.catalog {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-		gap: var(--space-md);
+		align-items: center;
+		gap: var(--space-sm);
 	}
 	.model {
-		font-weight: 600;
-		letter-spacing: 0.04em;
-	}
-	dl {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-xs);
-		margin: var(--space-sm) 0;
-	}
-	dl > div {
-		display: flex;
-		justify-content: space-between;
-	}
-	dt {
-		color: var(--color-text-muted);
-		font-size: 11px;
-	}
-	dd {
-		margin: 0;
-		font-size: 13px;
-	}
-	.error {
-		color: var(--color-error);
-		font-size: 13px;
-	}
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-xs);
-		margin-bottom: var(--space-sm);
-		font-size: 11px;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--color-text-secondary);
-	}
-	input,
-	select {
-		background: var(--color-surface-2);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-default);
+		font-weight: 700;
 		color: var(--color-text-primary);
-		padding: var(--space-sm);
-		font-size: 14px;
 	}
-	.sub {
+	.mfr {
+		font-size: 10px;
+		letter-spacing: 0.1em;
 		color: var(--color-text-secondary);
-		font-size: 13px;
+	}
+	@media (max-width: 1050px) {
+		.detail {
+			display: none;
+		}
 	}
 </style>

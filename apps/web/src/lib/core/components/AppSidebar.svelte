@@ -1,13 +1,12 @@
 <script lang="ts">
 	import SkywardLogo from './SkywardLogo.svelte';
+	import type { NavKey } from './nav';
 
 	/**
 	 * Vertical navigation rail (52px). Ported from Flutter `DashboardSidebar`.
 	 * Items show an active pill with a 3px left accent border; a divider splits
 	 * the operations group from Financials. Logout sits at the bottom.
 	 */
-	export type NavKey = 'dashboard' | 'fleet' | 'routes' | 'financials' | 'rankings' | 'settings';
-
 	type Props = {
 		active: NavKey;
 		onselect: (key: NavKey) => void;

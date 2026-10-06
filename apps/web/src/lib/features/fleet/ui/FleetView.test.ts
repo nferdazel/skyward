@@ -8,6 +8,7 @@ function makeStore(over: Partial<FleetStore['state']> = {}): FleetStore {
 	const aircraft = userFleetAircraftFromMap({
 		id: 'a1',
 		nickname: 'Niner',
+		tail_number: '9V-AAA',
 		acquisition_type: 'purchase',
 		condition: 82,
 		status: 'active',
@@ -27,15 +28,16 @@ function makeStore(over: Partial<FleetStore['state']> = {}): FleetStore {
 }
 
 describe('FleetView', () => {
-	it('lists aircraft with condition and actions', () => {
+	it('lists aircraft with condition and cabin', () => {
 		render(FleetView, { props: { store: makeStore() } });
-		expect(screen.getByText('Niner')).toBeInTheDocument();
-		expect(screen.getByText('82%')).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: 'Perbaiki' })).toBeInTheDocument();
+		// Tail number and condition appear in the table and the inspector drawer.
+		expect(screen.getAllByText('9V-AAA').length).toBeGreaterThan(0);
+		expect(screen.getAllByText('82%').length).toBeGreaterThan(0);
+		expect(screen.getByText(/E 0 B 0 F 0/)).toBeInTheDocument();
 	});
 
 	it('shows an empty state when there are no aircraft', () => {
 		render(FleetView, { props: { store: makeStore({ aircraft: [] }) } });
-		expect(screen.getByText('Belum ada pesawat')).toBeInTheDocument();
+		expect(screen.getByText(/No aircraft yet/)).toBeInTheDocument();
 	});
 });
