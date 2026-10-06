@@ -1,6 +1,8 @@
 <script lang="ts">
+	import NotificationPanel from './NotificationPanel.svelte';
 	import type { AppUser } from '$lib/features/auth/domain/user';
 	import type { SimulationState } from '$lib/features/simulation/state/simulation-store.svelte';
+	import type { NotificationStore } from '$lib/features/notification/state/notification-store.svelte';
 
 	/**
 	 * Top command bar (42px). Ported from Flutter `TopHud`.
@@ -10,17 +12,19 @@
 	type Props = {
 		user: AppUser;
 		sim: SimulationState;
-		unreadCount?: number;
-		onnotifications?: () => void;
+		notifications?: NotificationStore;
 	};
 
-	let { user, sim, unreadCount = 0, onnotifications }: Props = $props();
+	let { user, sim, notifications }: Props = $props();
+
+	let showPanel = $state(false);
 
 	const money = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 	const gameDate = $derived.by(() => {
 		const d = new Date(sim.gameTime);
 		return Number.isNaN(d.getTime()) ? '—' : d.toISOString().slice(0, 10);
 	});
+	const unread = $derived(notifications?.state.items.length ?? 0);
 </script>
 
 <header class="hud">
@@ -55,15 +59,23 @@
 	</div>
 
 	<div class="right">
-		<button class="bell" aria-label="Notifications" onclick={onnotifications}>
+		<button
+			class="bell"
+			aria-label="Notifications"
+			aria-expanded={showPanel}
+			onclick={() => (showPanel = !showPanel)}
+		>
 			<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
 				<path
 					d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-5v-1l-1.5-1.5V10a5.5 5.5 0 0 0-4-5.3V4a1.5 1.5 0 0 0-3 0v.7A5.5 5.5 0 0 0 6.5 10v4.5L5 16v1z"
 					fill="currentColor"
 				/>
 			</svg>
-			{#if unreadCount > 0}<span class="badge">{unreadCount}</span>{/if}
+			{#if unread > 0}<span class="badge">{unread}</span>{/if}
 		</button>
+		{#if showPanel && notifications}
+			<NotificationPanel store={notifications} onclose={() => (showPanel = false)} />
+		{/if}
 	</div>
 </header>
 
@@ -163,6 +175,7 @@
 		color: var(--color-error);
 	}
 	.right {
+		position: relative;
 		display: flex;
 		align-items: center;
 	}

@@ -49,7 +49,7 @@
 
 	<div class="main">
 		{#if auth.user}
-			<TopHud user={auth.user} sim={stores.simulation.state} />
+			<TopHud user={auth.user} sim={stores.simulation.state} notifications={stores.notification} />
 		{/if}
 
 		<div class="content">

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import CraftCard from '$lib/core/components/CraftCard.svelte';
 	import TactileButton from '$lib/core/components/TactileButton.svelte';
+	import SearchableAirportDropdown from '$lib/core/components/SearchableAirportDropdown.svelte';
 	import type { RoutesStore } from '../state/routes-store.svelte';
 	import type { Airport } from '../domain/airport';
 	import { calculateDistance } from '../domain/airport';
@@ -83,20 +84,22 @@
 	<div class="planner">
 		<span class="label">Blueprint planner</span>
 
-		<label class="field">
-			<span>Origin</span>
-			<select bind:value={origin}>
-				<option value={null}>—</option>
-				{#each airports as a (a.iata)}<option value={a}>{a.iata} · {a.city}</option>{/each}
-			</select>
-		</label>
-		<label class="field">
-			<span>Destination</span>
-			<select bind:value={destination}>
-				<option value={null}>—</option>
-				{#each airports as a (a.iata)}<option value={a}>{a.iata} · {a.city}</option>{/each}
-			</select>
-		</label>
+		<div class="field">
+			<SearchableAirportDropdown
+				{airports}
+				value={origin}
+				label="Origin"
+				onselect={(a) => (origin = a)}
+			/>
+		</div>
+		<div class="field">
+			<SearchableAirportDropdown
+				{airports}
+				value={destination}
+				label="Destination"
+				onselect={(a) => (destination = a)}
+			/>
+		</div>
 		<label class="field">
 			<span>Fare</span>
 			<input type="number" bind:value={fare} onblur={assess} min="0" />
@@ -162,7 +165,6 @@
 		letter-spacing: 0.06em;
 		color: var(--color-text-secondary);
 	}
-	select,
 	input {
 		background: var(--color-surface-2);
 		border: 1px solid var(--color-border);
