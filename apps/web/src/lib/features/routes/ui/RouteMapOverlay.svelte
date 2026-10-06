@@ -71,7 +71,9 @@
 			map = Lmod.map(container, {
 				worldCopyJump: true,
 				zoomControl: true,
-				attributionControl: true
+				attributionControl: true,
+				minZoom: 0,
+				maxZoom: 18
 			}).setView([12, 108], 3);
 			// Esri "Dark Gray Canvas" — no API key required, dark theme that
 			// matches the command UI. (CARTO's free basemaps now return an
@@ -81,7 +83,7 @@
 				{
 					attribution: 'Tiles © Esri — Esri, DeLorme, NAVTEQ',
 					maxZoom: 16,
-					minZoom: 1,
+					minZoom: 0,
 					crossOrigin: true
 				}
 			).addTo(map);

@@ -101,7 +101,7 @@
 <style>
 	.routes {
 		position: relative;
-		height: calc(100vh - 42px - 2 * var(--space-lg));
+		height: 100%;
 		min-height: 480px;
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-default);
