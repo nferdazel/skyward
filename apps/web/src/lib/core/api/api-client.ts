@@ -55,47 +55,50 @@ export class ApiClient {
 	}
 
 	get<T = unknown>(path: string, query?: Query): Promise<T> {
-		return this.send<T>(() =>
-			fetch(this.buildUrl(path, query), { method: 'GET', headers: this.headers(false) })
+		return this.send<T>((signal) =>
+			fetch(this.buildUrl(path, query), { method: 'GET', headers: this.headers(false), signal })
 		);
 	}
 
 	post<T = unknown>(path: string, body?: unknown): Promise<T> {
-		return this.send<T>(() =>
+		return this.send<T>((signal) =>
 			fetch(this.buildUrl(path), {
 				method: 'POST',
 				headers: this.headers(true),
-				body: body === undefined ? undefined : JSON.stringify(body)
+				body: body === undefined ? undefined : JSON.stringify(body),
+				signal
 			})
 		);
 	}
 
 	patch<T = unknown>(path: string, body?: unknown): Promise<T> {
-		return this.send<T>(() =>
+		return this.send<T>((signal) =>
 			fetch(this.buildUrl(path), {
 				method: 'PATCH',
 				headers: this.headers(true),
-				body: body === undefined ? undefined : JSON.stringify(body)
+				body: body === undefined ? undefined : JSON.stringify(body),
+				signal
 			})
 		);
 	}
 
 	delete<T = unknown>(path: string, body?: unknown): Promise<T> {
-		return this.send<T>(() =>
+		return this.send<T>((signal) =>
 			fetch(this.buildUrl(path), {
 				method: 'DELETE',
 				headers: this.headers(true),
-				body: body === undefined ? undefined : JSON.stringify(body)
+				body: body === undefined ? undefined : JSON.stringify(body),
+				signal
 			})
 		);
 	}
 
-	private async send<T>(request: () => Promise<Response>): Promise<T> {
+	private async send<T>(request: (signal: AbortSignal) => Promise<Response>): Promise<T> {
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 		let response: Response;
 		try {
-			response = await request();
+			response = await request(controller.signal);
 		} catch (err) {
 			clearTimeout(timer);
 			if (err instanceof DOMException && err.name === 'AbortError') {

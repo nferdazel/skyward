@@ -88,4 +88,28 @@ describe('ApiClient', () => {
 		const [url] = fetchMock.mock.calls[0];
 		expect(String(url)).toBe('https://api.example/routes/assess?price=120');
 	});
+
+	it('passes an AbortSignal to fetch and times out when the request hangs', async () => {
+		vi.useFakeTimers();
+		// fetch yang menggantung sampai sinyal abort (meniru server tak merespons).
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(
+			(_url, init) =>
+				new Promise((_resolve, reject) => {
+					init?.signal?.addEventListener('abort', () =>
+						reject(new DOMException('aborted', 'AbortError'))
+					);
+				})
+		);
+		const client = new ApiClient({ baseUrl: 'https://api.example', timeoutMs: 1000 });
+
+		const pending = client.get('/fleet');
+		const assertion = expect(pending).rejects.toMatchObject({ code: 'timeout' });
+		await vi.advanceTimersByTimeAsync(1000);
+		await assertion;
+
+		// Bukti sinyal benar-benar diteruskan ke fetch.
+		const [, init] = fetchMock.mock.calls[0];
+		expect(init?.signal).toBeInstanceOf(AbortSignal);
+		vi.useRealTimers();
+	});
 });
