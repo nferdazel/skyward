@@ -24,7 +24,13 @@ if [ -n "$REF" ] && [ "$REF" != "refs/heads/main" ]; then
   exit 0
 fi
 
-: "${SKYWARD_GIT_URL:=github-skyward:nferdazel/skyward.git}"
+# URL clone repo (dari env VPS, mode 600). Contoh:
+#   SKYWARD_GIT_URL=github-skyward:<user>/skyward.git
+# Tidak di-hardcode supaya username tidak terekspos di repo publik.
+if [ -z "${SKYWARD_GIT_URL:-}" ]; then
+  log "==> ERROR: SKYWARD_GIT_URL tidak diset (mis. github-skyward:<user>/skyward.git)"
+  exit 1
+fi
 
 MONO_DIR="$APP_DIR/monorepo"
 STATE_FILE="$APP_DIR/.deployed_rev"

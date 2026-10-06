@@ -31,8 +31,9 @@ Hanya komponen yang berubah yang di-rebuild (dibandingkan dari `.deployed_rev`).
 
 1. Salin `deploy-vps.sh` → `/srv/qouver/apps/skyward/scripts/deploy-vps.sh`
    (chmod +x). Script self-update dari repo pada deploy berikutnya.
-2. Clone key VPS → GitHub (deploy key), alias SSH `github-skyward`
-   (`SKYWARD_GIT_URL` mengarah ke alias ini).
+2. Clone key VPS → GitHub (deploy key), alias SSH `github-skyward`.
+   Set `SKYWARD_GIT_URL` (mis. `github-skyward:<user>/skyward.git`) di env VPS
+   (mode 600) — **tidak** di-hardcode di repo.
 3. Tambahkan hook `skyward` ke `/srv/qouver/config/webhook.json`
    (gabung dari `deploy/webhook.json`, isi secret asli), lalu restart
    `webhook.service`.
