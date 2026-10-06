@@ -73,13 +73,18 @@
 				zoomControl: true,
 				attributionControl: true
 			}).setView([12, 108], 3);
-			Lmod.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-				attribution: '© OpenStreetMap © CARTO',
-				subdomains: 'abcd',
-				maxZoom: 8,
-				minZoom: 1,
-				crossOrigin: true
-			}).addTo(map);
+			// Esri "Dark Gray Canvas" — no API key required, dark theme that
+			// matches the command UI. (CARTO's free basemaps now return an
+			// "API KEY REQUIRED" placeholder tile, so they were dropped.)
+			Lmod.tileLayer(
+				'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+				{
+					attribution: 'Tiles © Esri — Esri, DeLorme, NAVTEQ',
+					maxZoom: 16,
+					minZoom: 1,
+					crossOrigin: true
+				}
+			).addTo(map);
 
 			const byIata = new Map(airports.map((a) => [a.iata, a]));
 			const connected = new Set<string>();
