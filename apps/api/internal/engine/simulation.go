@@ -26,6 +26,9 @@ type WorldTickResult struct {
 
 // WorldTick — advance season clock, process all players, write world_tick_log.
 // Mirror of process_world_tick + process_player_simulation_to_time.
+//
+// Orkestrasi saja; langkah-langkah ada di helper terpisah. Urutan dan SQL
+// identik dengan versi monolitik sebelumnya (refactor paritas-perilaku).
 func (e *Engine) WorldTick(ctx context.Context) (*WorldTickResult, error) {
 	// AUDIT-09: cegah overlap tick dalam proses (worker vs manual admin tick).
 	// Step 1 advance-clock advisory lock bersifat autocommit sehingga tidak
@@ -36,40 +39,82 @@ func (e *Engine) WorldTick(ctx context.Context) (*WorldTickResult, error) {
 	defer e.tickMu.Unlock()
 
 	// 1. Lock & advance season
-	var seasonID string
-	var gameTimeBefore, gameTimeAfter time.Time
-	var tickInterval, timeScale int
-	err := e.Pool.QueryRow(ctx, `
-		UPDATE season_clock SET current_game_time = current_game_time + (tick_interval_seconds * time_scale_multiplier * interval '1 second')
-		WHERE status = 'active' AND pg_try_advisory_xact_lock(hashtext(id::text))
-		RETURNING id, current_game_time - (tick_interval_seconds * time_scale_multiplier * interval '1 second'), current_game_time, tick_interval_seconds, time_scale_multiplier`,
-	).Scan(&seasonID, &gameTimeBefore, &gameTimeAfter, &tickInterval, &timeScale)
+	seasonID, gameTimeBefore, gameTimeAfter, err := e.advanceSeasonClock(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("no active season or lock failed: %w", err)
+		return nil, err
 	}
 
 	// 2. Generate & deactivate events (Go-native)
 	e.GenerateGameEvents(ctx, gameTimeAfter)
 	e.DeactivateExpiredEvents(ctx, gameTimeAfter)
 
-	// 2b. Snapshot konfigurasi + event aktif sekali untuk seluruh tick. Dulu
-	// setiap pemain membaca 16 key (16N query) dan setiap rutenya dua query event
-	// (2NR). Gagal di sini menggagalkan tick — bukan fallback senyap — dan player
-	// yang belum diproses akan dicoba lagi di tick berikutnya.
+	// 2b. Snapshot konfigurasi + event aktif sekali untuk seluruh tick.
 	snap, serr := e.LoadTickSnapshot(ctx, gameTimeAfter)
 	if serr != nil {
 		return nil, fmt.Errorf("world tick: %w", serr)
 	}
 
-	// 3. Process REAL players (AUDIT-06: error per player dicatat, tick jalan
-	// terus; player yang gagal tidak maju clock-nya dan retry di tick berikut).
-	players := 0
-	failed := 0
+	// 3. Process REAL players.
+	players, failed, perr := e.processRealPlayers(ctx, seasonID, gameTimeAfter, snap)
+	if perr != nil {
+		return nil, perr
+	}
+
+	// 4. Process bots.
+	bots, berr := e.ProcessBots(ctx, gameTimeAfter, snap)
+	if berr != nil {
+		failed++
+		e.log().Error("world tick: bots", "error", berr)
+	}
+
+	// 5. Write world_tick_log — status 'degraded' bila ada kegagalan (AUDIT-06).
+	e.writeTickLog(ctx, seasonID, gameTimeBefore, gameTimeAfter, players, bots, failed)
+
+	// 6. Daily maintenance (snapshots + retention), sekali per GAME DAY.
+	e.runDailyMaintenance(ctx, seasonID, gameTimeBefore, gameTimeAfter)
+
+	// 7. Broadcast realtime notifications
+	if e.Hub != nil {
+		e.Hub.Broadcast("bank_transactions", "INSERT")
+		e.Hub.Broadcast("users", "UPDATE")
+		e.Hub.BroadcastAll("world_tick")
+	}
+
+	return &WorldTickResult{
+		TicksProcessed:   1,
+		PlayersProcessed: players,
+		BotsProcessed:    bots,
+		GameTimeAfter:    gameTimeAfter.Format(time.RFC3339),
+	}, nil
+}
+
+// advanceSeasonClock melakukan step 1: ambil advisory lock season aktif dan
+// majukan current_game_time. Mengembalikan id season + waktu sebelum/sesudah.
+func (e *Engine) advanceSeasonClock(ctx context.Context) (seasonID string, before, after time.Time, err error) {
+	var tickInterval, timeScale int
+	err = e.Pool.QueryRow(ctx, `
+		UPDATE season_clock SET current_game_time = current_game_time + (tick_interval_seconds * time_scale_multiplier * interval '1 second')
+		WHERE status = 'active' AND pg_try_advisory_xact_lock(hashtext(id::text))
+		RETURNING id, current_game_time - (tick_interval_seconds * time_scale_multiplier * interval '1 second'), current_game_time, tick_interval_seconds, time_scale_multiplier`,
+	).Scan(&seasonID, &before, &after, &tickInterval, &timeScale)
+	if err != nil {
+		return "", time.Time{}, time.Time{}, fmt.Errorf("no active season or lock failed: %w", err)
+	}
+	return seasonID, before, after, nil
+}
+
+// processRealPlayers melakukan step 3: proses setiap pemain REAL. Kegagalan
+// per pemain dicatat dan tidak menghentikan tick (AUDIT-06). Mengembalikan
+// (berhasil, gagal). Error hanya untuk kegagalan query awal (perilaku sama
+// dengan versi monolitik: query gagal => tick gagal).
+func (e *Engine) processRealPlayers(
+	ctx context.Context, seasonID string, gameTimeAfter time.Time, snap *TickSnapshot,
+) (players, failed int, err error) {
 	rows, err := e.Pool.Query(ctx, `
 		SELECT id, game_current_time FROM users
 		WHERE season_id = $1 AND actor_type = 'REAL' AND COALESCE(operational_status, 'Active') != 'Bankrupt'`, seasonID)
 	if err != nil {
-		return nil, fmt.Errorf("world tick: players query: %w", err)
+		return 0, 0, fmt.Errorf("world tick: players query: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -90,93 +135,81 @@ func (e *Engine) WorldTick(ctx context.Context) (*WorldTickResult, error) {
 		failed++
 		e.log().Error("world tick: players iteration", "error", rerr)
 	}
+	return players, failed, nil
+}
 
-	// 4. Process bots (Fase 7 — engine bot): decisions gated on the new season
-	//    time, then advanced through the shared player simulation.
-	bots, berr := e.ProcessBots(ctx, gameTimeAfter, snap)
-	if berr != nil {
-		failed++
-		e.log().Error("world tick: bots", "error", berr)
-	}
-
-	// 5. Write world_tick_log — status 'degraded' bila ada kegagalan (AUDIT-06).
+// writeTickLog melakukan step 5: catat world_tick_log dengan status
+// 'degraded' bila ada kegagalan (AUDIT-06).
+func (e *Engine) writeTickLog(
+	ctx context.Context, seasonID string, before, after time.Time, players, bots, failed int,
+) {
 	status := "success"
 	if failed > 0 {
 		status = "degraded"
 	}
 	if _, lerr := e.Pool.Exec(ctx, `INSERT INTO world_tick_log (season_id, status, started_at, finished_at, game_time_before, game_time_after, ticks_processed, players_processed, bots_processed)
-		VALUES ($1, $2, NOW(), NOW(), $3, $4, 1, $5, $6)`, seasonID, status, gameTimeBefore, gameTimeAfter, players, bots); lerr != nil {
+		VALUES ($1, $2, NOW(), NOW(), $3, $4, 1, $5, $6)`, seasonID, status, before, after, players, bots); lerr != nil {
 		e.log().Error("world tick: log insert failed", "error", lerr)
 	}
+}
 
-	// 6. Write finance_snapshots (Fase 6): one row per user per GAME DAY, not per
-	//    tick. Previously this inserted on every 60s tick with no retention,
-	//    growing unbounded (~100k+ rows/day). The table only feeds trend
-	//    sparklines, so a daily cadence is sufficient.
-	if !gameTimeAfter.Truncate(24 * time.Hour).Equal(gameTimeBefore.Truncate(24 * time.Hour)) {
-		if _, ierr := e.Pool.Exec(ctx, `
-			INSERT INTO finance_snapshots (user_id, snapshot_game_time, cash, net_worth, active_routes, fleet_count)
-			SELECT u.id, date_trunc('day', $1::timestamptz),
-			       COALESCE((SELECT balance FROM bank_accounts WHERE user_id=u.id AND account_type='operating' LIMIT 1), 0),
-			       COALESCE(u.net_worth, 0),
-			       (SELECT COUNT(*) FROM route_assignments WHERE user_id=u.id AND COALESCE(status,'active')='active'),
-			       (SELECT COUNT(*) FROM fleet_aircraft WHERE user_id=u.id)
-			FROM users u WHERE u.season_id = $2 AND u.actor_type = 'REAL'
-			ON CONFLICT (user_id, snapshot_game_time) DO NOTHING`, gameTimeAfter, seasonID); ierr != nil {
-			e.log().Error("world tick: finance_snapshots insert failed", "error", ierr)
-		}
-
-		// Retention: keep at most financeSnapshotRetentionDays per user.
-		if _, derr := e.Pool.Exec(ctx, `
-			DELETE FROM finance_snapshots fs
-			USING (
-				SELECT id, ROW_NUMBER() OVER (
-					PARTITION BY user_id ORDER BY snapshot_game_time DESC
-				) AS rn
-				FROM finance_snapshots
-			) ranked
-			WHERE fs.id = ranked.id AND ranked.rn > $1`, financeSnapshotRetentionDays); derr != nil {
-			e.log().Error("world tick: snapshot retention failed", "error", derr)
-		}
-
-		// Retention untuk bank_transactions dan world_tick_log. Fungsi
-		// prune_bank_transactions/prune_world_tick_log di 00_baseline.sql adalah
-		// sisa era pg_cron dan TIDAK dipanggil siapa pun (pg_cron tidak terpasang,
-		// lihat migrasi 18) — jadi kedua tabel tumbuh tanpa batas sampai 2026-10-05
-		// (bank_transactions 4.88M baris / 1062 MB). Jalankan di sini, sekali per
-		// game day, mengikuti pola finance_snapshots.
-		if _, berr := e.Pool.Exec(ctx, `
-			DELETE FROM bank_transactions bt
-			WHERE bt.game_date IS NOT NULL
-			  AND bt.game_date > '1970-01-01'::timestamptz
-			  AND bt.game_date < $1::timestamptz - (
-				COALESCE((SELECT (value#>>'{}')::numeric FROM game_config WHERE key='bank_txn_raw_retention_game_days'), 180)
-				|| ' days')::interval`, gameTimeAfter); berr != nil {
-			e.log().Error("world tick: bank_transactions retention failed", "error", berr)
-		}
-		if _, terr := e.Pool.Exec(ctx, `
-			DELETE FROM world_tick_log
-			WHERE started_at < NOW() - (
-				COALESCE((SELECT (value#>>'{}')::numeric FROM game_config WHERE key='world_tick_log_raw_real_days'), 7)
-				|| ' days')::interval`); terr != nil {
-			e.log().Error("world tick: world_tick_log retention failed", "error", terr)
-		}
+// runDailyMaintenance melakukan step 6: finance_snapshots (satu baris per
+// user per GAME DAY) dan retensi (finance_snapshots, bank_transactions,
+// world_tick_log). Hanya berjalan saat melintasi batas hari game.
+func (e *Engine) runDailyMaintenance(
+	ctx context.Context, seasonID string, gameTimeBefore, gameTimeAfter time.Time,
+) {
+	if gameTimeAfter.Truncate(24 * time.Hour).Equal(gameTimeBefore.Truncate(24 * time.Hour)) {
+		return
 	}
 
-	// 6. Broadcast realtime notifications
-	if e.Hub != nil {
-		e.Hub.Broadcast("bank_transactions", "INSERT")
-		e.Hub.Broadcast("users", "UPDATE")
-		e.Hub.BroadcastAll("world_tick")
+	if _, ierr := e.Pool.Exec(ctx, `
+		INSERT INTO finance_snapshots (user_id, snapshot_game_time, cash, net_worth, active_routes, fleet_count)
+		SELECT u.id, date_trunc('day', $1::timestamptz),
+		       COALESCE((SELECT balance FROM bank_accounts WHERE user_id=u.id AND account_type='operating' LIMIT 1), 0),
+		       COALESCE(u.net_worth, 0),
+		       (SELECT COUNT(*) FROM route_assignments WHERE user_id=u.id AND COALESCE(status,'active')='active'),
+		       (SELECT COUNT(*) FROM fleet_aircraft WHERE user_id=u.id)
+		FROM users u WHERE u.season_id = $2 AND u.actor_type = 'REAL'
+		ON CONFLICT (user_id, snapshot_game_time) DO NOTHING`, gameTimeAfter, seasonID); ierr != nil {
+		e.log().Error("world tick: finance_snapshots insert failed", "error", ierr)
 	}
-	_ = timeScale
-	_ = tickInterval
-	return &WorldTickResult{
-		TicksProcessed:   1,
-		PlayersProcessed: players,
-		BotsProcessed:    bots,
-		GameTimeAfter:    gameTimeAfter.Format(time.RFC3339),
-	}, nil
+
+	// Retention: keep at most financeSnapshotRetentionDays per user.
+	if _, derr := e.Pool.Exec(ctx, `
+		DELETE FROM finance_snapshots fs
+		USING (
+			SELECT id, ROW_NUMBER() OVER (
+				PARTITION BY user_id ORDER BY snapshot_game_time DESC
+			) AS rn
+			FROM finance_snapshots
+		) ranked
+		WHERE fs.id = ranked.id AND ranked.rn > $1`, financeSnapshotRetentionDays); derr != nil {
+		e.log().Error("world tick: snapshot retention failed", "error", derr)
+	}
+
+	// Retention untuk bank_transactions dan world_tick_log. Fungsi
+	// prune_bank_transactions/prune_world_tick_log di 00_baseline.sql adalah
+	// sisa era pg_cron dan TIDAK dipanggil siapa pun (pg_cron tidak terpasang,
+	// lihat migrasi 18) — jadi kedua tabel tumbuh tanpa batas sampai 2026-10-05
+	// (bank_transactions 4.88M baris / 1062 MB). Jalankan di sini, sekali per
+	// game day, mengikuti pola finance_snapshots.
+	if _, berr := e.Pool.Exec(ctx, `
+		DELETE FROM bank_transactions bt
+		WHERE bt.game_date IS NOT NULL
+		  AND bt.game_date > '1970-01-01'::timestamptz
+		  AND bt.game_date < $1::timestamptz - (
+			COALESCE((SELECT (value#>>'{}')::numeric FROM game_config WHERE key='bank_txn_raw_retention_game_days'), 180)
+			|| ' days')::interval`, gameTimeAfter); berr != nil {
+		e.log().Error("world tick: bank_transactions retention failed", "error", berr)
+	}
+	if _, terr := e.Pool.Exec(ctx, `
+		DELETE FROM world_tick_log
+		WHERE started_at < NOW() - (
+			COALESCE((SELECT (value#>>'{}')::numeric FROM game_config WHERE key='world_tick_log_raw_real_days'), 7)
+			|| ' days')::interval`); terr != nil {
+		e.log().Error("world tick: world_tick_log retention failed", "error", terr)
+	}
 }
 
 // PlayerProcessResult — dampak satu kali proses simulasi player, dipakai
