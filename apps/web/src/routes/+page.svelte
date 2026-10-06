@@ -72,7 +72,12 @@
 			{:else if tab === 'rankings'}
 				<LeaderboardView store={stores.leaderboard} currentUserId={auth.user?.id} />
 			{:else if tab === 'settings'}
-				<SettingsView store={stores.settings} {auth} />
+				<SettingsView
+					store={stores.settings}
+					user={auth.user}
+					onsaved={() => void stores.simulation.syncWithDatabase()}
+					ondeleted={() => auth.logout()}
+				/>
 			{/if}
 		</div>
 	</div>
