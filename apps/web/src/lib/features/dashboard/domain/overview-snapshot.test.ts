@@ -75,8 +75,8 @@ function baseInputs(over: Partial<OverviewInputs> = {}): OverviewInputs {
 }
 
 describe('runwayIndicator', () => {
-	it('maps null to Unknown/neutral', () => {
-		expect(runwayIndicator(null)).toEqual({ label: 'Unknown', color: '#758489' });
+	it('maps null to a neutral dash (not an alarming word)', () => {
+		expect(runwayIndicator(null)).toEqual({ label: '—', color: '#758489' });
 	});
 	it('uses danger below 14d, warning below 45d, success above', () => {
 		expect(runwayIndicator(10).label).toBe('10.0d');

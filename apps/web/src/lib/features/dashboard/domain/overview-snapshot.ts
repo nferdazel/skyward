@@ -82,7 +82,9 @@ const WARNING_DAYS = 45;
 
 /** Map runway days to indicator label + colour. Ported from `RunwayIndicator`. */
 export function runwayIndicator(days: number | null): { label: string; color: string } {
-	if (days === null) return { label: 'Unknown', color: colors.neutral };
+	// "—" rather than a word: on a fresh airline "Unknown" reads as an error,
+	// not as "not enough data yet".
+	if (days === null) return { label: '—', color: colors.neutral };
 	const color =
 		days < DANGER_DAYS ? colors.error : days < WARNING_DAYS ? colors.warning : colors.success;
 	return { label: `${days.toFixed(1)}d`, color };

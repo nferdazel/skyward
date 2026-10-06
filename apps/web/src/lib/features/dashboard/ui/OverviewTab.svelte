@@ -41,6 +41,9 @@
 
 	/** A brand-new airline: nothing to operate yet → show the getting-started guide. */
 	const isNewAirline = $derived(overview.totalFleetCount === 0 && overview.activeRoutes === 0);
+
+	const activeEvents = $derived(stores.events.state.events.filter((e) => e.isActive));
+	const achievements = $derived(stores.achievements.state.achievements);
 </script>
 
 <div class="overview">
@@ -213,6 +216,41 @@
 			{/each}
 		</div>
 	{/if}
+
+	{#if activeEvents.length > 0 || achievements.length > 0}
+		<div class="two-up">
+			{#if activeEvents.length > 0}
+				<div class="panel-col">
+					<span class="section">Active world events</span>
+					<CraftCard>
+						<ul class="feed">
+							{#each activeEvents as e (e.id)}
+								<li>
+									<span class="feed-title">{e.title}</span>
+									<span class="feed-meta">{e.eventType} · {e.effectType}</span>
+								</li>
+							{/each}
+						</ul>
+					</CraftCard>
+				</div>
+			{/if}
+			{#if achievements.length > 0}
+				<div class="panel-col">
+					<span class="section">Achievements ({achievements.length})</span>
+					<CraftCard>
+						<ul class="feed">
+							{#each achievements.slice(0, 5) as a (a.id)}
+								<li>
+									<span class="feed-title">{a.achievementName}</span>
+									<span class="feed-meta">{a.description}</span>
+								</li>
+							{/each}
+						</ul>
+					</CraftCard>
+				</div>
+			{/if}
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -221,12 +259,17 @@
 		flex-direction: column;
 		gap: var(--space-md);
 	}
+	/* Rhythm: sections breathe more than the items inside them. */
 	.section {
+		margin-top: var(--space-md);
 		font-size: 11px;
 		font-weight: 600;
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
 		color: var(--color-text-muted);
+	}
+	.section:first-child {
+		margin-top: 0;
 	}
 	.strip {
 		display: flex;
@@ -383,5 +426,42 @@
 	.step-d {
 		font-size: 12px;
 		color: var(--color-text-muted);
+	}
+	.two-up {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+		gap: var(--space-md);
+	}
+	.panel-col {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-sm);
+		min-width: 0;
+	}
+	.feed {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+	}
+	.feed li {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		padding: var(--space-sm) 0;
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+	.feed li:last-child {
+		border-bottom: none;
+	}
+	.feed-title {
+		font-size: 13px;
+		font-weight: 600;
+	}
+	.feed-meta {
+		font-size: 11px;
+		color: var(--color-text-muted);
+		text-transform: capitalize;
 	}
 </style>
