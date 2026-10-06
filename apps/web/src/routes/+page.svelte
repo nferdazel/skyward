@@ -93,6 +93,14 @@
 					store={stores.fleet}
 					autoGroundingThreshold={auth.user?.autoGroundingThreshold ?? 40}
 					creditTier={stores.bank.state.credit?.creditTier ?? null}
+					onFinance={async (model, downPct, termMonths) => {
+						await stores.bank.financeAircraft({
+							aircraftModelId: model.id,
+							downPaymentPct: downPct,
+							termMonths
+						});
+						await stores.fleet.refresh();
+					}}
 				/>
 			{:else if tab === 'routes'}
 				<RoutesView

@@ -13,8 +13,10 @@
 		store: FleetStore;
 		/** Player's current credit tier, for gating models by `minCreditTier`. */
 		creditTier?: string | null;
+		/** Finance a model with a loan (down payment + term). */
+		onFinance?: (model: AircraftModel, downPaymentPct: number, termMonths: number) => Promise<void>;
 	};
-	let { store, creditTier = null }: Props = $props();
+	let { store, creditTier = null, onFinance }: Props = $props();
 
 	/** Matches the server's creditTierRank (unknown → 0). */
 	function tierRank(tier: string | null | undefined): number {
@@ -37,11 +39,13 @@
 	}
 
 	let selected = $state<AircraftModel | null>(null);
-	let mode = $state<'purchase' | 'lease'>('purchase');
+	let mode = $state<'purchase' | 'lease' | 'finance'>('purchase');
 	let nickname = $state('');
 	let eco = $state(0);
 	let bus = $state(0);
 	let first = $state(0);
+	let downPct = $state(0.2);
+	let termMonths = $state(60);
 	let busy = $state(false);
 
 	const fmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
@@ -59,15 +63,19 @@
 	async function submit() {
 		if (!selected) return;
 		busy = true;
-		const params = {
-			modelId: selected.id,
-			nickname,
-			economySeats: eco,
-			businessSeats: bus,
-			firstClassSeats: first
-		};
-		if (mode === 'purchase') await store.purchase(params);
-		else await store.lease(params);
+		if (mode === 'finance') {
+			await onFinance?.(selected, downPct, termMonths);
+		} else {
+			const params = {
+				modelId: selected.id,
+				nickname,
+				economySeats: eco,
+				businessSeats: bus,
+				firstClassSeats: first
+			};
+			if (mode === 'purchase') await store.purchase(params);
+			else await store.lease(params);
+		}
 		busy = false;
 		selected = null;
 	}
@@ -125,22 +133,53 @@
 			<div class="modes">
 				<button class:active={mode === 'purchase'} onclick={() => (mode = 'purchase')}>Buy</button>
 				<button class:active={mode === 'lease'} onclick={() => (mode = 'lease')}>Lease</button>
+				{#if onFinance}
+					<button class:active={mode === 'finance'} onclick={() => (mode = 'finance')}
+						>Finance</button
+					>
+				{/if}
 			</div>
 			<label><span>Nickname</span><input bind:value={nickname} /></label>
 			<label><span>Economy seats</span><input type="number" min="0" bind:value={eco} /></label>
 			<label><span>Business seats</span><input type="number" min="0" bind:value={bus} /></label>
 			<label><span>First seats</span><input type="number" min="0" bind:value={first} /></label>
-			<p class="cost">
-				{mode === 'purchase'
-					? `Buy price ${money(m.purchasePrice)}`
-					: `Lease ${money(m.leasePricePerMonth)} / month`}
-			</p>
+			{#if mode === 'finance'}
+				<label
+					><span>Down payment {Math.round(downPct * 100)}%</span><input
+						type="range"
+						min="0.1"
+						max="0.9"
+						step="0.05"
+						bind:value={downPct}
+						aria-label="Down payment percent"
+					/></label
+				>
+				<label
+					><span>Term (months)</span><input
+						type="number"
+						min="12"
+						max="120"
+						bind:value={termMonths}
+					/></label
+				>
+				<p class="cost">
+					Down {money(m.purchasePrice * downPct)} · financed {money(
+						m.purchasePrice * (1 - downPct)
+					)}
+				</p>
+			{:else}
+				<p class="cost">
+					{mode === 'purchase'
+						? `Buy price ${money(m.purchasePrice)}`
+						: `Lease ${money(m.leasePricePerMonth)} / month`}
+				</p>
+			{/if}
 		</div>
 		{#snippet bottomActions()}
 			<div class="actions">
 				<TactileButton text="Cancel" type="secondary" onclick={() => (selected = null)} />
 				<TactileButton
-					text={mode === 'purchase' ? 'Buy' : 'Lease'}
+					text={mode === 'purchase' ? 'Buy' : mode === 'lease' ? 'Lease' : 'Finance'}
 					type="primary"
 					loading={busy}
 					onclick={submit}

@@ -38,4 +38,20 @@ describe('AcquireTab tier gating', () => {
 		expect(screen.queryByText('Locked')).toBeNull();
 		expect(screen.getAllByRole('button', { name: 'Acquire' })).toHaveLength(2);
 	});
+
+	it('offers a Finance mode only when onFinance is provided', async () => {
+		const onFinance = vi.fn().mockResolvedValue(undefined);
+		const { unmount } = render(AcquireTab, {
+			props: { store: makeStore(), creditTier: 'Platinum', onFinance }
+		});
+
+		await screen.getAllByRole('button', { name: 'Acquire' })[0].click();
+		// The drawer's mode switcher now has a Finance tab.
+		expect(screen.getByRole('button', { name: 'Finance' })).toBeInTheDocument();
+		unmount();
+
+		render(AcquireTab, { props: { store: makeStore(), creditTier: 'Platinum' } });
+		await screen.getAllByRole('button', { name: 'Acquire' })[0].click();
+		expect(screen.queryByRole('button', { name: 'Finance' })).toBeNull();
+	});
 });

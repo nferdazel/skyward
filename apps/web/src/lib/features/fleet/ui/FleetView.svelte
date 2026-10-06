@@ -6,7 +6,7 @@
 	import FleetDrawerContent from './FleetDrawerContent.svelte';
 	import AcquireTab from './AcquireTab.svelte';
 	import type { FleetStore } from '../state/fleet-store.svelte';
-	import type { UserFleetAircraft } from '../domain/fleet-models';
+	import type { UserFleetAircraft, AircraftModel } from '../domain/fleet-models';
 	import { isMaintenanceGrounded } from '../domain/fleet-models';
 
 	/**
@@ -18,8 +18,9 @@
 		store: FleetStore;
 		autoGroundingThreshold?: number;
 		creditTier?: string | null;
+		onFinance?: (model: AircraftModel, downPaymentPct: number, termMonths: number) => Promise<void>;
 	};
-	let { store, autoGroundingThreshold = 40, creditTier = null }: Props = $props();
+	let { store, autoGroundingThreshold = 40, creditTier = null, onFinance }: Props = $props();
 
 	let tab = $state<'fleet' | 'acquire'>('fleet');
 	let selectedId = $state<string | null>(null);
@@ -172,7 +173,7 @@
 			</div>
 		{/if}
 	{:else}
-		<AcquireTab {store} {creditTier} />
+		<AcquireTab {store} {creditTier} {onFinance} />
 	{/if}
 </section>
 
