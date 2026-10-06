@@ -62,13 +62,22 @@
 		<span class="title">Route network</span>
 		<span class="count">{routes.length}</span>
 	</div>
-	<ul>
+	<ul aria-label="Route network">
 		{#each routes as route (route.id)}
 			{@const sel = route.id === selectedRouteId}
 			{@const st = statusOf(route)}
 			<li class="card" class:sel>
-				<button class="card-main" onclick={() => ontoggle(route.id)}>
-					<div class="top">
+				<button
+					class="card-main"
+					aria-expanded={sel}
+					aria-label="{route.originIata} to {route.destinationIata}, {Math.round(
+						route.distanceKm
+					)} km, {route.flightsPerWeek} flights per week, {st.label}, fare {money(
+						route.ticketPrice
+					)}"
+					onclick={() => ontoggle(route.id)}
+				>
+					<div class="top" aria-hidden="true">
 						<span class="legs">
 							<span class="iata">{route.originIata}</span>
 							<span class="arrow">→</span>
@@ -78,7 +87,7 @@
 							>{st.label}</span
 						>
 					</div>
-					<div class="bottom">
+					<div class="bottom" aria-hidden="true">
 						<span class="meta">{Math.round(route.distanceKm)} KM · {route.flightsPerWeek}X/WK</span>
 						<span class="fare" style="color: {fareColor(route)};">{money(route.ticketPrice)}</span>
 					</div>

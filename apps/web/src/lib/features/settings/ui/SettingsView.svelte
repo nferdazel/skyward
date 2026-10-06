@@ -104,7 +104,15 @@
 				>Auto-grounding threshold: aircraft below this condition are grounded automatically.</span
 			>
 			<div class="threshold">
-				<input class="slider" type="range" min="30" max="80" step="5" bind:value={threshold} />
+				<input
+					class="slider"
+					type="range"
+					min="30"
+					max="80"
+					step="5"
+					bind:value={threshold}
+					aria-label="Auto-grounding threshold percent"
+				/>
 				<span class="th-val tnum">{threshold}%</span>
 			</div>
 			<TactileButton text="Save operations" type="primary" loading={busy} onclick={save} />
@@ -152,7 +160,12 @@
 	<AppDialogShell title="Delete account?" onclose={() => (confirm = null)}>
 		{#snippet children()}
 			<p class="muted">This action is permanent and cannot be undone. Type DELETE to confirm.</p>
-			<input class="danger-input" bind:value={deleteConfirmText} placeholder="DELETE" />
+			<input
+				class="danger-input"
+				bind:value={deleteConfirmText}
+				placeholder="DELETE"
+				aria-label="Type DELETE to confirm account deletion"
+			/>
 		{/snippet}
 		{#snippet actions()}
 			<TactileButton text="Cancel" type="secondary" onclick={() => (confirm = null)} />

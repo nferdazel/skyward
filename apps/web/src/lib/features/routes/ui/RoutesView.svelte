@@ -70,6 +70,16 @@
 				ontoggle={toggleSelect}
 			/>
 		</div>
+	{:else if !store.state.loading}
+		<div class="empty-hint" role="status">
+			<p class="empty-title">No routes yet</p>
+			<p class="empty-body">
+				Use the Blueprint planner below: pick an origin and destination, review the server
+				assessment, then open the route.
+			</p>
+		</div>
+	{:else}
+		<div class="loading-hint" role="status" aria-live="polite">Loading routes…</div>
 	{/if}
 
 	<div class="monitor">
@@ -100,6 +110,10 @@
 	.map-layer {
 		position: absolute;
 		inset: 0;
+		z-index: 1;
+		/* Isolate Leaflet's internal controls (z-index 1000+) so overlay panels
+		   (z-index 20) always sit above the map. */
+		isolation: isolate;
 	}
 	.left-panel {
 		position: absolute;
@@ -128,5 +142,41 @@
 		z-index: 30;
 		color: var(--color-error);
 		font-size: 13px;
+	}
+	.empty-hint {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 15;
+		max-width: 360px;
+		padding: var(--space-lg);
+		text-align: center;
+		background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-default);
+		backdrop-filter: blur(6px);
+	}
+	.empty-title {
+		margin: 0 0 var(--space-xs);
+		font-weight: 600;
+		color: var(--color-text-primary);
+	}
+	.empty-body {
+		margin: 0;
+		font-size: 12px;
+		color: var(--color-text-secondary);
+	}
+	.loading-hint {
+		position: absolute;
+		top: var(--space-lg);
+		left: var(--space-lg);
+		z-index: 15;
+		padding: var(--space-sm) var(--space-md);
+		font-size: 12px;
+		color: var(--color-text-secondary);
+		background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-default);
 	}
 </style>

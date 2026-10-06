@@ -82,61 +82,67 @@
 
 <CraftCard>
 	<div class="planner">
-		<span class="label">Blueprint planner</span>
-
-		<div class="field">
-			<SearchableAirportDropdown
-				{airports}
-				value={origin}
-				label="Origin"
-				onselect={(a) => (origin = a)}
-			/>
+		<div class="planner-label">
+			<span class="label">Blueprint planner</span>
+			<span class="hint">Pick airports below, or click them on the map.</span>
 		</div>
-		<div class="field">
-			<SearchableAirportDropdown
-				{airports}
-				value={destination}
-				label="Destination"
-				onselect={(a) => (destination = a)}
-			/>
-		</div>
-		<label class="field">
-			<span>Fare</span>
-			<input type="number" bind:value={fare} onblur={assess} min="0" />
-		</label>
-		<label class="field">
-			<span>Flights / week</span>
-			<input type="number" bind:value={freq} onblur={assess} min="1" max="168" />
-		</label>
+		{#if airports.length === 0}
+			<p class="muted">Airport data not loaded yet.</p>
+		{:else}
+			<div class="field">
+				<SearchableAirportDropdown
+					{airports}
+					value={origin}
+					label="Origin"
+					onselect={(a) => (origin = a)}
+				/>
+			</div>
+			<div class="field">
+				<SearchableAirportDropdown
+					{airports}
+					value={destination}
+					label="Destination"
+					onselect={(a) => (destination = a)}
+				/>
+			</div>
+			<label class="field">
+				<span>Fare</span>
+				<input type="number" bind:value={fare} onblur={assess} min="0" />
+			</label>
+			<label class="field">
+				<span>Flights / week</span>
+				<input type="number" bind:value={freq} onblur={assess} min="1" max="168" />
+			</label>
 
-		<div class="readout">
-			<span class="muted"
-				>{Math.round(distanceKm)} km · ideal {idealFare > 0
-					? `$${Math.round(idealFare)}`
-					: '—'}</span
-			>
-			{#if assessment}
-				<span
-					class="contrib"
-					style="color: {assessment.weeklyContribution >= 0 ? colors.success : colors.error};"
+			<div class="readout" role="status" aria-live="polite">
+				<span class="muted"
+					>{Math.round(distanceKm)} km · ideal {idealFare > 0
+						? `$${Math.round(idealFare)}`
+						: '—'}</span
 				>
-					{assessment.weeklyContribution >= 0 ? '+' : ''}${Math.round(
-						assessment.weeklyContribution
-					)}/wk
-				</span>
-				<span class="band" data-band={assessment.viability.band}>{assessment.viability.band}</span>
-			{/if}
-		</div>
+				{#if assessment}
+					<span
+						class="contrib"
+						style="color: {assessment.weeklyContribution >= 0 ? colors.success : colors.error};"
+					>
+						{assessment.weeklyContribution >= 0 ? '+' : ''}${Math.round(
+							assessment.weeklyContribution
+						)}/wk
+					</span>
+					<span class="band">viability: {assessment.viability.band}</span>
+				{/if}
+			</div>
 
-		<div class="actions">
-			<TactileButton text="Reset" type="ghost" onclick={reset} />
-			<TactileButton
-				text="Open route"
-				type="primary"
-				loading={busy}
-				onclick={origin && destination && distanceKm > 0 ? open : undefined}
-			/>
-		</div>
+			<div class="actions">
+				<TactileButton text="Reset" type="ghost" onclick={reset} />
+				<TactileButton
+					text="Open route"
+					type="primary"
+					loading={busy}
+					onclick={origin && destination && distanceKm > 0 ? open : undefined}
+				/>
+			</div>
+		{/if}
 	</div>
 </CraftCard>
 
@@ -147,14 +153,23 @@
 		gap: var(--space-md);
 		flex-wrap: wrap;
 	}
+	.planner-label {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		align-self: center;
+		margin-right: var(--space-sm);
+	}
 	.label {
 		font-size: 10px;
 		font-weight: 600;
 		letter-spacing: 0.1em;
 		text-transform: uppercase;
 		color: var(--color-text-muted);
-		align-self: center;
-		margin-right: var(--space-sm);
+	}
+	.hint {
+		font-size: 10px;
+		color: var(--color-text-secondary);
 	}
 	.field {
 		display: flex;

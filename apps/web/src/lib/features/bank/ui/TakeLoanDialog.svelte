@@ -54,7 +54,14 @@
 				<span class="k">Principal amount</span>
 				<input type="number" min={minLoan} max={maxLoan} bind:value={principal} />
 			</label>
-			<input class="slider" type="range" min={minLoan} max={maxLoan} bind:value={principal} />
+			<input
+				class="slider"
+				type="range"
+				min={minLoan}
+				max={maxLoan}
+				bind:value={principal}
+				aria-label="Principal amount slider"
+			/>
 			<p class="range">{money(minLoan)} – {money(maxLoan)}</p>
 
 			<div class="field">

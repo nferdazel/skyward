@@ -48,4 +48,9 @@ describe('RoutesView', () => {
 		render(RoutesView, { props: { store: makeStore({ routes: [] }) } });
 		expect(screen.getByText('Blueprint planner')).toBeInTheDocument();
 	});
+
+	it('shows an empty-state hint when there are no routes', () => {
+		render(RoutesView, { props: { store: makeStore({ routes: [] }) } });
+		expect(screen.getByText('No routes yet')).toBeInTheDocument();
+	});
 });
