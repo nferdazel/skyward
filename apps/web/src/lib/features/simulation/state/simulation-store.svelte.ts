@@ -184,6 +184,27 @@ export class SimulationStore {
 
 	stopLoop(): void {
 		this.loopRunning = false;
+		this.clearTimers();
+	}
+
+	/**
+	 * Pause timers while the tab is hidden (mirrors Flutter
+	 * `didChangeAppLifecycleState.paused`). Keeps the session (`loopRunning`)
+	 * so `resumeLoop` can restart without rebuilding state.
+	 */
+	pauseLoop(): void {
+		if (!this.loopRunning) return;
+		this.clearTimers();
+	}
+
+	/** Restart timers + resync on tab focus (mirrors `.resumed`). */
+	resumeLoop(): void {
+		if (!this.loopRunning) return;
+		this.startTimers();
+		void this.syncWithDatabase();
+	}
+
+	private clearTimers(): void {
 		if (this.syncTimer !== null) {
 			clearInterval(this.syncTimer);
 			this.syncTimer = null;

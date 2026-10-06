@@ -38,6 +38,19 @@
 		booted = true;
 	});
 
+	// Tab lifecycle: pause polling while hidden, resync on focus (mirrors the
+	// Flutter AppLifecycleState handling).
+	onMount(() => {
+		const onVisibility = () => {
+			const stores = appStores.stores;
+			if (!stores) return;
+			if (document.hidden) stores.simulation.pauseLoop();
+			else stores.simulation.resumeLoop();
+		};
+		document.addEventListener('visibilitychange', onVisibility);
+		return () => document.removeEventListener('visibilitychange', onVisibility);
+	});
+
 	$effect(() => {
 		const user = auth.isAuthenticated ? auth.user : null;
 		const nextKey = user ? user.id : null;

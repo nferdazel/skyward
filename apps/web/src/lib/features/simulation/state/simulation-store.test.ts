@@ -157,4 +157,26 @@ describe('SimulationStore', () => {
 		off();
 		store.dispose();
 	});
+
+	it('pause/resume keeps the session and resyncs on resume', async () => {
+		vi.useFakeTimers();
+		const loadUserProfile = vi
+			.fn()
+			.mockResolvedValue({ id: 'u1', game_current_time: '2030-01-01T00:00:00Z' });
+		const store = new SimulationStore({
+			gateway: makeGateway({ loadUserProfile }),
+			realtime,
+			sync: new SyncCoordinator()
+		});
+		store.beginSession({ userId: 'u1', initialGameTime: '2030-01-01T00:00:00Z', initialCash: 0 });
+
+		// pause then resume triggers one extra sync (resync on focus).
+		store.pauseLoop();
+		store.resumeLoop();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(loadUserProfile).toHaveBeenCalledTimes(1);
+
+		store.dispose();
+		vi.useRealTimers();
+	});
 });
