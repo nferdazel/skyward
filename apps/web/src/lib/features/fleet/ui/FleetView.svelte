@@ -14,8 +14,12 @@
 	 * Two segmented tabs (Active Fleet / Acquire Aircraft); the active tab shows
 	 * a summary strip and a master-detail (table + inspector drawer).
 	 */
-	type Props = { store: FleetStore; autoGroundingThreshold?: number };
-	let { store, autoGroundingThreshold = 40 }: Props = $props();
+	type Props = {
+		store: FleetStore;
+		autoGroundingThreshold?: number;
+		creditTier?: string | null;
+	};
+	let { store, autoGroundingThreshold = 40, creditTier = null }: Props = $props();
 
 	let tab = $state<'fleet' | 'acquire'>('fleet');
 	let selectedId = $state<string | null>(null);
@@ -154,7 +158,7 @@
 			</div>
 		{/if}
 	{:else}
-		<AcquireTab {store} />
+		<AcquireTab {store} {creditTier} />
 	{/if}
 </section>
 

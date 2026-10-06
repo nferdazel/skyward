@@ -89,7 +89,11 @@
 					<OverviewTab {stores} user={auth.user} onnavigate={(t) => (tab = t as NavKey)} />
 				{/if}
 			{:else if tab === 'fleet'}
-				<FleetView store={stores.fleet} />
+				<FleetView
+					store={stores.fleet}
+					autoGroundingThreshold={auth.user?.autoGroundingThreshold ?? 40}
+					creditTier={stores.bank.state.credit?.creditTier ?? null}
+				/>
 			{:else if tab === 'routes'}
 				<RoutesView
 					store={stores.routes}

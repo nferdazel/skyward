@@ -9,8 +9,32 @@
 	 * Acquire-aircraft tab. Ported from Flutter fleet acquire tab: a catalog of
 	 * models with a slide-over purchase/lease form.
 	 */
-	type Props = { store: FleetStore };
-	let { store }: Props = $props();
+	type Props = {
+		store: FleetStore;
+		/** Player's current credit tier, for gating models by `minCreditTier`. */
+		creditTier?: string | null;
+	};
+	let { store, creditTier = null }: Props = $props();
+
+	/** Matches the server's creditTierRank (unknown → 0). */
+	function tierRank(tier: string | null | undefined): number {
+		switch (tier) {
+			case 'Platinum':
+				return 4;
+			case 'Gold':
+				return 3;
+			case 'Silver':
+				return 2;
+			case 'Standard':
+				return 1;
+			default:
+				return 0;
+		}
+	}
+	const playerRank = $derived(tierRank(creditTier));
+	function isTierLocked(model: AircraftModel): boolean {
+		return playerRank < tierRank(model.minCreditTier);
+	}
 
 	let selected = $state<AircraftModel | null>(null);
 	let mode = $state<'purchase' | 'lease'>('purchase');
@@ -78,7 +102,12 @@
 					<dd>{model.minCreditTier}</dd>
 				</div>
 			</dl>
-			<TactileButton text="Acquire" type="primary" onclick={() => open(model)} />
+			{#if isTierLocked(model)}
+				<p class="locked">Requires credit tier {model.minCreditTier}</p>
+				<TactileButton text="Locked" type="secondary" />
+			{:else}
+				<TactileButton text="Acquire" type="primary" onclick={() => open(model)} />
+			{/if}
 		</CraftCard>
 	{:else}
 		<CraftCard><p class="muted">Catalog is empty.</p></CraftCard>
@@ -163,6 +192,11 @@
 	.muted {
 		color: var(--color-text-muted);
 		font-size: 13px;
+	}
+	.locked {
+		margin: 0;
+		font-size: 12px;
+		color: var(--color-warning);
 	}
 	.form {
 		display: flex;
