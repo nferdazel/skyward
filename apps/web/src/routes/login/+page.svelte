@@ -1,6 +1,7 @@
 <script lang="ts">
 	import CraftCard from '$lib/core/components/CraftCard.svelte';
 	import TactileButton from '$lib/core/components/TactileButton.svelte';
+	import AppDialogShell from '$lib/core/components/AppDialogShell.svelte';
 	import { getAuthStore } from '$lib/features/auth/state/auth-context.svelte';
 
 	const auth = getAuthStore();
@@ -11,6 +12,16 @@
 	let companyName = $state('');
 	let ceoName = $state('');
 	let submitting = $state(false);
+
+	// Forgot-password / reset flow.
+	let resetOpen = $state(false);
+	let resetUsername = $state('');
+	let resetPassword = $state('');
+	let resetCompanyName = $state('');
+	let resetCeoName = $state('');
+	let resetHq = $state('');
+	let resetBusy = $state(false);
+	let resetMessage = $state<string | null>(null);
 
 	const canSubmit = $derived(
 		username.trim().length > 0 &&
@@ -32,6 +43,30 @@
 			});
 		}
 		submitting = false;
+	}
+
+	function openReset() {
+		resetUsername = username.trim();
+		resetPassword = '';
+		resetCompanyName = '';
+		resetCeoName = '';
+		resetHq = '';
+		resetMessage = null;
+		resetOpen = true;
+	}
+
+	async function submitReset() {
+		if (!resetUsername.trim() || !resetPassword) return;
+		resetBusy = true;
+		const ok = await auth.resetPassword({
+			username: resetUsername.trim(),
+			newPassword: resetPassword,
+			companyName: resetCompanyName.trim(),
+			ceoName: resetCeoName.trim(),
+			hqAirportIata: resetHq.trim()
+		});
+		resetBusy = false;
+		resetMessage = ok ? 'Password reset. You can sign in now.' : (auth.error ?? 'Reset failed.');
 	}
 </script>
 
@@ -82,6 +117,10 @@
 					<p class="error" role="alert">{auth.error}</p>
 				{/if}
 
+				{#if mode === 'login'}
+					<button type="button" class="forgot" onclick={openReset}>Forgot password?</button>
+				{/if}
+
 				<div class="actions">
 					<TactileButton
 						text={mode === 'login' ? 'Sign in' : 'Register'}
@@ -94,6 +133,39 @@
 		</CraftCard>
 	</div>
 </main>
+
+{#if resetOpen}
+	<AppDialogShell
+		title="Reset password"
+		subtitle="Recover with your username. Providing company and CEO helps verify ownership."
+		onclose={() => (resetOpen = false)}
+	>
+		{#snippet children()}
+			<div class="reset-form">
+				<label
+					><span>Username</span><input bind:value={resetUsername} autocomplete="username" /></label
+				>
+				<label><span>New password</span><input type="password" bind:value={resetPassword} /></label>
+				<label><span>Company name</span><input bind:value={resetCompanyName} /></label>
+				<label><span>CEO name</span><input bind:value={resetCeoName} /></label>
+				<label><span>HQ airport (IATA)</span><input bind:value={resetHq} placeholder="SIN" /></label
+				>
+				{#if resetMessage}
+					<p class="reset-msg" role="status">{resetMessage}</p>
+				{/if}
+			</div>
+		{/snippet}
+		{#snippet actions()}
+			<TactileButton text="Close" type="secondary" onclick={() => (resetOpen = false)} />
+			<TactileButton
+				text="Reset password"
+				type="primary"
+				loading={resetBusy}
+				onclick={resetUsername.trim() && resetPassword ? submitReset : undefined}
+			/>
+		{/snippet}
+	</AppDialogShell>
+{/if}
 
 <style>
 	.auth {
@@ -175,5 +247,45 @@
 	.actions {
 		display: flex;
 		justify-content: flex-end;
+	}
+	.forgot {
+		align-self: flex-start;
+		background: none;
+		border: none;
+		color: var(--color-accent);
+		font-size: 12px;
+		cursor: pointer;
+		padding: 0;
+	}
+	.forgot:hover {
+		text-decoration: underline;
+	}
+	.reset-form {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-sm);
+	}
+	.reset-form label {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-xs);
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--color-text-secondary);
+	}
+	.reset-form input {
+		background: var(--color-surface-2);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-default);
+		color: var(--color-text-primary);
+		padding: var(--space-sm);
+		font-size: 14px;
+		text-transform: none;
+	}
+	.reset-msg {
+		margin: 0;
+		font-size: 13px;
+		color: var(--color-success);
 	}
 </style>

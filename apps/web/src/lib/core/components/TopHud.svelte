@@ -24,7 +24,12 @@
 		const d = new Date(sim.gameTime);
 		return Number.isNaN(d.getTime()) ? '—' : d.toISOString().slice(0, 10);
 	});
-	const unread = $derived(notifications?.state.items.length ?? 0);
+	const unread = $derived(notifications?.unreadCount ?? 0);
+
+	function togglePanel() {
+		showPanel = !showPanel;
+		if (showPanel) notifications?.markAllRead();
+	}
 </script>
 
 <header class="hud">
@@ -59,12 +64,7 @@
 	</div>
 
 	<div class="right">
-		<button
-			class="bell"
-			aria-label="Notifications"
-			aria-expanded={showPanel}
-			onclick={() => (showPanel = !showPanel)}
-		>
+		<button class="bell" aria-label="Notifications" aria-expanded={showPanel} onclick={togglePanel}>
 			<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
 				<path
 					d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-5v-1l-1.5-1.5V10a5.5 5.5 0 0 0-4-5.3V4a1.5 1.5 0 0 0-3 0v.7A5.5 5.5 0 0 0 6.5 10v4.5L5 16v1z"

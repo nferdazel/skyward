@@ -7,10 +7,11 @@ export interface GameNotification {
 	title: string;
 	message?: string;
 	createdAt: number;
+	read?: boolean;
 }
 
 /**
- * Store notifikasi in-app (queue + toast). Port dari `NotificationCubit`.
+ * Store notifikasi in-app (queue + toast). Port from `NotificationCubit`.
  * World events TIDAK ditampilkan sebagai toast (status persisten, lihat sonner).
  */
 export class NotificationStore {
@@ -21,7 +22,7 @@ export class NotificationStore {
 	/** Tambah notifikasi; mengembalikan id. */
 	push(input: Omit<GameNotification, 'id' | 'createdAt'>): string {
 		const id = `n${++this.seq}`;
-		const item: GameNotification = { ...input, id, createdAt: Date.now() };
+		const item: GameNotification = { ...input, id, createdAt: Date.now(), read: false };
 		this.state = { items: [...this.state.items, item] };
 		return id;
 	}
@@ -32,6 +33,16 @@ export class NotificationStore {
 
 	clear(): void {
 		this.state = { items: [] };
+	}
+
+	/** Jumlah notifikasi belum dibaca. */
+	get unreadCount(): number {
+		return this.state.items.filter((n) => !n.read).length;
+	}
+
+	/** Tandai semua sudah dibaca (dipanggil saat panel dibuka). */
+	markAllRead(): void {
+		this.state = { items: this.state.items.map((n) => ({ ...n, read: true })) };
 	}
 
 	/** Notifikasi yang tampil sebagai toast (event dikecualikan). */

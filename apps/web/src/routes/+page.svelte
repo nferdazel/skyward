@@ -4,6 +4,7 @@
 	import TopHud from '$lib/core/components/TopHud.svelte';
 	import SkywardSonner from '$lib/core/components/SkywardSonner.svelte';
 	import OnboardingOverlay from '$lib/core/components/OnboardingOverlay.svelte';
+	import WhileAwayDigest from '$lib/core/components/WhileAwayDigest.svelte';
 	import OverviewTab from '$lib/features/dashboard/ui/OverviewTab.svelte';
 	import FleetView from '$lib/features/fleet/ui/FleetView.svelte';
 	import RoutesView from '$lib/features/routes/ui/RoutesView.svelte';
@@ -40,6 +41,22 @@
 			});
 		}
 	});
+
+	// "While you were away" digest: after returning with >= 1 game day elapsed,
+	// shown once per game time, never stacked on onboarding.
+	let showDigest = $state(false);
+	let lastDigestGameTime = '';
+	$effect(() => {
+		const sim = stores.simulation.state;
+		if (sim.isSyncing || sim.lastElapsedDays < 1) return;
+		if (auth.user && !auth.user.onboardingCompleted) return;
+		if (lastDigestGameTime === sim.gameTime) return;
+		lastDigestGameTime = sim.gameTime;
+		showDigest = true;
+	});
+	function dismissDigest() {
+		showDigest = false;
+	}
 </script>
 
 <svelte:head><title>Skyward — Command Center</title></svelte:head>
@@ -50,6 +67,20 @@
 	<div class="main">
 		{#if auth.user}
 			<TopHud user={auth.user} sim={stores.simulation.state} notifications={stores.notification} />
+		{/if}
+
+		{#if stores.simulation.state.errorMessage}
+			<div class="net-status" role="alert">
+				<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+					<path
+						d="M2 22 22 2m-9 14h-2m13.5 2 1.5 1.5M8.5 8.5A10 10 0 0 0 2 12m0-8 20 20"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+					/>
+				</svg>
+				<span>Connection lost — retrying. {stores.simulation.state.errorMessage}</span>
+			</div>
 		{/if}
 
 		<div class="content">
@@ -99,6 +130,16 @@
 	/>
 {/if}
 
+{#if showDigest}
+	<WhileAwayDigest
+		elapsedDays={stores.simulation.state.lastElapsedDays}
+		flightsRun={stores.simulation.state.lastFlightsRun}
+		revenue={stores.simulation.state.lastRevenue}
+		expense={stores.simulation.state.lastExpense}
+		onclose={dismissDigest}
+	/>
+{/if}
+
 <style>
 	.app {
 		display: flex;
@@ -117,5 +158,15 @@
 		min-height: 0;
 		overflow-y: auto;
 		padding: var(--space-lg);
+	}
+	.net-status {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		padding: var(--space-sm) var(--space-md);
+		background: var(--color-error-subtle);
+		border-bottom: 1px solid var(--color-error);
+		color: var(--color-error);
+		font-size: 12px;
 	}
 </style>
