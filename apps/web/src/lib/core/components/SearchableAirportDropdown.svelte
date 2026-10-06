@@ -26,6 +26,10 @@
 	// Seed once from the initial value; the user edits the query afterwards.
 	let query = $state(untrack(() => (value ? display(value) : '')));
 	let open = $state(false);
+	let dropUp = $state(false);
+	let wrap: HTMLDivElement | undefined = $state();
+
+	const MENU_MAX = 240;
 
 	function display(a: Airport): string {
 		return `[${a.iata}] ${a.city} (${a.country})`.toUpperCase();
@@ -60,17 +64,31 @@
 		// Free-text: clear the committed value until a row is picked.
 		onselect(null);
 	}
+
+	/** Decide above/below before opening: flip up when there isn't room below. */
+	function computeDirection() {
+		if (!wrap) return;
+		const rect = wrap.getBoundingClientRect();
+		const spaceBelow = window.innerHeight - rect.bottom;
+		const spaceAbove = rect.top;
+		dropUp = spaceBelow < MENU_MAX && spaceAbove > spaceBelow;
+	}
+
+	function show() {
+		computeDirection();
+		open = true;
+	}
 </script>
 
 <div class="field">
 	<span class="k">{label}</span>
-	<div class="input-wrap">
+	<div class="input-wrap" bind:this={wrap}>
 		<input
 			class="control"
 			{placeholder}
 			bind:value={query}
 			{oninput}
-			onfocus={() => (open = true)}
+			onfocus={show}
 			onblur={() => setTimeout(() => (open = false), 120)}
 		/>
 		{#if query}
@@ -78,7 +96,7 @@
 		{/if}
 	</div>
 	{#if open && filtered.length > 0}
-		<ul class="menu" role="listbox">
+		<ul class="menu" class:drop-up={dropUp} role="listbox">
 			{#each filtered as a (a.iata)}
 				<li>
 					<button role="option" aria-selected={value?.iata === a.iata} onclick={() => pick(a)}>
@@ -148,6 +166,14 @@
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-default);
 		box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+	}
+	/* Open upward when there isn't enough room below (e.g. the blueprint
+	   planner sits at the bottom of the viewport). */
+	.menu.drop-up {
+		top: auto;
+		bottom: 100%;
+		margin: 0 0 var(--space-xs);
+		box-shadow: 0 -8px 24px rgb(0 0 0 / 0.4);
 	}
 	.menu button {
 		display: flex;
