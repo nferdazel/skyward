@@ -58,6 +58,18 @@
 		});
 		busy = false;
 	}
+
+	async function sell(a: UserFleetAircraft) {
+		busy = true;
+		await store.sell(a.id);
+		busy = false;
+	}
+
+	async function terminateLease(a: UserFleetAircraft) {
+		busy = true;
+		await store.terminateLease(a.id);
+		busy = false;
+	}
 </script>
 
 <section>
@@ -152,6 +164,8 @@
 							{busy}
 							onRepair={() => repair(selected)}
 							onSaveSeats={(e, b, f) => saveSeats(selected, e, b, f)}
+							onSell={() => sell(selected)}
+							onTerminateLease={() => terminateLease(selected)}
 						/>
 					{/if}
 				</div>

@@ -21,9 +21,19 @@
 		busy?: boolean;
 		onRepair: () => void;
 		onSaveSeats: (economy: number, business: number, first: number) => void;
+		onSell: () => void;
+		onTerminateLease: () => void;
 	};
 
-	let { aircraft, autoGroundingThreshold, busy = false, onRepair, onSaveSeats }: Props = $props();
+	let {
+		aircraft,
+		autoGroundingThreshold,
+		busy = false,
+		onRepair,
+		onSaveSeats,
+		onSell,
+		onTerminateLease
+	}: Props = $props();
 
 	// Seed the cabin editor once; the effect below re-seeds on selection change.
 	let eco = $state(untrack(() => aircraft.economySeats));
@@ -119,6 +129,23 @@
 			onclick={cabinsValid ? () => onSaveSeats(eco, bus, first) : undefined}
 		/>
 	</div>
+	<div class="actions secondary-row">
+		{#if isOwned(aircraft)}
+			<TactileButton
+				text={`Sell · ${money(aircraft.saleValue)}`}
+				type="destructive"
+				loading={busy}
+				onclick={aircraft.canBeSold ? onSell : undefined}
+			/>
+		{:else}
+			<TactileButton
+				text={`Terminate lease · ${money(aircraft.leaseExitFee)}`}
+				type="destructive"
+				loading={busy}
+				onclick={onTerminateLease}
+			/>
+		{/if}
+	</div>
 </div>
 
 <style>
@@ -211,5 +238,11 @@
 	.actions {
 		display: flex;
 		gap: var(--space-sm);
+	}
+	.secondary-row {
+		margin-top: var(--space-xs);
+	}
+	.secondary-row :global(.tactile) {
+		width: 100%;
 	}
 </style>
