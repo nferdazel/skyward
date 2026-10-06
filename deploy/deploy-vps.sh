@@ -106,10 +106,17 @@ fi
 if echo "$CHANGED_FILES" | grep -q "^apps/web/" || [ "$IS_FIRST" -eq 1 ]; then
   log "==> Build web (static)..."
   # Nilai build-time diambil dari env VPS (mode 600), bukan hardcode.
+  # Utamakan env khusus web; fallback ke env prod lama yang memakai
+  # SKYWARD_API_URL (kompatibel dengan setup Flutter sebelumnya).
   WEB_ENV="$APP_DIR/env/skyward-web.env"
-  VITE_SKYWARD_API_URL=$(grep -E '^VITE_SKYWARD_API_URL=' "$WEB_ENV" 2>/dev/null | tail -1 | cut -d= -f2- || true)
+  read_env() { grep -E "^$1=" "$2" 2>/dev/null | tail -1 | cut -d= -f2- || true; }
+  VITE_SKYWARD_API_URL="$(read_env VITE_SKYWARD_API_URL "$WEB_ENV")"
   if [ -z "$VITE_SKYWARD_API_URL" ]; then
-    log "==> WARN: VITE_SKYWARD_API_URL tidak ada di $WEB_ENV; memakai default build."
+    VITE_SKYWARD_API_URL="$(read_env SKYWARD_API_URL "$APP_DIR/env/skyward-prod.env")"
+  fi
+  if [ -z "$VITE_SKYWARD_API_URL" ]; then
+    log "==> ERROR: VITE_SKYWARD_API_URL/SKYWARD_API_URL tidak ditemukan di env — build web dibatalkan."
+    exit 1
   fi
   cd "$MONO_DIR/apps/web"
   npm install --no-audit --no-fund 2>&1 | tail -5 | tee -a "$LOG"
