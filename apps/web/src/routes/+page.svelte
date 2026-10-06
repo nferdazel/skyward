@@ -3,6 +3,7 @@
 	import type { NavKey } from '$lib/core/components/nav';
 	import TopHud from '$lib/core/components/TopHud.svelte';
 	import SkywardSonner from '$lib/core/components/SkywardSonner.svelte';
+	import OnboardingOverlay from '$lib/core/components/OnboardingOverlay.svelte';
 	import OverviewTab from '$lib/features/dashboard/ui/OverviewTab.svelte';
 	import FleetView from '$lib/features/fleet/ui/FleetView.svelte';
 	import RoutesView from '$lib/features/routes/ui/RoutesView.svelte';
@@ -87,6 +88,16 @@
 	items={stores.notification.toasts}
 	ondismiss={(id) => stores.notification.dismiss(id)}
 />
+
+{#if auth.user && !auth.user.onboardingCompleted}
+	<OnboardingOverlay
+		onnavigate={(t) => (tab = t as NavKey)}
+		oncomplete={() => {
+			auth.markOnboardingCompleted();
+			void stores.simulation.markOnboardingComplete();
+		}}
+	/>
+{/if}
 
 <style>
 	.app {

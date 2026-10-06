@@ -90,4 +90,9 @@ export class AuthStore {
 		this.status = 'unauthenticated';
 		this.error = null;
 	}
+
+	/** Mark onboarding complete locally (server persistence is best-effort). */
+	markOnboardingCompleted(): void {
+		if (this.user) this.user = { ...this.user, onboardingCompleted: true };
+	}
 }
