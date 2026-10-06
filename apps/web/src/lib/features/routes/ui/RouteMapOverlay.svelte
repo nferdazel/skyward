@@ -130,13 +130,19 @@
 				).addTo(map);
 			}
 
-			// Fix the classic "empty map" case: Leaflet measures the container at
-			// init; in an SPA/Panel the element can be 0×0 at that moment. Force a
-			// re-measure on the next frame and whenever the container resizes.
+			// Fix the classic "empty/partial map" case: Leaflet measures the
+			// container at init; in an SPA it can be 0×0 or smaller than final
+			// until layout settles. Re-measure on a few successive frames and on
+			// every container resize.
 			const mapRef = map;
-			requestAnimationFrame(() => mapRef?.invalidateSize());
+			const revalidate = () => mapRef?.invalidateSize();
+			requestAnimationFrame(() => {
+				revalidate();
+				requestAnimationFrame(revalidate);
+			});
+			setTimeout(revalidate, 250);
 			if (container) {
-				observer = new ResizeObserver(() => mapRef?.invalidateSize());
+				observer = new ResizeObserver(revalidate);
 				observer.observe(container);
 			}
 
@@ -153,13 +159,18 @@
 	onDestroy(() => cleanup?.());
 </script>
 
-<div class="map" bind:this={container} aria-label="Route map" role="img"></div>
+<div class="map-wrap">
+	<div class="map" bind:this={container} aria-label="Route map" role="img"></div>
+</div>
 
 <style>
+	.map-wrap {
+		position: absolute;
+		inset: 0;
+	}
 	.map {
-		width: 100%;
-		height: 100%;
-		min-height: 320px;
+		position: absolute;
+		inset: 0;
 		background: var(--color-bg);
 	}
 </style>
