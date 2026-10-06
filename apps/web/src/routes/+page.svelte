@@ -3,6 +3,7 @@
 	import type { NavKey } from '$lib/core/components/nav';
 	import TopHud from '$lib/core/components/TopHud.svelte';
 	import SkywardSonner from '$lib/core/components/SkywardSonner.svelte';
+	import OverviewTab from '$lib/features/dashboard/ui/OverviewTab.svelte';
 	import FleetView from '$lib/features/fleet/ui/FleetView.svelte';
 	import RoutesView from '$lib/features/routes/ui/RoutesView.svelte';
 	import BankView from '$lib/features/bank/ui/BankView.svelte';
@@ -53,7 +54,9 @@
 
 		<div class="content">
 			{#if tab === 'dashboard'}
-				<p class="placeholder">Overview menyusul.</p>
+				{#if auth.user}
+					<OverviewTab {stores} user={auth.user} onnavigate={(t) => (tab = t as NavKey)} />
+				{/if}
 			{:else if tab === 'fleet'}
 				<FleetView store={stores.fleet} />
 			{:else if tab === 'routes'}
@@ -100,8 +103,5 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-lg);
-	}
-	.placeholder {
-		color: var(--color-text-muted);
 	}
 </style>
