@@ -60,7 +60,14 @@
 			{:else if tab === 'fleet'}
 				<FleetView store={stores.fleet} />
 			{:else if tab === 'routes'}
-				<RoutesView store={stores.routes} />
+				<RoutesView
+					store={stores.routes}
+					autoGroundingThreshold={auth.user?.autoGroundingThreshold ?? 40}
+					baseFare={{
+						base: stores.simulation.state.ticketBaseFare,
+						perKm: stores.simulation.state.ticketPerKmRate
+					}}
+				/>
 			{:else if tab === 'financials'}
 				<div class="split">
 					<BankView store={stores.bank} />

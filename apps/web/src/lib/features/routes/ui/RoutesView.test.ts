@@ -20,40 +20,7 @@ function makeStore(over: Partial<RoutesStore['state']> = {}): RoutesStore {
 			],
 			airports: [],
 			availableFleet: [],
-			assessments: {
-				r1: {
-					aircraftId: 'a1',
-					aircraftModel: 'A320',
-					acquisitionType: 'purchase',
-					flightsPerWeekRequested: 7,
-					allocatedFlightsPerWeek: 7,
-					maxWeeklyFlights: 7,
-					flightDurationHours: 1,
-					expectedPassengersPerFlight: 100,
-					seatCapacity: 180,
-					loadFactorPercent: 60,
-					directOperatingCostPerFlight: 1000,
-					revenuePerFlight: 1500,
-					contributionPerFlight: 500,
-					weeklyContribution: 3500,
-					weeklyRevenue: 10500,
-					weeklyCargoRevenue: 0,
-					weeklyFuelCost: 0,
-					weeklyCrewCost: 0,
-					weeklyMaintenanceCost: 0,
-					weeklyLeaseCost: 0,
-					wear: {
-						perFlightCycle: 0,
-						grossPerWeek: 0,
-						selfHealPerWeek: 0,
-						netPerWeek: 0,
-						conditionAfterOneWeek: 100
-					},
-					viability: { band: 'strong', reasons: [] },
-					multipliers: { fuel: 1, maintenance: 1, demand: 1, capacity: 1 },
-					inputsUsed: { ticketPrice: 120, flightsPerWeek: 7 }
-				}
-			},
+			assessments: {},
 			groundingThreshold: 40,
 			error: null,
 			...over
@@ -62,22 +29,23 @@ function makeStore(over: Partial<RoutesStore['state']> = {}): RoutesStore {
 		assign: vi.fn(),
 		update: vi.fn(),
 		remove: vi.fn(),
+		assess: vi.fn().mockResolvedValue(null),
 		load: vi.fn(),
 		refresh: vi.fn()
 	} as unknown as RoutesStore;
 }
 
 describe('RoutesView', () => {
-	it('lists routes with distance, fare and weekly contribution', () => {
+	it('renders the route list panel with legs and meta', () => {
 		render(RoutesView, { props: { store: makeStore() } });
-		expect(screen.getByText('SIN→KUL')).toBeInTheDocument();
-		expect(screen.getByText('300 km')).toBeInTheDocument();
-		expect(screen.getByText('$3,500')).toBeInTheDocument();
-		expect(screen.getByText('STRONG')).toBeInTheDocument();
+		expect(screen.getByText('SIN')).toBeInTheDocument();
+		expect(screen.getByText('KUL')).toBeInTheDocument();
+		expect(screen.getByText('300 KM · 7X/WK')).toBeInTheDocument();
+		expect(screen.getByText('$120')).toBeInTheDocument();
 	});
 
-	it('shows an empty state when there are no routes', () => {
+	it('shows the blueprint planner heading', () => {
 		render(RoutesView, { props: { store: makeStore({ routes: [] }) } });
-		expect(screen.getByText('No routes yet')).toBeInTheDocument();
+		expect(screen.getByText('Blueprint planner')).toBeInTheDocument();
 	});
 });
