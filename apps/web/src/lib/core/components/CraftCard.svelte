@@ -12,13 +12,28 @@
 		headerAction?: Snippet;
 		panel?: boolean;
 		onclick?: () => void;
+		/** Allow content (e.g. a dropdown) to overflow the card edges. */
+		overflowVisible?: boolean;
 	};
 
-	let { children, header, headerAction, panel = false, onclick }: Props = $props();
+	let {
+		children,
+		header,
+		headerAction,
+		panel = false,
+		onclick,
+		overflowVisible = false
+	}: Props = $props();
 	let pressed = $state(false);
 
 	const cls = $derived(
-		['craft', panel ? 'panel' : '', onclick ? 'interactive' : '', pressed ? 'pressed' : '']
+		[
+			'craft',
+			panel ? 'panel' : '',
+			onclick ? 'interactive' : '',
+			pressed ? 'pressed' : '',
+			overflowVisible ? 'overflow-visible' : ''
+		]
 			.filter(Boolean)
 			.join(' ')
 	);
@@ -67,6 +82,10 @@
 	}
 	.craft.panel {
 		border-radius: 0;
+	}
+	/* Let dropdowns/menus escape the card (e.g. the blueprint planner). */
+	.craft.overflow-visible {
+		overflow: visible;
 	}
 	.bevel {
 		position: absolute;

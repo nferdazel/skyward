@@ -80,7 +80,7 @@
 	}
 </script>
 
-<CraftCard>
+<CraftCard overflowVisible>
 	<div class="planner">
 		<div class="planner-label">
 			<span class="label">Blueprint planner</span>
