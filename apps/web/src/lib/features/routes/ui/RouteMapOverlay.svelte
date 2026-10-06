@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
+	import 'leaflet/dist/leaflet.css';
 	import type { Airport } from '../domain/airport';
 	import type { UserRoute } from '../domain/route-models';
 
@@ -8,8 +9,10 @@
 	 * `_buildFullMap` layer: draws airports + route arcs. Presentation only — no
 	 * economics here.
 	 *
-	 * Leaflet is dynamically imported so the static build has no Node/DOM
-	 * dependency at build time.
+	 * Leaflet JS is dynamically imported so the static build has no Node/DOM
+	 * dependency at build time; its CSS is imported statically so it is always
+	 * bundled and present before the map initialises (a dynamically injected
+	 * stylesheet can arrive after L.map() and leave the container unsized).
 	 */
 	type Props = {
 		airports: Airport[];
@@ -57,22 +60,25 @@
 
 	onMount(() => {
 		let cancelled = false;
+		let map: L | undefined;
+		let observer: ResizeObserver | undefined;
 		void (async () => {
 			if (!container) return;
 			const Leaflet = (await import('leaflet')) as unknown as { default?: L } & L;
 			const Lmod: L = Leaflet.default ?? Leaflet;
-			await import('leaflet/dist/leaflet.css');
 			if (cancelled || !container) return;
 
-			const map = Lmod.map(container, { worldCopyJump: true, zoomControl: true }).setView(
-				[12, 108],
-				3
-			);
+			map = Lmod.map(container, {
+				worldCopyJump: true,
+				zoomControl: true,
+				attributionControl: true
+			}).setView([12, 108], 3);
 			Lmod.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 				attribution: '© OpenStreetMap © CARTO',
 				subdomains: 'abcd',
 				maxZoom: 8,
-				minZoom: 1
+				minZoom: 1,
+				crossOrigin: true
 			}).addTo(map);
 
 			const byIata = new Map(airports.map((a) => [a.iata, a]));
@@ -117,7 +123,20 @@
 				).addTo(map);
 			}
 
-			cleanup = () => map.remove();
+			// Fix the classic "empty map" case: Leaflet measures the container at
+			// init; in an SPA/Panel the element can be 0×0 at that moment. Force a
+			// re-measure on the next frame and whenever the container resizes.
+			const mapRef = map;
+			requestAnimationFrame(() => mapRef?.invalidateSize());
+			if (container) {
+				observer = new ResizeObserver(() => mapRef?.invalidateSize());
+				observer.observe(container);
+			}
+
+			cleanup = () => {
+				observer?.disconnect();
+				mapRef?.remove();
+			};
 		})();
 		return () => {
 			cancelled = true;
