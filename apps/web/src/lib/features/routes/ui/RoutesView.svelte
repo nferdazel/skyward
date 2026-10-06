@@ -133,7 +133,9 @@
 		position: absolute;
 		bottom: 0;
 		right: 0;
-		z-index: 20;
+		/* Above the map and its overlay panels; the dropdown opens upward out of
+		   this box, so it must win the stacking order over .map-layer. */
+		z-index: 800;
 	}
 	.err {
 		position: absolute;
