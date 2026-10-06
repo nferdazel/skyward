@@ -70,7 +70,7 @@
 			{:else if tab === 'financials'}
 				<FinanceView store={stores.finance} bankStore={stores.bank} />
 			{:else if tab === 'rankings'}
-				<LeaderboardView store={stores.leaderboard} />
+				<LeaderboardView store={stores.leaderboard} currentUserId={auth.user?.id} />
 			{:else if tab === 'settings'}
 				<SettingsView store={stores.settings} {auth} />
 			{/if}
