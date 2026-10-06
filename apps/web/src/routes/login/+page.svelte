@@ -1,6 +1,6 @@
 <script lang="ts">
-	import AppButton from '$lib/core/components/AppButton.svelte';
-	import AppCard from '$lib/core/components/AppCard.svelte';
+	import CraftCard from '$lib/core/components/CraftCard.svelte';
+	import TactileButton from '$lib/core/components/TactileButton.svelte';
 	import { getAuthStore } from '$lib/features/auth/state/auth-context.svelte';
 
 	const auth = getAuthStore();
@@ -42,7 +42,7 @@
 		<h1>SKYWARD</h1>
 		<p class="sub">Airline command</p>
 
-		<AppCard>
+		<CraftCard>
 			<div class="tabs" role="tablist">
 				<button
 					role="tab"
@@ -83,15 +83,15 @@
 				{/if}
 
 				<div class="actions">
-					<AppButton
+					<TactileButton
 						text={mode === 'login' ? 'Sign in' : 'Register'}
-						type="submit"
+						type="primary"
 						loading={submitting}
 						onclick={canSubmit ? submit : undefined}
 					/>
 				</div>
 			</form>
-		</AppCard>
+		</CraftCard>
 	</div>
 </main>
 

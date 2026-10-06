@@ -1,22 +1,21 @@
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import AppButton from './AppButton.svelte';
+import TactileButton from './TactileButton.svelte';
 
-describe('AppButton', () => {
+describe('TactileButton', () => {
 	it('renders its label and calls onclick when pressed', async () => {
 		const onclick = vi.fn();
-		render(AppButton, { props: { text: 'Beli', onclick } });
+		render(TactileButton, { props: { text: 'Buy', onclick } });
 
-		const button = screen.getByRole('button', { name: 'Beli' });
-		await userEvent.click(button);
+		await userEvent.click(screen.getByRole('button', { name: 'Buy' }));
 
 		expect(onclick).toHaveBeenCalledOnce();
 	});
 
 	it('is disabled while loading and does not fire onclick', async () => {
 		const onclick = vi.fn();
-		render(AppButton, { props: { text: 'Simpan', onclick, loading: true } });
+		render(TactileButton, { props: { text: 'Save', onclick, loading: true } });
 
 		const button = screen.getByRole('button') as HTMLButtonElement;
 		expect(button.disabled).toBe(true);
@@ -27,7 +26,7 @@ describe('AppButton', () => {
 	});
 
 	it('is disabled when no onclick handler is given', () => {
-		render(AppButton, { props: { text: 'Tanpa aksi' } });
+		render(TactileButton, { props: { text: 'No action' } });
 		expect((screen.getByRole('button') as HTMLButtonElement).disabled).toBe(true);
 	});
 });
