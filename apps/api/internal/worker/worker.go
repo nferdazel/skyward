@@ -159,12 +159,37 @@ func (w *Worker) loop(ctx context.Context) {
 			w.mu.Lock()
 			w.status.ErrorsCount = 0
 			w.mu.Unlock()
-			// Kembalikan cadence ke interval konfigurasi setelah pulih.
-			ticker.Reset(tickInterval(w.interval, errors))
-			// TODO Fase 6: baca season_clock.tick_interval_seconds dan reset
-			// ticker.Interval bila berubah.
+			// Ikuti perubahan `season_clock.tick_interval_seconds` (mis. admin
+			// mempercepat/melambatkan world) tanpa restart service. Nilai ini
+			// juga dipakai WorldTick untuk memajukan jam dunia; ticker harus
+			// seirama agar cadence jujur.
+			if secs, ok := w.readTickIntervalSeconds(ctx); ok && secs > 0 {
+				next := time.Duration(secs) * time.Second
+				if next != w.interval {
+					w.logger.Info("worker interval changed",
+						"from", w.interval, "to", next)
+					w.interval = next
+				}
+			}
+			ticker.Reset(w.interval)
 		}
 	}
+}
+
+// readTickIntervalSeconds membaca interval river dari season_clock aktif.
+// Mengembalikan ok=false bila tidak ada season aktif atau query gagal (pakai
+// interval fallback saat itu).
+func (w *Worker) readTickIntervalSeconds(ctx context.Context) (int, bool) {
+	if w.pool == nil {
+		return 0, false
+	}
+	var secs int
+	err := w.pool.QueryRow(ctx,
+		`SELECT tick_interval_seconds FROM season_clock WHERE status = 'active' LIMIT 1`).Scan(&secs)
+	if err != nil || secs <= 0 {
+		return 0, false
+	}
+	return secs, true
 }
 
 func (w *Worker) runTick(ctx context.Context) (err error) {

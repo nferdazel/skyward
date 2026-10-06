@@ -353,9 +353,9 @@ type FinanceSnapshot struct {
 }
 
 func (s *Store) GetFinanceSnapshot(ctx context.Context, userID string) (*FinanceSnapshot, error) {
-	// Engine akan menghitung rolling 30d — sini format dasar.
-	// TODO Fase 6: engine benar-benar menghitung; sini trigger pre-compute.
-	// Untuk sekarang, baca langsung dari tabel yang sudah ada + query rolling.
+	// Snapshot dihitung langsung dari tabel (cash, fleet, routes, dan rolling
+	// 30 game-day dari ledger). Angka otoritatif — tidak ada pre-compute engine
+	// yang ditunggu; lihat finance_snapshots untuk seri tren harian.
 	f := &FinanceSnapshot{}
 
 	// Cash + net worth
