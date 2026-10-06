@@ -56,7 +56,7 @@ describe('FinanceView', () => {
 		} as unknown as FinanceStore;
 
 		render(FinanceView, { props: { store } });
-		await screen.getByRole('tab', { name: 'Laporan IFRS' }).click();
+		await screen.getByRole('tab', { name: 'IFRS report' }).click();
 		expect(screen.getAllByText('$2,000').length).toBeGreaterThan(0);
 		expect(screen.getAllByText('$1,500').length).toBeGreaterThan(0); // net income
 	});
@@ -104,6 +104,6 @@ describe('SettingsView', () => {
 		render(SettingsView, { props: { store, auth } });
 		expect((screen.getByDisplayValue('Sky Air') as HTMLInputElement).value).toBe('Sky Air');
 		expect(screen.getByDisplayValue('SIN')).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: 'Reset maskapai' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Reset airline' })).toBeInTheDocument();
 	});
 });

@@ -84,7 +84,7 @@
 </script>
 
 {#if !ready}
-	<div class="boot" aria-busy="true">Memuat…</div>
+	<div class="boot" aria-busy="true">Loading…</div>
 {:else}
 	{@render children()}
 {/if}

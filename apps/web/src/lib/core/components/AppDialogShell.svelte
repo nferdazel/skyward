@@ -30,7 +30,7 @@
 <svelte:window onkeydown={onKeydown} />
 
 <div class="backdrop">
-	<button class="scrim" aria-label="Tutup dialog" onclick={onclose}></button>
+	<button class="scrim" aria-label="Close dialog" onclick={onclose}></button>
 	<div
 		class="dialog"
 		role="dialog"

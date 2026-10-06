@@ -35,7 +35,7 @@
 	}
 </script>
 
-<svelte:head><title>Skyward — Masuk</title></svelte:head>
+<svelte:head><title>Skyward — Sign in</title></svelte:head>
 
 <main class="auth">
 	<div class="panel">
@@ -48,13 +48,13 @@
 					role="tab"
 					aria-selected={mode === 'login'}
 					class:active={mode === 'login'}
-					onclick={() => (mode = 'login')}>Masuk</button
+					onclick={() => (mode = 'login')}>Sign in</button
 				>
 				<button
 					role="tab"
 					aria-selected={mode === 'register'}
 					class:active={mode === 'register'}
-					onclick={() => (mode = 'register')}>Daftar</button
+					onclick={() => (mode = 'register')}>Register</button
 				>
 			</div>
 
@@ -69,11 +69,11 @@
 				</label>
 				{#if mode === 'register'}
 					<label>
-						<span>Nama maskapai</span>
+						<span>Company name</span>
 						<input bind:value={companyName} />
 					</label>
 					<label>
-						<span>Nama CEO</span>
+						<span>CEO name</span>
 						<input bind:value={ceoName} />
 					</label>
 				{/if}
@@ -84,7 +84,7 @@
 
 				<div class="actions">
 					<AppButton
-						text={mode === 'login' ? 'Masuk' : 'Daftar'}
+						text={mode === 'login' ? 'Sign in' : 'Register'}
 						type="submit"
 						loading={submitting}
 						onclick={canSubmit ? submit : undefined}

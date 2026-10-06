@@ -88,7 +88,7 @@
 			class:active={view === 'list'}
 			onclick={() => (view = 'list')}
 		>
-			Daftar
+			List
 		</button>
 		<button
 			role="tab"
@@ -96,10 +96,10 @@
 			class:active={view === 'map'}
 			onclick={() => (view = 'map')}
 		>
-			Peta
+			Map
 		</button>
 		<div class="spacer"></div>
-		<AppButton text="Buka rute" onclick={openCreate} />
+		<AppButton text="Open route" onclick={openCreate} />
 	</div>
 
 	{#if store.state.error}
@@ -113,18 +113,21 @@
 	{:else}
 		<AppCard>
 			{#if store.state.routes.length === 0 && !store.state.loading}
-				<AppEmptyState title="Belum ada rute" description="Buka rute pertama antar bandara." />
+				<AppEmptyState
+					title="No routes yet"
+					description="Open your first route between airports."
+				/>
 			{:else}
 				<div class="table-wrap">
 					<table>
 						<thead>
 							<tr>
-								<th>Rute</th>
-								<th>Jarak</th>
-								<th>Harga</th>
+								<th>Route</th>
+								<th>Distance</th>
+								<th>Fare</th>
 								<th>Freq</th>
-								<th>Kontribusi/mgg</th>
-								<th>Aksi</th>
+								<th>Weekly contrib.</th>
+								<th>Actions</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -147,9 +150,13 @@
 										{/if}
 									</td>
 									<td class="actions">
-										<AppButton text="Atur" variant="secondary" onclick={() => openAdjust(r)} />
+										<AppButton text="Adjust" variant="secondary" onclick={() => openAdjust(r)} />
 										{#if r.assignedAircraftId}
-											<AppButton text="Lepas" variant="secondary" onclick={() => assign(r, null)} />
+											<AppButton
+												text="Unassign"
+												variant="secondary"
+												onclick={() => assign(r, null)}
+											/>
 										{/if}
 									</td>
 								</tr>
@@ -163,26 +170,24 @@
 </section>
 
 {#if dialog === 'create'}
-	<AppDialogShell title="Buka rute" onclose={() => (dialog = null)}>
+	<AppDialogShell title="Open route" onclose={() => (dialog = null)}>
 		{#snippet children()}
 			<label
-				><span>Asal (IATA)</span>
+				><span>Origin (IATA)</span>
 				<input bind:value={originIata} placeholder="SIN" />
 			</label>
 			<label
-				><span>Tujuan (IATA)</span>
+				><span>Destination (IATA)</span>
 				<input bind:value={destinationIata} placeholder="KUL" />
 			</label>
-			<p class="sub">Jarak: {Math.round(distanceKm)} km</p>
-			<label><span>Harga tiket</span><input type="number" bind:value={ticketPrice} /></label>
-			<label
-				><span>Frekuensi / minggu</span><input type="number" bind:value={flightsPerWeek} /></label
-			>
+			<p class="sub">Distance: {Math.round(distanceKm)} km</p>
+			<label><span>Ticket price</span><input type="number" bind:value={ticketPrice} /></label>
+			<label><span>Flights / week</span><input type="number" bind:value={flightsPerWeek} /></label>
 		{/snippet}
 		{#snippet actions()}
-			<AppButton text="Batal" variant="secondary" onclick={() => (dialog = null)} />
+			<AppButton text="Cancel" variant="secondary" onclick={() => (dialog = null)} />
 			<AppButton
-				text="Buka"
+				text="Open"
 				loading={busy}
 				onclick={originAirport && destAirport ? submitCreate : undefined}
 			/>
@@ -193,19 +198,17 @@
 {#if dialog === 'adjust' && selected}
 	{@const r = selected}
 	<AppDialogShell
-		title="Atur rute"
+		title="Adjust route"
 		subtitle="{r.originIata} → {r.destinationIata}"
 		onclose={() => (dialog = null)}
 	>
 		{#snippet children()}
-			<label><span>Harga tiket</span><input type="number" bind:value={ticketPrice} /></label>
-			<label
-				><span>Frekuensi / minggu</span><input type="number" bind:value={flightsPerWeek} /></label
-			>
+			<label><span>Ticket price</span><input type="number" bind:value={ticketPrice} /></label>
+			<label><span>Flights / week</span><input type="number" bind:value={flightsPerWeek} /></label>
 		{/snippet}
 		{#snippet actions()}
-			<AppButton text="Batal" variant="secondary" onclick={() => (dialog = null)} />
-			<AppButton text="Simpan" loading={busy} onclick={submitAdjust} />
+			<AppButton text="Cancel" variant="secondary" onclick={() => (dialog = null)} />
+			<AppButton text="Save" loading={busy} onclick={submitAdjust} />
 		{/snippet}
 	</AppDialogShell>
 {/if}

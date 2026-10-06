@@ -23,8 +23,8 @@
 
 <section>
 	<div class="head">
-		<h2>Papan peringkat</h2>
-		<AppButton text="Muat ulang" variant="secondary" onclick={() => store.load()} />
+		<h2>Leaderboard</h2>
+		<AppButton text="Reload" variant="secondary" onclick={() => store.load()} />
 	</div>
 
 	{#if store.state.error}
@@ -33,17 +33,17 @@
 
 	<AppCard>
 		{#if store.state.entries.length === 0 && !store.state.loading}
-			<AppEmptyState title="Papan kosong" description="Belum ada data peringkat." />
+			<AppEmptyState title="No rankings" description="No leaderboard data yet." />
 		{:else}
 			<div class="table-wrap">
 				<table>
 					<thead>
 						<tr>
 							<th>#</th>
-							<th>Maskapai</th>
+							<th>Airline</th>
 							<th>CEO</th>
-							<th>Nilai bersih</th>
-							<th>Armada</th>
+							<th>Net worth</th>
+							<th>Fleet</th>
 							<th>Status</th>
 							<th></th>
 						</tr>
@@ -62,7 +62,7 @@
 								<td>{entry.status}</td>
 								<td>
 									<AppButton
-										text="Detail"
+										text="Details"
 										variant="secondary"
 										onclick={() => openInsights(entry)}
 									/>
@@ -79,7 +79,7 @@
 {#if selected && store.state.insights}
 	{@const ins = store.state.insights}
 	<AppDialogShell
-		title="Detail kompetitor"
+		title="Competitor details"
 		subtitle={ins.companyName}
 		onclose={() => (selected = null)}
 	>
@@ -90,19 +90,19 @@
 					<dd>{ins.ceoName}</dd>
 				</div>
 				<div>
-					<dt>Kas</dt>
+					<dt>Cash</dt>
 					<dd>{money(ins.cash)}</dd>
 				</div>
 				<div>
-					<dt>Nilai bersih</dt>
+					<dt>Net worth</dt>
 					<dd>{money(ins.netWorth)}</dd>
 				</div>
 				<div>
-					<dt>Armada</dt>
+					<dt>Fleet</dt>
 					<dd>{ins.fleetSize}</dd>
 				</div>
 				<div>
-					<dt>Pendapatan/bln</dt>
+					<dt>Revenue/mo</dt>
 					<dd>{money(ins.monthlyRevenue)}</dd>
 				</div>
 				<div>
@@ -111,7 +111,7 @@
 				</div>
 			</dl>
 			{#if ins.networkRoutes.length > 0}
-				<p class="sub">Rute: {ins.networkRoutes.join(', ')}</p>
+				<p class="sub">Routes: {ins.networkRoutes.join(', ')}</p>
 			{/if}
 		{/snippet}
 		{#snippet actions()}

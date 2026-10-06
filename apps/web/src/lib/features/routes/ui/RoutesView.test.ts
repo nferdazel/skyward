@@ -78,6 +78,6 @@ describe('RoutesView', () => {
 
 	it('shows an empty state when there are no routes', () => {
 		render(RoutesView, { props: { store: makeStore({ routes: [] }) } });
-		expect(screen.getByText('Belum ada rute')).toBeInTheDocument();
+		expect(screen.getByText('No routes yet')).toBeInTheDocument();
 	});
 });

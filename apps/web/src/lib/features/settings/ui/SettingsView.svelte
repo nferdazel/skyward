@@ -34,7 +34,7 @@
 			autoGroundingThreshold: groundingThreshold
 		});
 		busy = false;
-		message = ok ? 'Pengaturan disimpan.' : (store.state.error ?? 'Gagal menyimpan.');
+		message = ok ? 'Settings saved.' : (store.state.error ?? 'Failed to save.');
 	}
 
 	async function doReset() {
@@ -42,7 +42,7 @@
 		const ok = await store.reset();
 		busy = false;
 		confirm = null;
-		message = ok ? 'Maskapai direset.' : (store.state.error ?? 'Gagal reset.');
+		message = ok ? 'Airline reset.' : (store.state.error ?? 'Reset failed.');
 	}
 
 	async function doDelete() {
@@ -51,22 +51,22 @@
 		busy = false;
 		confirm = null;
 		if (ok) auth.logout();
-		else message = store.state.error ?? 'Gagal menghapus akun.';
+		else message = store.state.error ?? 'Failed to delete account.';
 	}
 </script>
 
 <section>
-	<h2>Pengaturan</h2>
+	<h2>Settings</h2>
 
 	{#if message}
 		<p class="notice" role="status">{message}</p>
 	{/if}
 
 	<AppCard>
-		<h3>Profil maskapai</h3>
-		<label><span>Nama maskapai</span><input bind:value={companyName} /></label>
+		<h3>Airline profile</h3>
+		<label><span>Company name</span><input bind:value={companyName} /></label>
 		<label>
-			<span>Bandara pusat (IATA)</span>
+			<span>HQ airport (IATA)</span>
 			<input bind:value={hqAirportIata} list="airports" placeholder="SIN" />
 			<datalist id="airports">
 				{#each airportCodes as code (code)}
@@ -75,44 +75,44 @@
 			</datalist>
 		</label>
 		<label>
-			<span>Ambang auto-grounding (%)</span>
+			<span>Auto-grounding threshold (%)</span>
 			<input type="number" bind:value={groundingThreshold} />
 		</label>
-		<AppButton text="Simpan" loading={busy} onclick={companyName.trim() ? save : undefined} />
+		<AppButton text="Save" loading={busy} onclick={companyName.trim() ? save : undefined} />
 	</AppCard>
 
 	<AppCard>
-		<h3>Zona berbahaya</h3>
+		<h3>Danger zone</h3>
 		<p class="muted">
-			Reset mengembalikan maskapai ke kondisi awal. Hapus akun tidak bisa dibatalkan.
+			Reset restores the airline to its initial state. Deleting the account cannot be undone.
 		</p>
 		<div class="danger">
-			<AppButton text="Reset maskapai" variant="secondary" onclick={() => (confirm = 'reset')} />
-			<AppButton text="Hapus akun" variant="secondary" onclick={() => (confirm = 'delete')} />
+			<AppButton text="Reset airline" variant="secondary" onclick={() => (confirm = 'reset')} />
+			<AppButton text="Delete account" variant="secondary" onclick={() => (confirm = 'delete')} />
 		</div>
 	</AppCard>
 </section>
 
 {#if confirm === 'reset'}
-	<AppDialogShell title="Reset maskapai?" onclose={() => (confirm = null)}>
+	<AppDialogShell title="Reset airline?" onclose={() => (confirm = null)}>
 		{#snippet children()}
-			<p class="muted">Semua progres (armada, rute, keuangan) akan dikembalikan ke awal.</p>
+			<p class="muted">All progress (fleet, routes, finances) will be reset.</p>
 		{/snippet}
 		{#snippet actions()}
-			<AppButton text="Batal" variant="secondary" onclick={() => (confirm = null)} />
+			<AppButton text="Cancel" variant="secondary" onclick={() => (confirm = null)} />
 			<AppButton text="Reset" loading={busy} onclick={doReset} />
 		{/snippet}
 	</AppDialogShell>
 {/if}
 
 {#if confirm === 'delete'}
-	<AppDialogShell title="Hapus akun?" onclose={() => (confirm = null)}>
+	<AppDialogShell title="Delete account?" onclose={() => (confirm = null)}>
 		{#snippet children()}
-			<p class="muted">Tindakan ini permanen dan tidak bisa dibatalkan.</p>
+			<p class="muted">This action is permanent and cannot be undone.</p>
 		{/snippet}
 		{#snippet actions()}
-			<AppButton text="Batal" variant="secondary" onclick={() => (confirm = null)} />
-			<AppButton text="Hapus" loading={busy} onclick={doDelete} />
+			<AppButton text="Cancel" variant="secondary" onclick={() => (confirm = null)} />
+			<AppButton text="Delete" loading={busy} onclick={doDelete} />
 		{/snippet}
 	</AppDialogShell>
 {/if}

@@ -33,7 +33,7 @@
 			class:active={view === 'overview'}
 			onclick={() => (view = 'overview')}
 		>
-			Ringkasan
+			Overview
 		</button>
 		<button
 			role="tab"
@@ -41,30 +41,30 @@
 			class:active={view === 'ifrs'}
 			onclick={() => (view = 'ifrs')}
 		>
-			Laporan IFRS
+			IFRS report
 		</button>
 	</div>
 
 	{#if view === 'overview'}
 		<div class="grid">
 			<AppCard>
-				<h3>Kas</h3>
+				<h3>Cash</h3>
 				<span class="big">{money(snapshot.cash)}</span>
 			</AppCard>
 			<AppCard>
-				<h3>Nilai bersih</h3>
+				<h3>Net worth</h3>
 				<span class="big">{money(snapshot.netWorth)}</span>
 			</AppCard>
 			<AppCard>
-				<h3>Pendapatan 30h</h3>
+				<h3>Revenue 30d</h3>
 				<span class="big success">{money(snapshot.rollingRevenue30d)}</span>
 			</AppCard>
 			<AppCard>
-				<h3>Beban 30h</h3>
+				<h3>Expense 30d</h3>
 				<span class="big error">{money(snapshot.rollingExpense30d)}</span>
 			</AppCard>
 			<AppCard>
-				<h3>Bersih 30h</h3>
+				<h3>Net 30d</h3>
 				<span
 					class="big"
 					class:success={snapshot.rollingNet30d >= 0}
@@ -74,70 +74,70 @@
 				</span>
 			</AppCard>
 			<AppCard>
-				<h3>Armada / rute</h3>
+				<h3>Fleet / routes</h3>
 				<span class="big">{snapshot.fleetCount} / {snapshot.activeRouteCount}</span>
 			</AppCard>
 		</div>
 	{:else if store.state.transactions.length === 0}
-		<AppEmptyState title="Belum ada transaksi" description="Laporan IFRS butuh data ledger." />
+		<AppEmptyState title="No transactions" description="The IFRS report needs ledger data." />
 	{:else}
 		<div class="grid ifrs">
 			<AppCard>
-				<h3>Laba / Rugi</h3>
+				<h3>Profit & Loss</h3>
 				<table>
 					<tbody>
-						<tr><td>Penjualan tiket</td><td>{money(income.ticketSales)}</td></tr>
-						<tr><td>Kargo</td><td>{money(income.cargoRevenue)}</td></tr>
-						<tr class="total"><td>Total pendapatan</td><td>{money(income.totalRevenue)}</td></tr>
-						<tr><td>Bahan bakar</td><td>{money(income.fuel)}</td></tr>
-						<tr><td>Kru</td><td>{money(income.crew)}</td></tr>
-						<tr><td>Pemeliharaan</td><td>{money(income.maintenance)}</td></tr>
-						<tr><td>Biaya bandara</td><td>{money(income.airportFees)}</td></tr>
-						<tr><td>Sewa armada</td><td>{money(income.fleetLeasing)}</td></tr>
-						<tr><td>Perbaikan</td><td>{money(income.hangarRepairs)}</td></tr>
+						<tr><td>Ticket sales</td><td>{money(income.ticketSales)}</td></tr>
+						<tr><td>Cargo</td><td>{money(income.cargoRevenue)}</td></tr>
+						<tr class="total"><td>Total revenue</td><td>{money(income.totalRevenue)}</td></tr>
+						<tr><td>Fuel</td><td>{money(income.fuel)}</td></tr>
+						<tr><td>Crew</td><td>{money(income.crew)}</td></tr>
+						<tr><td>Maintenance</td><td>{money(income.maintenance)}</td></tr>
+						<tr><td>Airport fees</td><td>{money(income.airportFees)}</td></tr>
+						<tr><td>Fleet leasing</td><td>{money(income.fleetLeasing)}</td></tr>
+						<tr><td>Repairs</td><td>{money(income.hangarRepairs)}</td></tr>
 						<tr class="total"
-							><td>Total biaya operasi</td><td>{money(income.totalOperatingCosts)}</td></tr
+							><td>Total operating costs</td><td>{money(income.totalOperatingCosts)}</td></tr
 						>
-						<tr class="total"><td>Laba bersih</td><td>{money(income.netIncome)}</td></tr>
+						<tr class="total"><td>Net income</td><td>{money(income.netIncome)}</td></tr>
 					</tbody>
 				</table>
 			</AppCard>
 
 			<AppCard>
-				<h3>Neraca</h3>
+				<h3>Balance sheet</h3>
 				<table>
 					<tbody>
-						<tr><td>Kas</td><td>{money(sheet.cash)}</td></tr>
-						<tr><td>Nilai armada</td><td>{money(sheet.fleetNetBookValue)}</td></tr>
-						<tr class="total"><td>Total aset</td><td>{money(sheet.totalAssets)}</td></tr>
-						<tr><td>Pinjaman</td><td>{money(sheet.outstandingLoans)}</td></tr>
-						<tr class="total"><td>Total liabilitas</td><td>{money(sheet.totalLiabilities)}</td></tr>
-						<tr class="total"><td>Ekuitas</td><td>{money(sheet.totalEquity)}</td></tr>
+						<tr><td>Cash</td><td>{money(sheet.cash)}</td></tr>
+						<tr><td>Fleet value</td><td>{money(sheet.fleetNetBookValue)}</td></tr>
+						<tr class="total"><td>Total assets</td><td>{money(sheet.totalAssets)}</td></tr>
+						<tr><td>Loans</td><td>{money(sheet.outstandingLoans)}</td></tr>
+						<tr class="total"><td>Total liabilities</td><td>{money(sheet.totalLiabilities)}</td></tr
+						>
+						<tr class="total"><td>Equity</td><td>{money(sheet.totalEquity)}</td></tr>
 					</tbody>
 				</table>
 			</AppCard>
 
 			<AppCard>
-				<h3>Arus kas</h3>
+				<h3>Cash flows</h3>
 				<table>
 					<tbody>
-						<tr><td>Masuk operasi</td><td>{money(cashflows.revenueInflows)}</td></tr>
-						<tr><td>Keluar operasi</td><td>{money(cashflows.operatingOutflows)}</td></tr>
-						<tr class="total"><td>Arus operasi</td><td>{money(cashflows.operatingCashFlow)}</td></tr
-						>
-						<tr><td>Belanja modal</td><td>{money(cashflows.capitalExpenditure)}</td></tr>
-						<tr><td>Penjualan pesawat</td><td>{money(cashflows.aircraftSales)}</td></tr>
+						<tr><td>Operating inflow</td><td>{money(cashflows.revenueInflows)}</td></tr>
+						<tr><td>Operating outflow</td><td>{money(cashflows.operatingOutflows)}</td></tr>
 						<tr class="total"
-							><td>Arus investasi</td><td>{money(cashflows.investingCashFlow)}</td></tr
+							><td>Operating cash flow</td><td>{money(cashflows.operatingCashFlow)}</td></tr
 						>
-						<tr><td>Pencairan pinjaman</td><td>{money(cashflows.loanProceeds)}</td></tr>
-						<tr><td>Pembayaran pinjaman</td><td>{money(cashflows.loanRepayments)}</td></tr>
+						<tr><td>Capital expenditure</td><td>{money(cashflows.capitalExpenditure)}</td></tr>
+						<tr><td>Aircraft sales</td><td>{money(cashflows.aircraftSales)}</td></tr>
 						<tr class="total"
-							><td>Arus pendanaan</td><td>{money(cashflows.financingCashFlow)}</td></tr
+							><td>Investing cash flow</td><td>{money(cashflows.investingCashFlow)}</td></tr
 						>
+						<tr><td>Loan proceeds</td><td>{money(cashflows.loanProceeds)}</td></tr>
+						<tr><td>Loan repayments</td><td>{money(cashflows.loanRepayments)}</td></tr>
 						<tr class="total"
-							><td>Perubahan kas bersih</td><td>{money(cashflows.netCashChange)}</td></tr
+							><td>Financing cash flow</td><td>{money(cashflows.financingCashFlow)}</td></tr
 						>
+						<tr class="total"><td>Net cash change</td><td>{money(cashflows.netCashChange)}</td></tr>
 					</tbody>
 				</table>
 			</AppCard>

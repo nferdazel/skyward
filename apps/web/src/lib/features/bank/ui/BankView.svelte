@@ -68,7 +68,7 @@
 <section>
 	<div class="head">
 		<h2>Bank</h2>
-		<AppButton text="Ambil pinjaman" onclick={openLoan} />
+		<AppButton text="Take loan" onclick={openLoan} />
 	</div>
 
 	{#if store.state.error}
@@ -77,25 +77,25 @@
 
 	<div class="grid">
 		<AppCard>
-			<h3>Kas & akun</h3>
+			<h3>Cash & accounts</h3>
 			<dl>
 				<div>
-					<dt>Akun operasional</dt>
+					<dt>Operating account</dt>
 					<dd>{money(store.operatingAccount?.balance ?? 0)}</dd>
 				</div>
 				<div>
-					<dt>Jumlah akun</dt>
+					<dt>Accounts</dt>
 					<dd>{store.state.accounts.length}</dd>
 				</div>
 			</dl>
 		</AppCard>
 
 		<AppCard>
-			<h3>Kredit</h3>
+			<h3>Credit</h3>
 			{#if credit}
 				<dl>
 					<div>
-						<dt>Skor</dt>
+						<dt>Score</dt>
 						<dd>{credit.currentScore}</dd>
 					</div>
 					<div>
@@ -103,15 +103,15 @@
 						<dd>{credit.creditTier}</dd>
 					</div>
 					<div>
-						<dt>Maks tanpa jaminan</dt>
+						<dt>Max unsecured</dt>
 						<dd>{money(credit.maxUnsecuredLoan)}</dd>
 					</div>
 					<div>
-						<dt>Bunga tanpa jaminan</dt>
+						<dt>Unsecured rate</dt>
 						<dd>{pct(credit.unsecuredInterestRate)}</dd>
 					</div>
 					<div>
-						<dt>Maks pinjaman aktif</dt>
+						<dt>Max active loans</dt>
 						<dd>{credit.maxActiveLoans}</dd>
 					</div>
 				</dl>
@@ -123,27 +123,27 @@
 					</ul>
 				{/if}
 			{:else}
-				<p class="muted">Laporan kredit belum termuat.</p>
+				<p class="muted">Credit report not loaded.</p>
 			{/if}
 		</AppCard>
 	</div>
 
 	<AppCard>
-		<h3>Pinjaman</h3>
+		<h3>Loans</h3>
 		{#if store.state.loans.length === 0}
-			<AppEmptyState title="Tidak ada pinjaman" description="Belum ada pinjaman aktif." />
+			<AppEmptyState title="No loans" description="No active loans." />
 		{:else}
 			<div class="table-wrap">
 				<table>
 					<thead>
 						<tr>
-							<th>Tipe</th>
-							<th>Pokok</th>
-							<th>Sisa</th>
-							<th>Bunga</th>
+							<th>Type</th>
+							<th>Principal</th>
+							<th>Remaining</th>
+							<th>Rate</th>
 							<th>Progress</th>
 							<th>Status</th>
-							<th>Aksi</th>
+							<th>Actions</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -162,7 +162,7 @@
 								</td>
 								<td class="actions">
 									{#if isActiveLoan(l)}
-										<AppButton text="Bayar" variant="secondary" onclick={() => openRepay(l)} />
+										<AppButton text="Repay" variant="secondary" onclick={() => openRepay(l)} />
 										<AppButton text="Refinance" variant="secondary" onclick={() => refinance(l)} />
 									{/if}
 								</td>
@@ -177,10 +177,10 @@
 
 {#if dialog === 'loan' && credit}
 	{@const c = credit}
-	<AppDialogShell title="Ambil pinjaman" onclose={() => (dialog = null)}>
+	<AppDialogShell title="Take loan" onclose={() => (dialog = null)}>
 		{#snippet children()}
-			<label><span>Pokok pinjaman</span><input type="number" bind:value={principal} /></label>
-			<label><span>Tenor (minggu)</span><input type="number" bind:value={termWeeks} /></label>
+			<label><span>Principal</span><input type="number" bind:value={principal} /></label>
+			<label><span>Term (weeks)</span><input type="number" bind:value={termWeeks} /></label>
 			<p class="sub">
 				Min {money(c.minLoanAmount)} · maks tanpa jaminan {money(c.maxUnsecuredLoan)} · bunga {pct(
 					c.unsecuredInterestRate
@@ -188,8 +188,8 @@
 			</p>
 		{/snippet}
 		{#snippet actions()}
-			<AppButton text="Batal" variant="secondary" onclick={() => (dialog = null)} />
-			<AppButton text="Ambil" loading={busy} onclick={principal > 0 ? submitLoan : undefined} />
+			<AppButton text="Cancel" variant="secondary" onclick={() => (dialog = null)} />
+			<AppButton text="Take loan" loading={busy} onclick={principal > 0 ? submitLoan : undefined} />
 		{/snippet}
 	</AppDialogShell>
 {/if}
@@ -197,19 +197,19 @@
 {#if dialog === 'repay' && selected}
 	{@const l = selected}
 	<AppDialogShell
-		title="Bayar pinjaman"
-		subtitle="Sisa {money(l.remainingBalance)}"
+		title="Repay loan"
+		subtitle="Remaining {money(l.remainingBalance)}"
 		onclose={() => (dialog = null)}
 	>
 		{#snippet children()}
 			<label>
-				<span>Jumlah (kosongkan = lunas)</span>
+				<span>Amount (blank = pay off)</span>
 				<input type="number" bind:value={repayAmount} />
 			</label>
 		{/snippet}
 		{#snippet actions()}
-			<AppButton text="Batal" variant="secondary" onclick={() => (dialog = null)} />
-			<AppButton text="Bayar" loading={busy} onclick={submitRepay} />
+			<AppButton text="Cancel" variant="secondary" onclick={() => (dialog = null)} />
+			<AppButton text="Repay" loading={busy} onclick={submitRepay} />
 		{/snippet}
 	</AppDialogShell>
 {/if}

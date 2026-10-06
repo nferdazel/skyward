@@ -28,7 +28,7 @@
 						{#if empty}
 							{@render empty()}
 						{:else}
-							Tidak ada data.
+							No data.
 						{/if}
 					</td>
 				</tr>

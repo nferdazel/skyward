@@ -46,11 +46,11 @@ describe('BankView', () => {
 		expect(screen.getByText('$12,345')).toBeInTheDocument();
 		expect(screen.getByText('Gold')).toBeInTheDocument();
 		expect(screen.getByText('$100,000')).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: 'Bayar' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Repay' })).toBeInTheDocument();
 	});
 
 	it('shows an empty state when there are no loans', () => {
 		render(BankView, { props: { store: makeStore({ loans: [] }) } });
-		expect(screen.getByText('Tidak ada pinjaman')).toBeInTheDocument();
+		expect(screen.getByText('No loans')).toBeInTheDocument();
 	});
 });
