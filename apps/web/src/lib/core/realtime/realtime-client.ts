@@ -62,6 +62,8 @@ export class RealtimeClient {
 	private generation = 0;
 	private reconnectScheduledForGeneration = -1;
 	private connectionHealthy = false;
+	/** True only once the socket's onopen has fired (guards send() calls). */
+	private socketOpen = false;
 
 	private readonly listeners = new Set<(event: RealtimeEvent) => void>();
 
@@ -138,18 +140,23 @@ export class RealtimeClient {
 
 		this.socket = socket;
 		this.connectionHealthy = false;
+		this.socketOpen = false;
 		this.reconnectScheduledForGeneration = -1;
 
+		socket.onopen = () => {
+			if (generation !== this.generation) return;
+			this.socketOpen = true;
+			// Subscribe channel aktif begitu koneksi benar-benar terbuka
+			// (mengirim sebelum open memicu "Still in CONNECTING state").
+			if (this.channelRefs.size > 0) {
+				this.sendChannels([...this.channelRefs.keys()], 'subscribe');
+			}
+		};
 		socket.onmessage = (event) => this.onMessage(event.data, generation);
 		socket.onerror = () => this.onError(generation);
 		socket.onclose = () => this.onDone(generation);
 
 		this.pingTimer = this.timers.setInterval(() => this.ping(), this.pingIntervalMs);
-
-		// Resubscribe channel aktif (ref count tidak berubah).
-		if (this.channelRefs.size > 0) {
-			this.sendChannels([...this.channelRefs.keys()], 'subscribe');
-		}
 	}
 
 	subscribe(channels: string[]): void {
@@ -177,6 +184,7 @@ export class RealtimeClient {
 	}
 
 	ping(): void {
+		if (!this.socketOpen) return;
 		this.socket?.send(JSON.stringify({ action: 'ping' }));
 	}
 
@@ -191,6 +199,7 @@ export class RealtimeClient {
 		this.socket?.close();
 		this.socket = null;
 		this.connectionHealthy = false;
+		this.socketOpen = false;
 	}
 
 	dispose(): void {
@@ -199,7 +208,7 @@ export class RealtimeClient {
 	}
 
 	private sendChannels(channels: string[], action: 'subscribe' | 'unsubscribe'): void {
-		if (this.socket === null || channels.length === 0) return;
+		if (!this.socketOpen || this.socket === null || channels.length === 0) return;
 		this.socket.send(JSON.stringify({ action, channels }));
 	}
 
@@ -230,6 +239,7 @@ export class RealtimeClient {
 		this.clearPing();
 		this.socket?.close();
 		this.socket = null;
+		this.socketOpen = false;
 	}
 
 	private onMessage(data: unknown, generation: number): void {

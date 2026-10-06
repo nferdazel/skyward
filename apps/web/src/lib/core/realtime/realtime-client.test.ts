@@ -19,6 +19,10 @@ class MockSocket implements SocketLike {
 	receive(payload: unknown): void {
 		this.onmessage?.({ data: JSON.stringify(payload) });
 	}
+	/** Bantu test: simulasikan koneksi terbuka (onopen). */
+	open(): void {
+		this.onopen?.();
+	}
 	drop(): void {
 		this.onclose?.();
 	}
@@ -61,6 +65,7 @@ describe('RealtimeClient', () => {
 		const { client, sockets } = makeClient();
 		await client.connect();
 		const sock = sockets[0];
+		sock.open(); // subscriptions are only sent once the socket is open
 
 		client.subscribe(['users']);
 		client.subscribe(['users']); // kedua pemegang
@@ -72,6 +77,19 @@ describe('RealtimeClient', () => {
 		client.unsubscribe(['users']); // habis → unsubscribe terkirim
 		expect(sock.sent).toHaveLength(2);
 		expect(JSON.parse(sock.sent[1])).toEqual({ action: 'unsubscribe', channels: ['users'] });
+	});
+
+	it('does not send before the socket is open (avoids CONNECTING-state error)', async () => {
+		const { client, sockets } = makeClient();
+		await client.connect();
+		const sock = sockets[0];
+
+		// Subscribing before onopen must be buffered, not sent.
+		client.subscribe(['users']);
+		expect(sock.sent).toHaveLength(0);
+
+		sock.open(); // onopen fires → the pending channel is now subscribed
+		expect(sock.sent).toEqual([JSON.stringify({ action: 'subscribe', channels: ['users'] })]);
 	});
 
 	it('delivers server events to listeners', async () => {
