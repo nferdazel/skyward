@@ -1,9 +1,10 @@
 /**
- * Skyward design tokens — dark-only "aviation command" system.
- * Ported from the Flutter client (core/theme/skyward_colors.dart,
- * presentation/theme/app_spacing.dart, app_typography.dart).
+ * Skyward design tokens — "aviation command" theme (PFD/ATC inspired).
+ * Monochrome base; colour encodes operational meaning only.
  *
- * Colour encodes operational meaning only; the base is monochrome.
+ * Ported faithfully from the Flutter client:
+ *   core/theme/skyward_colors.dart, app_theme.dart,
+ *   presentation/theme/{app_typography,app_motion,app_spacing}.dart
  */
 
 :root {
@@ -14,19 +15,19 @@
 	--color-surface-3: #1e2633;
 	--color-surface-active: #242e3d;
 
-	/* ── Borders (zero-shadow architecture) ── */
+	/* ── Borders (zero-elevation architecture) ── */
 	--color-border: rgb(255 255 255 / 0.1);
 	--color-border-subtle: rgb(255 255 255 / 0.05);
 	--color-border-highlight: rgb(255 255 255 / 0.15);
 	--color-border-focus: #5b9ee0;
 
-	/* ── Primary: HUD Blue ── */
+	/* ── Primary: HUD blue ── */
 	--color-accent: #5b9ee0;
 	--color-accent-bright: #8dbff0;
 	--color-accent-subtle: rgb(91 158 224 / 0.1);
 	--color-accent-ghost: rgb(91 158 224 / 0.05);
 
-	/* ── Secondary: ATC Teal ── */
+	/* ── Secondary: ATC teal ── */
 	--color-teal: #3aafa0;
 	--color-teal-subtle: rgb(58 175 160 / 0.1);
 
@@ -40,8 +41,8 @@
 	--color-neutral: #758489;
 
 	/* ── Tier / condition ── */
-	--color-tier-platinum: #e5e4e2;
-	--color-tier-gold: #ffd700;
+	--color-platinum: #e5e4e2;
+	--color-gold: #ffd700;
 	--color-orange: #d98e4e;
 
 	/* ── Text ── */
@@ -84,11 +85,26 @@
 	--font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
 	--font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
 
+	/* Type scale (from app_theme.dart / app_typography.dart) */
+	--text-display: 22px;
+	--text-title: 16px;
+	--text-body: 14px;
+	--text-body-sm: 13px;
+	--text-label: 11px;
+	--leading-body: 1.4;
+	--tracking-label: 0.08em;
+	--tracking-wide: 0.12em;
+	--tracking-tight: 0.04em;
+	--tracking-brand: 0.3em;
+
 	/* ── Motion ── */
 	--motion-fast: 120ms;
 	--motion-base: 180ms;
 	--motion-slow: 280ms;
+	--motion-slower: 420ms;
 	--motion-ease: cubic-bezier(0.2, 0, 0, 1);
+	--motion-ease-out: cubic-bezier(0, 0, 0.2, 1);
+	--press-scale: 0.97;
 }
 
 *,
@@ -103,5 +119,26 @@ body {
 	background: var(--color-bg);
 	color: var(--color-text-primary);
 	font-family: var(--font-sans);
+	font-size: var(--text-body);
+	line-height: var(--leading-body);
 	color-scheme: dark;
+}
+
+h1,
+h2,
+h3,
+h4 {
+	margin: 0;
+	font-weight: 600;
+	color: var(--color-text-primary);
+}
+
+/* Utility: tabular numerals for money/quantities. */
+.tnum {
+	font-variant-numeric: tabular-nums;
+}
+
+/* Utility: monospaced code. */
+.mono {
+	font-family: var(--font-mono);
 }
