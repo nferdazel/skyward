@@ -46,9 +46,11 @@
 	--color-orange: #d98e4e;
 
 	/* ── Text ── */
+	/* WCAG AA verified on the darkest surface (#0F1319). The Flutter original
+	   used #64748B for "dim" claiming AA; measured 3.91:1 — corrected. */
 	--color-text-primary: #dde2ea;
-	--color-text-secondary: #8090a3;
-	--color-text-muted: #64748b;
+	--color-text-secondary: #909fb3;
+	--color-text-muted: #8a99ad;
 
 	/* ── Opacity scale ── */
 	--opacity-subtle: 0.06;
@@ -141,4 +143,25 @@ h4 {
 /* Utility: monospaced code. */
 .mono {
 	font-family: var(--font-mono);
+}
+
+/*
+ * Global keyboard-focus baseline (WCAG 2.4.7 / 1.4.11). Every interactive
+ * element gets a visible, high-contrast ring (accent #5B9EE0 is 6.57:1 on
+ * surface, well over the 3:1 non-text minimum). Components may override with
+ * their own :focus-visible treatment, but must keep it visible.
+ */
+:focus-visible {
+	outline: 2px solid var(--color-border-focus);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
 }

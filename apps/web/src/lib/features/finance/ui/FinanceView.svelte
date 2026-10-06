@@ -74,6 +74,9 @@
 	/>
 
 	{#if tab === 'overview'}
+		{#if store.state.loading && store.state.transactions.length === 0}
+			<p class="muted" role="status" aria-live="polite">Loading financial data…</p>
+		{/if}
 		<CraftCard>
 			<div class="hero">
 				<div class="kpi">

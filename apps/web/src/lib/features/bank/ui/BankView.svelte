@@ -81,6 +81,10 @@
 		<p class="err" role="alert">{store.state.error}</p>
 	{/if}
 
+	{#if store.state.loading && !credit && activeLoans.length === 0}
+		<p class="muted" role="status" aria-live="polite">Loading bank data…</p>
+	{/if}
+
 	<div class="grid">
 		{#if credit}
 			{@const tierColor = creditTierColor(credit.creditTier)}

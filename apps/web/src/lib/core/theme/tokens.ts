@@ -46,9 +46,13 @@ export const colors = {
 	orange: '#D98E4E',
 
 	// ── Text ──
+	// Contrast verified against WCAG AA (4.5:1 normal, 3:1 large) on the
+	// darkest surface (#0F1319). The Flutter original claimed #64748B "passes
+	// AA"; measured it is 3.91:1 on surface (4.14:1 on bg) — it failed. Corrected
+	// to #8A99AD (6.42 / 5.90 / 4.72 on surface / surface2 / surface-active).
 	textPrimary: '#DDE2EA',
-	textSecondary: '#8090A3',
-	textMuted: '#64748B'
+	textSecondary: '#909FB3',
+	textMuted: '#8A99AD'
 } as const;
 
 /** Spacing — 4px grid. */
