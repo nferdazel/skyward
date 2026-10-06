@@ -4,8 +4,13 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { services } from '$lib/core/di/services';
+	import { appStores } from '$lib/core/di/stores-context.svelte';
 	import { createAppStores, type AppStores } from '$lib/core/di/app-stores.svelte';
-	import { setAppStores } from '$lib/core/di/stores-context.svelte';
+	import {
+		setAppStores,
+		clearAppStores,
+		setAuthStoreRef
+	} from '$lib/core/di/stores-context.svelte';
 	import { wireStores } from '$lib/core/di/wire-stores';
 	import { AuthStore } from '$lib/features/auth/state/auth-store.svelte';
 	import { setAuthStore } from '$lib/features/auth/state/auth-context.svelte';
@@ -16,6 +21,7 @@
 	// Composition root: satu AuthStore untuk seluruh app.
 	const auth = new AuthStore(createAuthGateway());
 	setAuthStore(auth);
+	setAuthStoreRef(auth);
 
 	// 401 global dari ApiClient memicu logout terpusat.
 	services.onUnauthorized = () => auth.logout();
@@ -57,9 +63,16 @@
 			});
 		} else {
 			sessionKey = null;
+			clearAppStores();
 			services.realtimeClient.disconnect();
 		}
 	});
+
+	// Halaman hanya dirender bila sesi sudah punya stores (atau kita di /login,
+	// yang tak butuh stores). Mencegah anak memanggil requireAppStores() terlalu
+	// awal — penyebab error "AppStores tidak tersedia".
+	const onLoginPage = $derived(page.url.pathname === '/login');
+	const ready = $derived(booted && (appStores.stores !== null || onLoginPage));
 
 	// Guard: setelah boot, arahkan ke /login bila belum tersesat.
 	$effect(() => {
@@ -70,7 +83,7 @@
 	});
 </script>
 
-{#if !booted}
+{#if !ready}
 	<div class="boot" aria-busy="true">Memuat…</div>
 {:else}
 	{@render children()}

@@ -10,10 +10,11 @@
 	import SettingsView from '$lib/features/settings/ui/SettingsView.svelte';
 	import SkywardSonner from '$lib/core/components/SkywardSonner.svelte';
 	import { getAuthStore } from '$lib/features/auth/state/auth-context.svelte';
-	import { getAppStores } from '$lib/core/di/stores-context.svelte';
+	import { appStores } from '$lib/core/di/stores-context.svelte';
 
 	const auth = getAuthStore();
-	const stores = getAppStores();
+	// Layout hanya merender halaman ini saat stores siap.
+	const stores = $derived(appStores.stores!);
 
 	const fmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 	const money = (n: number) => `$${fmt.format(Math.round(n))}`;
