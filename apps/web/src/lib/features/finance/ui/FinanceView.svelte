@@ -1,214 +1,211 @@
 <script lang="ts">
-	import AppCard from '$lib/core/components/AppCard.svelte';
-	import AppEmptyState from '$lib/core/components/AppEmptyState.svelte';
+	import CraftCard from '$lib/core/components/CraftCard.svelte';
+	import AppSparkline from '$lib/core/components/AppSparkline.svelte';
+	import SegmentedPillControl from '$lib/core/components/SegmentedPillControl.svelte';
+	import BankView from '$lib/features/bank/ui/BankView.svelte';
+	import LedgerTable from './LedgerTable.svelte';
+	import IfrsReportPanel from './IfrsReportPanel.svelte';
 	import type { FinanceStore } from '../state/finance-store.svelte';
-	import {
-		buildBalanceSheet,
-		buildCashFlows,
-		buildIncomeStatement
-	} from '../domain/ifrs-report-builder';
+	import type { BankStore } from '$lib/features/bank/state/bank-store.svelte';
+	import { buildFinanceOverview, operatingMargin } from '../domain/finance-overview';
+	import { financeTotals } from '$lib/features/dashboard/domain/overview-snapshot';
+	import { colors } from '$lib/core/theme/tokens';
 
-	type Props = { store: FinanceStore };
-	let { store }: Props = $props();
+	/**
+	 * Finance view. Ported from Flutter `FinanceView`: 4 segmented tabs
+	 * (Overview / Ledger / Reports / Bank). Overview = health hero KPI row;
+	 * Reports = IFRS panel; Bank reuses the bank panel.
+	 */
+	type Props = { store: FinanceStore; bankStore: BankStore };
+	let { store, bankStore }: Props = $props();
 
-	let view = $state<'overview' | 'ifrs'>('overview');
+	let tab = $state<'overview' | 'ledger' | 'reports' | 'bank'>('overview');
 
-	const num = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
-	const money = (n: number) => `$${num.format(Math.round(n))}`;
+	const fmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+	const money = (n: number) => `$${fmt.format(Math.round(n))}`;
 
-	// Laporan disusun dari transaksi (agregasi tampilan, bukan ekonomi otoritatif).
-	const income = $derived(buildIncomeStatement(store.state.transactions));
-	const cashflows = $derived(buildCashFlows(store.state.transactions));
-	// Liabilitas pinjaman berasal dari store bank; bila tak disediakan, 0
-	// (neraca tetap seimbang karena ekuitas = residual).
-	const sheet = $derived(buildBalanceSheet(store.state.snapshot, 0));
+	const totals = $derived(financeTotals(store.state.transactions));
 	const snapshot = $derived(store.state.snapshot);
+	const weeklyDebt = $derived(
+		bankStore.state.loans
+			.filter((l) => l.status === 'active')
+			.reduce((s, l) => s + l.weeklyPayment, 0)
+	);
+
+	const overview = $derived(
+		buildFinanceOverview({
+			snapshot,
+			totalLease: totals.totalLease,
+			totalOperations: totals.totalOperations,
+			totalRepair: 0,
+			totalPurchase: 0,
+			totalExpense: totals.totalExpense,
+			weeklyDebtPayment: weeklyDebt
+		})
+	);
+
+	const margin = $derived(operatingMargin(totals.totalRevenue, totals.totalExpense));
+	const net30d = $derived(snapshot.rollingNet30d);
+
+	const cashTrend = $derived(snapshot.cash > 0 ? [snapshot.cash, snapshot.cash] : [0, 0]);
+	const netWorthTrend = $derived(
+		snapshot.netWorth > 0 ? [snapshot.netWorth, snapshot.netWorth] : [0, 0]
+	);
+
+	const coverageColor = $derived(
+		overview.coverageColor === 'success' ? colors.success : colors.warning
+	);
+	const marginColor = $derived(
+		margin > 20 ? colors.success : margin > 5 ? colors.warning : colors.error
+	);
+	const netColor = $derived(net30d >= 0 ? colors.success : colors.error);
 </script>
 
 <section>
-	<div class="tabs" role="tablist">
-		<button
-			role="tab"
-			aria-selected={view === 'overview'}
-			class:active={view === 'overview'}
-			onclick={() => (view = 'overview')}
-		>
-			Overview
-		</button>
-		<button
-			role="tab"
-			aria-selected={view === 'ifrs'}
-			class:active={view === 'ifrs'}
-			onclick={() => (view = 'ifrs')}
-		>
-			IFRS report
-		</button>
-	</div>
+	<SegmentedPillControl
+		items={[
+			{ value: 'overview', label: 'Overview' },
+			{ value: 'ledger', label: 'Ledger' },
+			{ value: 'reports', label: 'Reports' },
+			{ value: 'bank', label: 'Bank' }
+		]}
+		selected={tab}
+		onselect={(v) => (tab = v as 'overview' | 'ledger' | 'reports' | 'bank')}
+	/>
 
-	{#if view === 'overview'}
-		<div class="grid">
-			<AppCard>
-				<h3>Cash</h3>
-				<span class="big">{money(snapshot.cash)}</span>
-			</AppCard>
-			<AppCard>
-				<h3>Net worth</h3>
-				<span class="big">{money(snapshot.netWorth)}</span>
-			</AppCard>
-			<AppCard>
-				<h3>Revenue 30d</h3>
-				<span class="big success">{money(snapshot.rollingRevenue30d)}</span>
-			</AppCard>
-			<AppCard>
-				<h3>Expense 30d</h3>
-				<span class="big error">{money(snapshot.rollingExpense30d)}</span>
-			</AppCard>
-			<AppCard>
-				<h3>Net 30d</h3>
-				<span
-					class="big"
-					class:success={snapshot.rollingNet30d >= 0}
-					class:error={snapshot.rollingNet30d < 0}
-				>
-					{money(snapshot.rollingNet30d)}
-				</span>
-			</AppCard>
-			<AppCard>
-				<h3>Fleet / routes</h3>
-				<span class="big">{snapshot.fleetCount} / {snapshot.activeRouteCount}</span>
-			</AppCard>
+	{#if tab === 'overview'}
+		<CraftCard>
+			<div class="hero">
+				<div class="kpi">
+					<span class="k">Cash</span>
+					<span class="v tnum">{money(snapshot.cash)}</span>
+					<AppSparkline values={cashTrend} color="var(--color-accent)" />
+				</div>
+				<span class="vline"></span>
+				<div class="kpi">
+					<span class="k">Net worth</span>
+					<span class="v tnum" style="color: {colors.accent};">{money(snapshot.netWorth)}</span>
+					<div class="sub-row">
+						<AppSparkline values={netWorthTrend} color="var(--color-accent)" />
+						<span class="muted"
+							>{snapshot.ownedFleetCount} owned / {snapshot.leasedFleetCount} leased</span
+						>
+					</div>
+				</div>
+				<span class="vline"></span>
+				<div class="kpi">
+					<span class="k">Net 30d</span>
+					<span class="v tnum" style="color: {netColor};"
+						>{net30d >= 0 ? '+' : '-'}{money(Math.abs(net30d))}</span
+					>
+					<div class="sub-row">
+						<span style="color: {netColor};">{net30d >= 0 ? 'Profit' : 'Loss'}</span>
+					</div>
+				</div>
+				<span class="vline"></span>
+				<div class="kpi">
+					<span class="k">Runway</span>
+					<span class="v" style="color: {overview.runwayColor};">{overview.runwayLabel}</span>
+					<span class="muted" title={overview.runwayVerdict} style="color: {coverageColor};"
+						>{overview.coverageLabel}</span
+					>
+				</div>
+				<span class="vline"></span>
+				<div class="kpi">
+					<span class="k">Margin</span>
+					<span class="v" style="color: {marginColor};">{margin.toFixed(1)}%</span>
+					<span class="muted">{overview.burnMixLabel}</span>
+				</div>
+			</div>
+		</CraftCard>
+
+		<div class="zones">
+			<CraftCard>
+				<span class="k">Largest expense</span>
+				<span class="v">{overview.largestExpenseLabel}</span>
+			</CraftCard>
+			<CraftCard>
+				<span class="k">Revenue 30d</span>
+				<span class="v tnum ok">{money(snapshot.rollingRevenue30d)}</span>
+			</CraftCard>
+			<CraftCard>
+				<span class="k">Expense 30d</span>
+				<span class="v tnum bad">{money(snapshot.rollingExpense30d)}</span>
+			</CraftCard>
+			<CraftCard>
+				<span class="k">Weekly debt service</span>
+				<span class="v tnum warn">{money(weeklyDebt)}</span>
+			</CraftCard>
 		</div>
-	{:else if store.state.transactions.length === 0}
-		<AppEmptyState title="No transactions" description="The IFRS report needs ledger data." />
+	{:else if tab === 'ledger'}
+		<LedgerTable {store} />
+	{:else if tab === 'reports'}
+		<IfrsReportPanel {store} {bankStore} />
 	{:else}
-		<div class="grid ifrs">
-			<AppCard>
-				<h3>Profit & Loss</h3>
-				<table>
-					<tbody>
-						<tr><td>Ticket sales</td><td>{money(income.ticketSales)}</td></tr>
-						<tr><td>Cargo</td><td>{money(income.cargoRevenue)}</td></tr>
-						<tr class="total"><td>Total revenue</td><td>{money(income.totalRevenue)}</td></tr>
-						<tr><td>Fuel</td><td>{money(income.fuel)}</td></tr>
-						<tr><td>Crew</td><td>{money(income.crew)}</td></tr>
-						<tr><td>Maintenance</td><td>{money(income.maintenance)}</td></tr>
-						<tr><td>Airport fees</td><td>{money(income.airportFees)}</td></tr>
-						<tr><td>Fleet leasing</td><td>{money(income.fleetLeasing)}</td></tr>
-						<tr><td>Repairs</td><td>{money(income.hangarRepairs)}</td></tr>
-						<tr class="total"
-							><td>Total operating costs</td><td>{money(income.totalOperatingCosts)}</td></tr
-						>
-						<tr class="total"><td>Net income</td><td>{money(income.netIncome)}</td></tr>
-					</tbody>
-				</table>
-			</AppCard>
-
-			<AppCard>
-				<h3>Balance sheet</h3>
-				<table>
-					<tbody>
-						<tr><td>Cash</td><td>{money(sheet.cash)}</td></tr>
-						<tr><td>Fleet value</td><td>{money(sheet.fleetNetBookValue)}</td></tr>
-						<tr class="total"><td>Total assets</td><td>{money(sheet.totalAssets)}</td></tr>
-						<tr><td>Loans</td><td>{money(sheet.outstandingLoans)}</td></tr>
-						<tr class="total"><td>Total liabilities</td><td>{money(sheet.totalLiabilities)}</td></tr
-						>
-						<tr class="total"><td>Equity</td><td>{money(sheet.totalEquity)}</td></tr>
-					</tbody>
-				</table>
-			</AppCard>
-
-			<AppCard>
-				<h3>Cash flows</h3>
-				<table>
-					<tbody>
-						<tr><td>Operating inflow</td><td>{money(cashflows.revenueInflows)}</td></tr>
-						<tr><td>Operating outflow</td><td>{money(cashflows.operatingOutflows)}</td></tr>
-						<tr class="total"
-							><td>Operating cash flow</td><td>{money(cashflows.operatingCashFlow)}</td></tr
-						>
-						<tr><td>Capital expenditure</td><td>{money(cashflows.capitalExpenditure)}</td></tr>
-						<tr><td>Aircraft sales</td><td>{money(cashflows.aircraftSales)}</td></tr>
-						<tr class="total"
-							><td>Investing cash flow</td><td>{money(cashflows.investingCashFlow)}</td></tr
-						>
-						<tr><td>Loan proceeds</td><td>{money(cashflows.loanProceeds)}</td></tr>
-						<tr><td>Loan repayments</td><td>{money(cashflows.loanRepayments)}</td></tr>
-						<tr class="total"
-							><td>Financing cash flow</td><td>{money(cashflows.financingCashFlow)}</td></tr
-						>
-						<tr class="total"><td>Net cash change</td><td>{money(cashflows.netCashChange)}</td></tr>
-					</tbody>
-				</table>
-			</AppCard>
-		</div>
+		<BankView store={bankStore} />
 	{/if}
 </section>
 
 <style>
-	.tabs {
+	section {
 		display: flex;
-		gap: var(--space-sm);
-		margin-bottom: var(--space-md);
-	}
-	.tabs button {
-		background: transparent;
-		border: none;
-		border-bottom: 2px solid transparent;
-		color: var(--color-text-secondary);
-		padding: var(--space-sm) var(--space-md);
-		cursor: pointer;
-		font-family: var(--font-sans);
-		font-weight: 600;
-		font-size: 12px;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-	.tabs button.active {
-		color: var(--color-accent);
-		border-bottom-color: var(--color-accent);
-	}
-	.grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+		flex-direction: column;
 		gap: var(--space-md);
 	}
-	.ifrs {
-		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+	.hero {
+		display: flex;
+		align-items: stretch;
+		gap: var(--space-lg);
+		flex-wrap: wrap;
 	}
-	h3 {
-		margin: 0 0 var(--space-sm);
-		font-size: 12px;
-		letter-spacing: 0.06em;
+	.kpi {
+		flex: 1;
+		min-width: 150px;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-xs);
+	}
+	.k {
+		font-size: 10px;
+		letter-spacing: 0.08em;
 		text-transform: uppercase;
-		color: var(--color-text-secondary);
+		color: var(--color-text-muted);
 	}
-	.big {
-		font-size: 22px;
+	.v {
+		font-size: 20px;
+		font-weight: 700;
 		font-variant-numeric: tabular-nums;
 	}
-	.success {
+	.sub-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-xs);
+	}
+	.muted {
+		font-size: 11px;
+		color: var(--color-text-muted);
+	}
+	.vline {
+		width: 1px;
+		background: var(--color-border);
+	}
+	.zones {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+		gap: var(--space-md);
+	}
+	.zones :global(.craft) {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-xs);
+	}
+	.ok {
 		color: var(--color-success);
 	}
-	.error {
+	.bad {
 		color: var(--color-error);
 	}
-	table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 13px;
-	}
-	td {
-		padding: var(--space-xs) 0;
-		border-bottom: 0.5px solid var(--color-border-subtle);
-	}
-	td:last-child {
-		text-align: right;
-		font-variant-numeric: tabular-nums;
-	}
-	tr.total td {
-		font-weight: 600;
-		color: var(--color-text-primary);
-		border-bottom-color: var(--color-border);
+	.warn {
+		color: var(--color-warning);
 	}
 </style>

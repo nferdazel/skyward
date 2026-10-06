@@ -6,7 +6,6 @@
 	import OverviewTab from '$lib/features/dashboard/ui/OverviewTab.svelte';
 	import FleetView from '$lib/features/fleet/ui/FleetView.svelte';
 	import RoutesView from '$lib/features/routes/ui/RoutesView.svelte';
-	import BankView from '$lib/features/bank/ui/BankView.svelte';
 	import FinanceView from '$lib/features/finance/ui/FinanceView.svelte';
 	import LeaderboardView from '$lib/features/leaderboard/ui/LeaderboardView.svelte';
 	import SettingsView from '$lib/features/settings/ui/SettingsView.svelte';
@@ -69,10 +68,7 @@
 					}}
 				/>
 			{:else if tab === 'financials'}
-				<div class="split">
-					<BankView store={stores.bank} />
-					<FinanceView store={stores.finance} />
-				</div>
+				<FinanceView store={stores.finance} bankStore={stores.bank} />
 			{:else if tab === 'rankings'}
 				<LeaderboardView store={stores.leaderboard} />
 			{:else if tab === 'settings'}
@@ -105,10 +101,5 @@
 		min-height: 0;
 		overflow-y: auto;
 		padding: var(--space-lg);
-	}
-	.split {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-lg);
 	}
 </style>
