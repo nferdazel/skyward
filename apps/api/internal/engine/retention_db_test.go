@@ -83,7 +83,7 @@ func TestDailyMaintenanceRetentionDB(t *testing.T) {
 	}
 
 	// 2. Lintasi batas hari game => retensi jalan.
-	oldID := insertTxn(400) // di luar 180 hari game
+	oldID := insertTxn(400)  // di luar 180 hari game
 	freshID := insertTxn(10) // di dalam horizon
 	crossDayBefore := gameTimeAfter.Add(-24 * time.Hour)
 	eng.runDailyMaintenance(ctx, "", crossDayBefore, gameTimeAfter)
