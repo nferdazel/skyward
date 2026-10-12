@@ -36,13 +36,14 @@ func TestClientIPTrustBoundary(t *testing.T) {
 		t.Fatalf("trusted proxy XFF should win, got %q", got)
 	}
 
-	// 3. Trusted + CF header prioritas.
+	// 3. Trusted: CF-Connecting-IP DIABAIKAN (proxy CF belum aktif, header bisa
+	// dipalsukan); XFF yang dipakai.
 	got = clientIP(reqFrom("[::1]:1234", map[string]string{
 		"CF-Connecting-IP": "203.0.113.5",
 		"X-Forwarded-For":  "198.51.100.9",
 	}))
-	if got != "203.0.113.5" {
-		t.Fatalf("CF header should win over XFF, got %q", got)
+	if got != "198.51.100.9" {
+		t.Fatalf("CF-Connecting-IP harus diabaikan, XFF menang; got %q", got)
 	}
 
 	// 4. Trusted tapi header bukan IP valid → fallback socket IP.

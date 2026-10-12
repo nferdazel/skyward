@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // captureDefaultLog menjadikan handler teks ke buffer sebagai slog.Default dan
@@ -94,6 +95,32 @@ func TestWriteErrorLogsUnknownErrors(t *testing.T) {
 type errString string
 
 func (e errString) Error() string { return string(e) }
+
+// TestWriteErrorRetryAfter — 429 dengan durasi eksplisit harus menulis header
+// Retry-After hasil ceil ke detik; tanpa durasi tetap default "1" (perilaku lama).
+func TestWriteErrorRetryAfter(t *testing.T) {
+	cases := []struct {
+		name string
+		err  *Error
+		want string
+	}{
+		{"explicit duration", TooManyRequestsAfter("slow down", 15*time.Minute), "900"},
+		{"rounds up partial second", TooManyRequestsAfter("slow down", 1500*time.Millisecond), "2"},
+		{"default without duration", TooManyRequests("slow down"), "1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			WriteError(w, nil, tc.err)
+			if w.Code != http.StatusTooManyRequests {
+				t.Fatalf("status = %d, want 429", w.Code)
+			}
+			if got := w.Header().Get("Retry-After"); got != tc.want {
+				t.Fatalf("Retry-After = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
 
 // TestWriteErrorWrapKeepsCauseOutOfBody — jalur yang dipakai handler saat engine
 // mengembalikan kegagalan infra (2.1): penyebab asli harus tercatat di log, tapi

@@ -33,6 +33,10 @@ type AuthHandler struct {
 	// LoginLimiter — brute-force/stuffing guard /auth/login (1.9b), pola sama
 	// dengan ResetLimiter. Boleh nil di dev/test.
 	LoginLimiter *middleware.WindowLimiter
+	// RegisterLimiter — spam-account guard /auth/register. Register tidak punya
+	// guard khusus sebelumnya (hanya rate-limit global per-menit), jadi satu IP
+	// bisa membuat banyak akun. Boleh nil di dev/test.
+	RegisterLimiter *middleware.WindowLimiter
 }
 
 func (h *AuthHandler) logger() *slog.Logger {
@@ -93,6 +97,22 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httperr.WriteError(w, nil, httperr.Validation("invalid request body"))
 		return
+	}
+
+	// Spam-account guard: tanpa ini register hanya kena rate-limit global
+	// per-menit, sehingga satu IP bisa membuat banyak akun. Dihitung sebelum
+	// validasi field, tapi setelah decode body — request dengan body asal-asalan
+	// pun tetap membebani penyerang.
+	if h.RegisterLimiter != nil {
+		ip := middleware.ClientIP(r)
+		key := "register:ip:" + ip
+		if !h.RegisterLimiter.Allow(key, 10) {
+			h.logger().Warn("register: attempt limit exceeded", "ip", ip)
+			httperr.WriteError(w, nil, httperr.TooManyRequestsAfter(
+				"too many registration attempts, try again in 15 minutes",
+				h.RegisterLimiter.RetryAfter(key)))
+			return
+		}
 	}
 
 	// Validasi dasar
@@ -164,21 +184,50 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Brute-force guard (1.9b). Dihitung sebelum lookup user supaya percobaan
-	// terhadap username tak dikenal pun ikut membebani penyerang.
+	// Brute-force guard lapis-IP didahulukan: tidak butuh normalisasi, jadi IP yang
+	// sudah diblokir TIDAK menyentuh database (pool hanya 10 koneksi).
 	if h.LoginLimiter != nil {
-		ip := middleware.ClientIP(r)
-		attempted := strings.TrimSpace(body.Username)
-		okIP := h.LoginLimiter.Allow("login:ip:"+ip, 30)
-		okUser := h.LoginLimiter.Allow("login:u:"+attempted, 10)
-		if !okIP || !okUser {
-			h.logger().Warn("login: attempt limit exceeded", "ip", ip, "username", attempted)
-			httperr.WriteError(w, nil, httperr.TooManyRequests("too many login attempts, try again in 15 minutes"))
+		keyIP := "login:ip:" + middleware.ClientIP(r)
+		if !h.LoginLimiter.Allow(keyIP, 30) {
+			h.logger().Warn("login: attempt limit exceeded (ip)", "ip", middleware.ClientIP(r))
+			httperr.WriteError(w, nil, httperr.TooManyRequestsAfter(
+				"too many login attempts, try again in 15 minutes", h.LoginLimiter.RetryAfter(keyIP)))
 			return
 		}
 	}
 
-	u, err := h.Store.GetUserByUsername(r.Context(), strings.TrimSpace(body.Username))
+	// Normalisasi username SEKALI, lalu pakai nilai itu untuk bucket per-username
+	// DAN lookup:
+	//   * lookup WAJIB ternormalisasi — username DISIMPAN sebagai slug ("My Airline"
+	//     tersimpan "my-airline"), input mentah tak akan pernah menemukannya;
+	//   * bucket `login:u:` juga ternormalisasi, kalau tidak variasi huruf besar/
+	//     spasi mendapat bucket terpisah dan limit per-username bisa dilewati.
+	attempted, nerr := h.Store.NormalizeUsername(r.Context(), body.Username)
+	if nerr != nil {
+		httperr.WriteError(w, nil, httperr.Internal("normalize username failed"))
+		return
+	}
+	if attempted == "" {
+		// Sampah ("###") dinormalkan jadi NULL: tolak seperti Register/ResetPassword,
+		// supaya semua input sampah tidak berbagi satu bucket `login:u:` global.
+		httperr.WriteError(w, nil, httperr.Validation("invalid username"))
+		return
+	}
+
+	// Bucket per-username: lebih ketat dari bucket IP, dihitung sebelum lookup
+	// user supaya percobaan terhadap username tak dikenal pun membebani penyerang.
+	if h.LoginLimiter != nil {
+		keyUser := "login:u:" + attempted
+		if !h.LoginLimiter.Allow(keyUser, 10) {
+			h.logger().Warn("login: attempt limit exceeded (user)",
+				"ip", middleware.ClientIP(r), "username", attempted)
+			httperr.WriteError(w, nil, httperr.TooManyRequestsAfter(
+				"too many login attempts, try again in 15 minutes", h.LoginLimiter.RetryAfter(keyUser)))
+			return
+		}
+	}
+
+	u, err := h.Store.GetUserByUsername(r.Context(), attempted)
 	if err != nil {
 		// Hindari user enumeration: response sama untuk user tak dikenal & password salah
 		httperr.WriteError(w, nil, httperr.Unauthorized("invalid username or password"))
@@ -199,10 +248,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		httperr.WriteError(w, nil, httperr.Internal("token signing failed"))
 		return
 	}
-	// Login sukses = pemilik akun; bersihkan hitungan agar percobaan berikutnya
-	// tidak mewarisi kesalahan ketik sebelumnya.
+	// Login sukses = pemilik akun; bersihkan hitungan KEY YANG SAMA dengan bucket
+	// di atas (`attempted`, bukan input mentah) — kalau tidak, pemain yang mengetik
+	// spasi/huruf besar akan tetap kehabisan kuota meski passwordnya benar.
 	if h.LoginLimiter != nil {
-		h.LoginLimiter.Clear("login:u:" + strings.TrimSpace(body.Username))
+		h.LoginLimiter.Clear("login:u:" + attempted)
 	}
 	httperr.WriteJSON(w, http.StatusOK, authResponse{Token: token, User: toUserJSON(u)})
 }
@@ -278,7 +328,13 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	username, err := h.Store.NormalizeUsername(r.Context(), body.Username)
-	if err != nil || username == "" {
+	if err != nil {
+		// Kegagalan DB, bukan credential: pisahkan dari "username kosong" supaya
+		// masalah infra tidak tersamar jadi 400 (Login melakukan hal yang sama).
+		httperr.WriteError(w, nil, httperr.Internal("normalize username failed"))
+		return
+	}
+	if username == "" {
 		httperr.WriteError(w, nil, httperr.Validation("invalid username"))
 		return
 	}
@@ -287,11 +343,24 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	// gagal karena user tidak dikenal.
 	if h.ResetLimiter != nil {
 		ip := middleware.ClientIP(r)
-		okIP := h.ResetLimiter.Allow("reset:ip:"+ip, 10)
-		okUser := h.ResetLimiter.Allow("reset:u:"+username, 5)
+		keyIP := "reset:ip:" + ip
+		keyUser := "reset:u:" + username
+		okIP := h.ResetLimiter.Allow(keyIP, 10)
+		okUser := h.ResetLimiter.Allow(keyUser, 5)
 		if !okIP || !okUser {
+			// Sama seperti Login: pakai sisa terbesar di antara key yang gagal.
+			retry := time.Duration(0)
+			if !okIP {
+				retry = h.ResetLimiter.RetryAfter(keyIP)
+			}
+			if !okUser {
+				if d := h.ResetLimiter.RetryAfter(keyUser); d > retry {
+					retry = d
+				}
+			}
 			h.logger().Warn("reset-password: attempt limit exceeded", "ip", ip, "username", username)
-			httperr.WriteError(w, nil, httperr.Validation("too many reset attempts, try again in 15 minutes"))
+			httperr.WriteError(w, nil, httperr.TooManyRequestsAfter(
+				"too many reset attempts, try again in 15 minutes", retry))
 			return
 		}
 	}

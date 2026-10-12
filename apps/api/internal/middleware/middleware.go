@@ -226,17 +226,18 @@ func RateLimit(ctx context.Context, perMin int, logger *slog.Logger) func(http.H
 	}
 }
 
-// clientIP — IP klien. Header proxy (CF-Connecting-IP / X-Forwarded-For /
-// X-Real-IP) hanya dipercaya bila koneksi datang dari trusted proxy
-// (default loopback; lihat proxy.go / SKYWARD_TRUSTED_PROXIES). (AUDIT-04)
+// clientIP — IP klien. Header proxy (X-Forwarded-For / X-Real-IP) hanya
+// dipercaya bila koneksi datang dari trusted proxy (default loopback; lihat
+// proxy.go / SKYWARD_TRUSTED_PROXIES). (AUDIT-04)
+//
+// CF-Connecting-IP sengaja TIDAK dipakai: Caddy tidak menyaring header itu,
+// sedangkan proxy Cloudflare belum aktif (mode DNS-only), jadi klien bisa
+// memalsukannya untuk memutar key rate-limit (bypass guard per-IP). Bila kelak
+// proxy CF diaktifkan DAN origin dikunci ke IP Cloudflare, header itu bisa
+// dipertimbangkan kembali.
 func clientIP(r *http.Request) string {
 	rip := remoteIP(r.RemoteAddr)
 	if rip != nil && ipTrusted(rip) {
-		if cf := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cf != "" {
-			if ip := net.ParseIP(cf); ip != nil {
-				return cf
-			}
-		}
 		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
 			first := strings.TrimSpace(strings.Split(fwd, ",")[0])
 			if ip := net.ParseIP(first); ip != nil {

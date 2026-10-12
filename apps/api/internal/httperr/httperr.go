@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strconv"
+	"time"
 )
 
 // Code — kode error machine-readable untuk klien.
@@ -26,6 +28,9 @@ type Error struct {
 	Code    Code
 	Message string
 	Err     error // error asli (tidak dikirim ke klien; untuk log)
+	// RetryAfter — untuk 429: sisa waktu sampai klien boleh retry. 0 = default
+	// (header "1" detik, perilaku lama).
+	RetryAfter time.Duration
 }
 
 func (e *Error) Error() string { return e.Message }
@@ -59,6 +64,14 @@ func Unauthorized(msg string) *Error { return New(CodeUnauthorized, msg) }
 
 // TooManyRequests — 429.
 func TooManyRequests(msg string) *Error { return New(CodeTooMany, msg) }
+
+// TooManyRequestsAfter — 429 dengan Retry-After eksplisit (mis. sisa window
+// limiter), menggantikan default "1" detik yang menyesatkan klien.
+func TooManyRequestsAfter(msg string, d time.Duration) *Error {
+	e := New(CodeTooMany, msg)
+	e.RetryAfter = d
+	return e
+}
 
 var statusByCode = map[Code]int{
 	CodeNotFound:     http.StatusNotFound,
@@ -99,7 +112,13 @@ func WriteError(w http.ResponseWriter, logger *slog.Logger, err error) {
 		message = "internal error"
 	}
 	if he.Code == CodeTooMany {
-		w.Header().Set("Retry-After", "1")
+		retry := "1"
+		if he.RetryAfter > 0 {
+			// Ceil ke detik: header hanya menerima integer, dan membulatkan ke
+			// bawah akan menyuruh klien retry sebelum window benar-benar reset.
+			retry = strconv.Itoa(int((he.RetryAfter + time.Second - 1) / time.Second))
+		}
+		w.Header().Set("Retry-After", retry)
 	}
 	WriteJSON(w, status, map[string]any{
 		"error": map[string]string{"code": string(he.Code), "message": message},

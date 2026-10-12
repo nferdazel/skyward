@@ -9,11 +9,14 @@ import (
 
 // Trusted-proxy handling (AUDIT-04).
 //
-// Header CF-Connecting-IP / X-Forwarded-For / X-Real-IP HANYA dipercaya bila
-// koneksi datang dari network di trustedProxies. Default: loopback — cocok
-// dengan deploy (API bind 127.0.0.1, Caddy reverse-proxy di host yang sama).
-// Tanpa ini, attacker yang bisa menyentuh port API langsung cukup ganti-ganti
-// header untuk mem-bypass rate limiter per-IP.
+// Header X-Forwarded-For / X-Real-IP HANYA dipercaya bila koneksi datang dari
+// network di trustedProxies. Default: loopback — cocok dengan deploy (API bind
+// 127.0.0.1, Caddy reverse-proxy di host yang sama). Tanpa ini, attacker yang
+// bisa menyentuh port API langsung cukup ganti-ganti header untuk mem-bypass
+// rate limiter per-IP.
+//
+// CF-Connecting-IP TIDAK dipercaya (proxy Cloudflare belum aktif / DNS-only,
+// dan Caddy tidak menyaring header itu) — lihat clientIP di middleware.go.
 
 var (
 	proxyMu        sync.RWMutex

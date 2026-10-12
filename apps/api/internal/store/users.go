@@ -96,13 +96,19 @@ func (s *Store) CreateUser(ctx context.Context, u *User) (*User, error) {
 }
 
 // GetUserByUsername — cari user berdasarkan username (untuk login).
+//
+// `username` DISIMPAN sebagai slug (Register menormalkannya), jadi lookup juga
+// menormalkan lewat fungsi SQL yang sama. Tanpa ini pemain yang mendaftar dengan
+// spasi/huruf besar (mis. "My Airline" → "my-airline") tak akan pernah menemukan
+// akunnya saat login — terkunci dari akunnya sendiri. Idempoten untuk pemanggil
+// yang sudah menormalkan lebih dulu (ResetPassword).
 func (s *Store) GetUserByUsername(ctx context.Context, username string) (*User, error) {
 	return s.scanUser(ctx,
 		`SELECT id, username, company_name, ceo_name, game_current_time,
 		        net_worth, hq_airport_iata, auto_grounding_threshold,
 		        operational_status, season_id, password_hash, onboarding_completed,
 		        COALESCE(consecutive_negative_days, 0), COALESCE(recovery_streak_days, 0)
-		   FROM users WHERE username = $1`, username)
+		   FROM users WHERE username = public.normalize_username($1)`, username)
 }
 
 // GetUserByID — cari user berdasarkan id (untuk /auth/me).

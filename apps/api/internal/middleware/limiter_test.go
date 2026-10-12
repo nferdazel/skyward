@@ -45,6 +45,35 @@ func TestWindowLimiterClear(t *testing.T) {
 	}
 }
 
+func TestWindowLimiterRetryAfter(t *testing.T) {
+	base := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
+	current := base
+	l := NewWindowLimiter(15*time.Minute, 0)
+	l.now = func() time.Time { return current }
+
+	// Key tak dikenal: tidak ada window → 0.
+	if d := l.RetryAfter("unknown"); d != 0 {
+		t.Fatalf("unknown key RetryAfter = %v, want 0", d)
+	}
+
+	l.Allow("k", 5)
+	// Tepat setelah Allow pertama, sisa mendekati window penuh.
+	if d := l.RetryAfter("k"); d != 15*time.Minute {
+		t.Fatalf("RetryAfter after first Allow = %v, want %v", d, 15*time.Minute)
+	}
+
+	current = base.Add(5 * time.Minute)
+	if d := l.RetryAfter("k"); d != 10*time.Minute {
+		t.Fatalf("RetryAfter mid-window = %v, want %v", d, 10*time.Minute)
+	}
+
+	// Window lewat: 0 lagi.
+	current = base.Add(15*time.Minute + time.Second)
+	if d := l.RetryAfter("k"); d != 0 {
+		t.Fatalf("RetryAfter after window = %v, want 0", d)
+	}
+}
+
 func TestWindowLimiterSweep(t *testing.T) {
 	base := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
 	current := base

@@ -65,6 +65,23 @@ func (l *WindowLimiter) Clear(key string) {
 	delete(l.hits, key)
 }
 
+// RetryAfter — sisa waktu sampai window key reset (0 bila key tidak ada atau
+// window sudah lewat). Dipakai handler untuk mengirim Retry-After yang benar
+// alih-alih "1" tetap, supaya klien tidak retry tiap detik di window 15 menit.
+func (l *WindowLimiter) RetryAfter(key string) time.Duration {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	w, ok := l.hits[key]
+	if !ok {
+		return 0
+	}
+	now := l.now()
+	if now.After(w.resetAt) {
+		return 0
+	}
+	return w.resetAt.Sub(now)
+}
+
 func (l *WindowLimiter) sweepLocked(now time.Time) {
 	for k, w := range l.hits {
 		if now.After(w.resetAt) {
