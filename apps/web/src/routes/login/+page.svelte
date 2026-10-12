@@ -17,16 +17,32 @@
 	let resetOpen = $state(false);
 	let resetUsername = $state('');
 	let resetPassword = $state('');
+	let resetConfirm = $state('');
 	let resetCompanyName = $state('');
 	let resetCeoName = $state('');
 	let resetHq = $state('');
 	let resetBusy = $state(false);
-	let resetMessage = $state<string | null>(null);
+	/** Pesan hasil reset + apakah itu kegagalan (dulu selalu tampil hijau). */
+	let resetMessage = $state<{ text: string; ok: boolean } | null>(null);
+
+	/** Sama dengan minimum server: `auth.go` tolak password < 6 di register & reset.
+	 * Flutter memakai 8 di login/reset, tapi itu membuat akun ber-password 6-7
+	 * karakter (yang diterima server) tidak bisa masuk — jadi patokannya server. */
+	const MIN_PASSWORD_LENGTH = 6;
 
 	const canSubmit = $derived(
 		username.trim().length > 0 &&
 			password.length > 0 &&
-			(mode === 'login' || (companyName.trim() && ceoName.trim()))
+			(mode === 'login' ||
+				(password.length >= MIN_PASSWORD_LENGTH &&
+					companyName.trim().length > 0 &&
+					ceoName.trim().length > 0))
+	);
+
+	const canSubmitReset = $derived(
+		resetUsername.trim().length > 0 &&
+			resetPassword.length >= MIN_PASSWORD_LENGTH &&
+			resetConfirm === resetPassword
 	);
 
 	async function submit() {
@@ -48,6 +64,7 @@
 	function openReset() {
 		resetUsername = username.trim();
 		resetPassword = '';
+		resetConfirm = '';
 		resetCompanyName = '';
 		resetCeoName = '';
 		resetHq = '';
@@ -56,7 +73,7 @@
 	}
 
 	async function submitReset() {
-		if (!resetUsername.trim() || !resetPassword) return;
+		if (!canSubmitReset) return;
 		resetBusy = true;
 		const ok = await auth.resetPassword({
 			username: resetUsername.trim(),
@@ -66,7 +83,9 @@
 			hqAirportIata: resetHq.trim()
 		});
 		resetBusy = false;
-		resetMessage = ok ? 'Password reset. You can sign in now.' : (auth.error ?? 'Reset failed.');
+		resetMessage = ok
+			? { text: 'Password reset. You can sign in now.', ok: true }
+			: { text: auth.error ?? 'Reset failed.', ok: false };
 	}
 </script>
 
@@ -146,12 +165,24 @@
 					><span>Username</span><input bind:value={resetUsername} autocomplete="username" /></label
 				>
 				<label><span>New password</span><input type="password" bind:value={resetPassword} /></label>
+				<label
+					><span>Confirm new password</span><input
+						type="password"
+						bind:value={resetConfirm}
+					/></label
+				>
 				<label><span>Company name</span><input bind:value={resetCompanyName} /></label>
 				<label><span>CEO name</span><input bind:value={resetCeoName} /></label>
 				<label><span>HQ airport (IATA)</span><input bind:value={resetHq} placeholder="SIN" /></label
 				>
 				{#if resetMessage}
-					<p class="reset-msg" role="status">{resetMessage}</p>
+					<p
+						class="reset-msg"
+						class:failed={!resetMessage.ok}
+						role={resetMessage.ok ? 'status' : 'alert'}
+					>
+						{resetMessage.text}
+					</p>
 				{/if}
 			</div>
 		{/snippet}
@@ -161,7 +192,7 @@
 				text="Reset password"
 				type="primary"
 				loading={resetBusy}
-				onclick={resetUsername.trim() && resetPassword ? submitReset : undefined}
+				onclick={canSubmitReset ? submitReset : undefined}
 			/>
 		{/snippet}
 	</AppDialogShell>
@@ -287,5 +318,8 @@
 		margin: 0;
 		font-size: 13px;
 		color: var(--color-success);
+	}
+	.reset-msg.failed {
+		color: var(--color-error);
 	}
 </style>
