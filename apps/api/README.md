@@ -1,11 +1,11 @@
 # skyward-api
 
-Authoritative Go backend: REST API, WebSocket push, simulation engine, and the
-in-process world-tick worker. Single binary (`cmd/server`), PostgreSQL via `pgx`.
+Backend Go yang otoritatif: REST API, push WebSocket, engine simulasi, dan
+worker world-tick in-process. Satu binary (`cmd/server`), PostgreSQL via `pgx`.
 
 ## Menjalankan
 
-Dari direktori `api/`:
+Dari direktori `apps/api`:
 
 ```bash
 cp ../.env.example .env   # isi DATABASE_URL, JWT_SECRET, dst.
@@ -18,11 +18,17 @@ Environment dibaca dari `.env` (lihat `.env.example` di root repo). Port default
 ## Test
 
 ```bash
-go test ./...
+go test ./...        # tanpa DB: test yang butuh DB di-skip
 ```
 
-Logika domain (`internal/engine`) teruji. Test DB (`store`, `config`, `db`)
-belum — lihat `docs/ARCHITECTURE.md` §3 (B1) untuk rencana harness.
+Test yang butuh DB (handler, store, engine) membaca `TEST_DATABASE_URL` dan
+**wajib serial** — seluruh paket berbagi satu database, dan `WorldTick`
+memproses pemain yang baru dibuat paket lain; paralel membuat tick memproses
+user yang sudah dihapus (flake).
+
+```bash
+TEST_DATABASE_URL=postgres://…/skyward_test go test -p 1 ./...
+```
 
 ## Struktur
 
@@ -31,9 +37,15 @@ belum — lihat `docs/ARCHITECTURE.md` §3 (B1) untuk rencana harness.
 | `cmd/server` | Entrypoint, wiring service, worker |
 | `internal/engine` | Simulasi, ekonomi, armada, rute, bank, bot, world tick |
 | `internal/handler` | HTTP handler (thin glue) |
-| `internal/store` | Query baca |
-| `internal/realtime` | WebSocket hub |
-| `internal/middleware` | Auth, rate limit |
+| `internal/store` | Akses data (baca + tulis, termasuk normalisasi username) |
+| `internal/realtime` | WebSocket hub (subscribe dibatasi allowlist channel) |
+| `internal/middleware` | Auth, rate limit, trusted-proxy untuk IP klien |
+| `internal/httperr` | Envelope error + pemetaan status HTTP |
+| `internal/money` | Aturan uang & formula ekonomi bersama (pintu ledger) |
+| `internal/worker` | Loop world-tick (pengganti pg_cron) + retensi |
+| `internal/db` | Pool pgx + tracer query lambat |
+| `internal/build` | Info versi binary (ldflags) |
+| `internal/logfile` | Log harian `app-YYYY-MM-DD.log` + rotasi |
 | `internal/config` | Konfigurasi env |
 
 ## Build

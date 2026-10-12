@@ -27,18 +27,26 @@ Browser ── HTTPS ──► skyward.qouver.com
 Modular monolith Go, satu binary (`cmd/server`) + worker tick in-process.
 
 ```
-cmd/server/        Entrypoint, wiring service, worker
-internal/engine/   Simulasi, ekonomi, armada, rute, bank, bot, world tick
-internal/handler/  HTTP handler (thin glue)
-internal/store/    Query baca
-internal/realtime/ WebSocket hub
-internal/middleware/ Auth, rate limit
-internal/config/   Konfigurasi env
+cmd/server/           Entrypoint, wiring service, worker
+internal/engine/      Simulasi, ekonomi, armada, rute, bank, bot, world tick
+internal/handler/     HTTP handler (thin glue)
+internal/store/       Akses data (baca + tulis, termasuk normalisasi username)
+internal/realtime/    WebSocket hub (subscribe dibatasi allowlist channel)
+internal/middleware/  Auth, rate limit, trusted-proxy untuk IP klien
+internal/httperr/     Envelope error + pemetaan status HTTP
+internal/money/       Aturan uang & formula ekonomi bersama (pintu ledger)
+internal/worker/      Loop world-tick (pengganti pg_cron) + retensi
+internal/db/          Pool pgx + tracer query lambat
+internal/build/       Info versi binary (ldflags)
+internal/logfile/     Log harian `app-YYYY-MM-DD.log` + rotasi
+internal/config/      Konfigurasi env
 ```
 
 Aturan: engine berjalan dalam satu transaksi per mutasi; uang dibulatkan di
-pintu ledger; server otoritatif untuk ekonomi. Refactor struktural harus
-paritas-perilaku (lihat `docs/ARCHITECTURE.md` §3 untuk rencana B1–B7).
+pintu ledger; server otoritatif untuk ekonomi. Refactor struktural wajib
+paritas-perilaku: logika ekonomi tidak disentuh tanpa test yang mengunci
+perilaku lamanya, dan test berbasis DB ikut dijalankan (`TEST_DATABASE_URL`,
+serial — lihat Build & deploy).
 
 ## Frontend (`apps/web`)
 
@@ -83,10 +91,18 @@ generik; komponen di `core/components/` tetap tidak boleh bergantung pada
 
 ## Build & deploy
 
-- **CI** (`.github/workflows/ci.yml`): `check`, `lint`, `test`, `build` pada
-  tiap push/PR. Hanya verifikasi, tidak deploy.
+- **CI** (`.github/workflows/ci.yml`): Go (`vet`, `test`) + test DB + web
+  (`check`, `lint`, `test`, `build`) + secret scan (gitleaks) pada tiap push/PR.
+  Hanya verifikasi, tidak deploy.
+- **Test DB wajib serial** (`go test -p 1 ./...`): seluruh paket berbagi satu
+  database, dan `WorldTick` memproses pemain yang baru dibuat paket lain —
+  paralel membuat tick memproses user yang sudah dihapus (flake).
 - **Deploy**: GitHub webhook → `deploy/deploy-vps.sh` di VPS (pola sama dengan
   project Qouver lain). Build di VPS, tanpa registry, tanpa secret GitHub.
+- **Gate migrasi**: skrip deploy tidak menerapkan DDL. Bila `migrations/` ikut
+  berubah dan ada berkas yang belum tercatat di `schema_migrations` — atau isi
+  berkas migrasi yang sudah diterapkan berubah — deploy ditolak sebelum API
+  di-restart. Migrasi append-only: perbaikan selalu migrasi baru.
 
 ## Konfigurasi
 

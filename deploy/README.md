@@ -31,7 +31,10 @@ Hanya komponen yang berubah yang di-rebuild (dibandingkan dari `.deployed_rev`).
 ## Setup di VPS (sekali)
 
 1. Salin `deploy-vps.sh` → `/srv/qouver/apps/skyward/scripts/deploy-vps.sh`
-   (chmod +x). Script self-update dari repo pada deploy berikutnya.
+   (chmod +x). Script lalu self-update dari repo pada deploy berikutnya — lewat
+   file sementara + `mv` (rename), karena menimpa file yang **sedang dijalankan**
+   membuat bash meneruskan pembacaan di offset byte yang salah
+   (`syntax error near unexpected token`, deploy mati sebelum bekerja).
 2. Clone key VPS → GitHub (deploy key), alias SSH `github-skyward`.
    Set `SKYWARD_GIT_URL` (mis. `github-skyward:<user>/skyward.git`) di env VPS
    (mode 600) — **tidak** di-hardcode di repo.
