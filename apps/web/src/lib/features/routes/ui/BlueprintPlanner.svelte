@@ -1,7 +1,7 @@
 <script lang="ts">
 	import CraftCard from '$lib/core/components/CraftCard.svelte';
 	import TactileButton from '$lib/core/components/TactileButton.svelte';
-	import SearchableAirportDropdown from '$lib/core/components/SearchableAirportDropdown.svelte';
+	import SearchableAirportDropdown from './SearchableAirportDropdown.svelte';
 	import type { RoutesStore } from '../state/routes-store.svelte';
 	import type { Airport } from '../domain/airport';
 	import { calculateDistance } from '../domain/airport';

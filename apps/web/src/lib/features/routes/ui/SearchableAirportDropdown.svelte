@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import type { Airport } from '$lib/features/routes/domain/airport';
+	import type { Airport } from '../domain/airport';
 
 	/**
 	 * Searchable airport picker. Ported from Flutter `SearchableAirportDropdown`:

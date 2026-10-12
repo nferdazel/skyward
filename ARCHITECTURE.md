@@ -59,15 +59,17 @@ src/lib/features/    Satu folder per fitur
   <feature>/domain/   Tipe & mapper (murni, tanpa I/O)
   <feature>/state/    Store (pemilik state)
   <feature>/ui/       Komponen (baca store, panggil aksi)
+src/lib/shell/       App-chrome (TopHud, NotificationPanel) — boleh tahu fitur
 ```
 
 Aturan arah data: `ui → state → data → api`. Tidak pernah sebaliknya, dan
 `ui/` tidak pernah memanggil `fetch` langsung.
 
-**Satu-satunya pengecualian:** `core/di/` (container komposisi) boleh mengetahui
-semua fitur untuk merakit store dan gateway. Ini peran DI container, bukan
-infrastruktur generik; komponen di `core/components/` tetap tidak boleh
-bergantung pada `features/`.
+**Pengecualian:** `core/di/` (container komposisi) dan `shell/` (app-chrome)
+boleh mengetahui fitur — DI untuk merakit store dan gateway, shell untuk merakit
+HUD/notifikasi dari store per-sesi. Ini peran komposisi, bukan infrastruktur
+generik; komponen di `core/components/` tetap tidak boleh bergantung pada
+`features/`.
 
 ## Prinsip
 

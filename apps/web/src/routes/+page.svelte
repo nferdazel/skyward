@@ -1,7 +1,7 @@
 <script lang="ts">
-	import AppSidebar from '$lib/core/components/AppSidebar.svelte';
-	import type { NavKey } from '$lib/core/components/nav';
-	import TopHud from '$lib/core/components/TopHud.svelte';
+	import AppSidebar from '$lib/shell/AppSidebar.svelte';
+	import type { NavKey } from '$lib/shell/nav';
+	import TopHud from '$lib/shell/TopHud.svelte';
 	import SkywardSonner from '$lib/core/components/SkywardSonner.svelte';
 	import OnboardingOverlay from '$lib/core/components/OnboardingOverlay.svelte';
 	import WhileAwayDigest from '$lib/core/components/WhileAwayDigest.svelte';
@@ -15,13 +15,16 @@
 	import { appStores } from '$lib/core/di/stores-context.svelte';
 
 	const auth = getAuthStore();
-	// The layout renders this page only once stores are ready.
-	const stores = $derived(appStores.stores!);
+	// Stores dibangun reaktif saat sesi siap. Layout hanya merender halaman ini
+	// saat stores ada, tapi guard ini tetap dipasang agar aman terhadap race
+	// satu flush (mis. logout melepas stores) tanpa membuang non-null assertion.
+	const stores = $derived(appStores.stores);
 
 	let tab = $state<NavKey>('dashboard');
 
 	// Leaderboard loads lazily on first open.
 	$effect(() => {
+		if (!stores) return;
 		if (tab === 'rankings' && stores.leaderboard.state.entries.length === 0) {
 			void stores.leaderboard.load();
 		}
@@ -30,6 +33,7 @@
 	// New achievements from sync become toasts (once each).
 	const seenAchievements = new Set<string>();
 	$effect(() => {
+		if (!stores) return;
 		for (const a of stores.simulation.state.lastUnlockedAchievements) {
 			const key = String(a.achievement_type ?? a.achievement_name ?? '');
 			if (!key || seenAchievements.has(key)) continue;
@@ -47,6 +51,7 @@
 	let showDigest = $state(false);
 	let lastDigestGameTime = '';
 	$effect(() => {
+		if (!stores) return;
 		const sim = stores.simulation.state;
 		if (sim.isSyncing || sim.lastElapsedDays < 1) return;
 		if (auth.user && !auth.user.onboardingCompleted) return;
@@ -61,95 +66,104 @@
 
 <svelte:head><title>Skyward — Command Center</title></svelte:head>
 
-<div class="app">
-	<AppSidebar active={tab} onselect={(k) => (tab = k)} onlogout={() => auth.logout()} />
+{#if stores}
+	<div class="app">
+		<AppSidebar active={tab} onselect={(k) => (tab = k)} onlogout={() => auth.logout()} />
 
-	<div class="main">
-		{#if auth.user}
-			<TopHud user={auth.user} sim={stores.simulation.state} notifications={stores.notification} />
-		{/if}
-
-		{#if stores.simulation.state.errorMessage}
-			<div class="net-status" role="alert">
-				<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-					<path
-						d="M2 22 22 2m-9 14h-2m13.5 2 1.5 1.5M8.5 8.5A10 10 0 0 0 2 12m0-8 20 20"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-					/>
-				</svg>
-				<span>Connection lost — retrying. {stores.simulation.state.errorMessage}</span>
-			</div>
-		{/if}
-
-		<div class="content">
-			{#if tab === 'dashboard'}
-				{#if auth.user}
-					<OverviewTab {stores} user={auth.user} onnavigate={(t) => (tab = t as NavKey)} />
-				{/if}
-			{:else if tab === 'fleet'}
-				<FleetView
-					store={stores.fleet}
-					autoGroundingThreshold={auth.user?.autoGroundingThreshold ?? 40}
-					creditTier={stores.bank.state.credit?.creditTier ?? null}
-					onFinance={async (model, downPct, termMonths) => {
-						await stores.bank.financeAircraft({
-							aircraftModelId: model.id,
-							downPaymentPct: downPct,
-							termMonths
-						});
-						await stores.fleet.refresh();
-					}}
-				/>
-			{:else if tab === 'routes'}
-				<RoutesView
-					store={stores.routes}
-					autoGroundingThreshold={auth.user?.autoGroundingThreshold ?? 40}
-					baseFare={{
-						base: stores.simulation.state.ticketBaseFare,
-						perKm: stores.simulation.state.ticketPerKmRate
-					}}
-				/>
-			{:else if tab === 'financials'}
-				<FinanceView store={stores.finance} bankStore={stores.bank} />
-			{:else if tab === 'rankings'}
-				<LeaderboardView store={stores.leaderboard} currentUserId={auth.user?.id} />
-			{:else if tab === 'settings'}
-				<SettingsView
-					store={stores.settings}
+		<div class="main">
+			{#if auth.user}
+				<TopHud
 					user={auth.user}
-					onsaved={() => void stores.simulation.syncWithDatabase()}
-					ondeleted={() => auth.logout()}
+					sim={stores.simulation.state}
+					notifications={stores.notification}
 				/>
 			{/if}
+
+			{#if stores.simulation.state.errorMessage}
+				<div class="net-status" role="alert">
+					<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+						<path
+							d="M2 22 22 2m-9 14h-2m13.5 2 1.5 1.5M8.5 8.5A10 10 0 0 0 2 12m0-8 20 20"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						/>
+					</svg>
+					<span>Connection lost — retrying. {stores.simulation.state.errorMessage}</span>
+				</div>
+			{/if}
+
+			<div class="content">
+				{#if tab === 'dashboard'}
+					{#if auth.user}
+						<OverviewTab {stores} user={auth.user} onnavigate={(t) => (tab = t as NavKey)} />
+					{/if}
+				{:else if tab === 'fleet'}
+					<FleetView
+						store={stores.fleet}
+						autoGroundingThreshold={auth.user?.autoGroundingThreshold ?? 40}
+						creditTier={stores.bank.state.credit?.creditTier ?? null}
+						onFinance={async (model, downPct, termMonths) => {
+							// Tangkap sesi saat ini supaya logout di tengah await tidak
+							// membuat bacaan kedua null-deref.
+							const s = stores;
+							await s.bank.financeAircraft({
+								aircraftModelId: model.id,
+								downPaymentPct: downPct,
+								termMonths
+							});
+							await s.fleet.refresh();
+						}}
+					/>
+				{:else if tab === 'routes'}
+					<RoutesView
+						store={stores.routes}
+						autoGroundingThreshold={auth.user?.autoGroundingThreshold ?? 40}
+						baseFare={{
+							base: stores.simulation.state.ticketBaseFare,
+							perKm: stores.simulation.state.ticketPerKmRate
+						}}
+					/>
+				{:else if tab === 'financials'}
+					<FinanceView store={stores.finance} bankStore={stores.bank} />
+				{:else if tab === 'rankings'}
+					<LeaderboardView store={stores.leaderboard} currentUserId={auth.user?.id} />
+				{:else if tab === 'settings'}
+					<SettingsView
+						store={stores.settings}
+						user={auth.user}
+						onsaved={() => void stores.simulation.syncWithDatabase()}
+						ondeleted={() => auth.logout()}
+					/>
+				{/if}
+			</div>
 		</div>
 	</div>
-</div>
 
-<SkywardSonner
-	items={stores.notification.toasts}
-	ondismiss={(id) => stores.notification.dismiss(id)}
-/>
-
-{#if auth.user && !auth.user.onboardingCompleted}
-	<OnboardingOverlay
-		onnavigate={(t) => (tab = t as NavKey)}
-		oncomplete={() => {
-			auth.markOnboardingCompleted();
-			void stores.simulation.markOnboardingComplete();
-		}}
+	<SkywardSonner
+		items={stores.notification.toasts}
+		ondismiss={(id) => stores.notification.dismiss(id)}
 	/>
-{/if}
 
-{#if showDigest}
-	<WhileAwayDigest
-		elapsedDays={stores.simulation.state.lastElapsedDays}
-		flightsRun={stores.simulation.state.lastFlightsRun}
-		revenue={stores.simulation.state.lastRevenue}
-		expense={stores.simulation.state.lastExpense}
-		onclose={dismissDigest}
-	/>
+	{#if auth.user && !auth.user.onboardingCompleted}
+		<OnboardingOverlay
+			onnavigate={(t) => (tab = t as NavKey)}
+			oncomplete={() => {
+				auth.markOnboardingCompleted();
+				void stores.simulation.markOnboardingComplete();
+			}}
+		/>
+	{/if}
+
+	{#if showDigest}
+		<WhileAwayDigest
+			elapsedDays={stores.simulation.state.lastElapsedDays}
+			flightsRun={stores.simulation.state.lastFlightsRun}
+			revenue={stores.simulation.state.lastRevenue}
+			expense={stores.simulation.state.lastExpense}
+			onclose={dismissDigest}
+		/>
+	{/if}
 {/if}
 
 <style>

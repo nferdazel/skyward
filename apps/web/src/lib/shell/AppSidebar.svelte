@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SkywardLogo from './SkywardLogo.svelte';
+	import SkywardLogo from '$lib/core/components/SkywardLogo.svelte';
 	import type { NavKey } from './nav';
 
 	/**

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import AppBadge from './AppBadge.svelte';
+	import AppBadge from '$lib/core/components/AppBadge.svelte';
 	import type { NotificationStore } from '$lib/features/notification/state/notification-store.svelte';
 
 	/**
