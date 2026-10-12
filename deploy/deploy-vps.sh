@@ -42,7 +42,9 @@ if [ -d "$MONO_DIR/.git" ]; then
   git fetch origin main && git reset --hard origin/main 2>&1 | tee -a "$LOG"
   NEW_REV=$(git rev-parse HEAD 2>/dev/null || echo "")
   if [ -n "$OLD_REV" ] && [ "$OLD_REV" != "$NEW_REV" ]; then
-    CHANGED_FILES=$(git diff --name-only "$OLD_REV" "$NEW_REV" 2>/dev/null || echo "apps/api/ apps/web/")
+    # Hanya berkas yang bisa mengubah hasil build. Doc di dalam apps/ (mis.
+    # apps/api/README.md) tidak boleh memicu rebuild + restart API yang tak perlu.
+    CHANGED_FILES=$(git diff --name-only "$OLD_REV" "$NEW_REV" -- ':(exclude)*.md' 2>/dev/null || echo "apps/api/ apps/web/")
   else
     CHANGED_FILES="apps/api/ apps/web/"
   fi
