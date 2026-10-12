@@ -55,11 +55,22 @@ else
 fi
 
 # Self-update: samakan script server dengan versi repo (berlaku deploy berikutnya).
+#
+# Lewat file sementara + `mv` (rename), BUKAN `cp` langsung ke file yang sedang
+# dijalankan: bash membaca script secara bertahap, jadi begitu isi file ditimpa
+# di offset byte yang sama, sisa pembacaan jadi sampah — "syntax error near
+# unexpected token" dan deploy mati sebelum mengerjakan apa pun. Terjadi
+# 2026-10-12, tepat pada deploy pertama setelah script ini berubah. Rename
+# membuat FD bash tetap menunjuk inode lama, sehingga aman.
 REPO_SCRIPT="$MONO_DIR/deploy/deploy-vps.sh"
 SELF_SCRIPT="$APP_DIR/scripts/deploy-vps.sh"
 if [ -f "$REPO_SCRIPT" ] && ! cmp -s "$REPO_SCRIPT" "$SELF_SCRIPT"; then
-  cp -f "$REPO_SCRIPT" "$SELF_SCRIPT" && chmod +x "$SELF_SCRIPT" \
-    && log "==> scripts/deploy-vps.sh diperbarui dari repo (berlaku deploy berikutnya)"
+  if cp -f "$REPO_SCRIPT" "$SELF_SCRIPT.new" && chmod +x "$SELF_SCRIPT.new"; then
+    mv -f "$SELF_SCRIPT.new" "$SELF_SCRIPT" \
+      && log "==> scripts/deploy-vps.sh diperbarui dari repo (berlaku deploy berikutnya)"
+  else
+    log "==> WARN: gagal menyiapkan $SELF_SCRIPT.new; script server dibiarkan apa adanya"
+  fi
 fi
 
 # ── 0. Gate migrasi ──
