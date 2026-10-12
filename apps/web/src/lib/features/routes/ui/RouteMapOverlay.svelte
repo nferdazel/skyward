@@ -64,7 +64,16 @@
 		let observer: ResizeObserver | undefined;
 		void (async () => {
 			if (!container) return;
-			const Leaflet = (await import('leaflet')) as unknown as { default?: L } & L;
+			let Leaflet: ({ default?: L } & L) | undefined;
+			try {
+				Leaflet = (await import('leaflet')) as unknown as { default?: L } & L;
+			} catch (err) {
+				// Chunk peta gagal dimuat (offline, proxy, atau teardown test).
+				// Tanpa catch, kegagalannya jadi unhandled rejection: peta hilang
+				// tanpa jejak dan pemain tidak tahu apa yang salah.
+				console.error('RouteMapOverlay: failed to load leaflet', err);
+				return;
+			}
 			const Lmod: L = Leaflet.default ?? Leaflet;
 			if (cancelled || !container) return;
 
