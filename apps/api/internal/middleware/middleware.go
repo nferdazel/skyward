@@ -135,7 +135,7 @@ func CORS(allowed []string) func(http.Handler) http.Handler {
 				if reqHeaders != "" {
 					h.Set("Access-Control-Allow-Headers", reqHeaders)
 				} else {
-					h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, If-Match, ETag, apikey, x-client-info, prefer, range, x-request-id, accept, origin, user-agent, cache-control, pragma")
+					h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, If-Match, ETag, Range, X-Request-ID, Accept, Cache-Control, Pragma")
 				}
 				h.Set("Access-Control-Expose-Headers", "Content-Range, Range, ETag, X-Request-ID, Content-Length")
 				h.Set("Access-Control-Allow-Credentials", "true")
