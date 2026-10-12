@@ -371,6 +371,9 @@ func (e *Engine) ProcessPlayer(ctx context.Context, userID string, targetTime ti
 				flights = vMaxWeekly
 			}
 
+			// Placeholder paritas dengan fungsi baseline SQL
+			// (`v_seasonal_factor := 1.0`): musim belum dimodelkan, hanya event
+			// yang menggerakkan demand. Pertahankan agar bentuknya sejajar.
 			seasonalFactor := 1.0
 
 			// GAME-03: allocate the daily demand pool across cabins by
