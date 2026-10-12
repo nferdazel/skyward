@@ -1,5 +1,6 @@
 <script lang="ts">
 	import CraftCard from '$lib/core/components/CraftCard.svelte';
+	import MultiSelectField from '$lib/core/components/MultiSelectField.svelte';
 	import TactileButton from '$lib/core/components/TactileButton.svelte';
 	import SlideOverDrawer from '$lib/core/components/SlideOverDrawer.svelte';
 	import type { FleetStore } from '../state/fleet-store.svelte';
@@ -36,6 +37,76 @@
 	const playerRank = $derived(tierRank(creditTier));
 	function isTierLocked(model: AircraftModel): boolean {
 		return playerRank < tierRank(model.minCreditTier);
+	}
+
+	const CATEGORY_LABELS = [
+		'Regional Turboprop',
+		'Regional Jet',
+		'Narrow-body Jet',
+		'Wide-body Jet'
+	];
+	const RANGE_LABELS = [
+		'Short Range (< 2,000 km)',
+		'Medium Range (2,000 - 6,000 km)',
+		'Long Range (6,000+ km)'
+	];
+
+	/** Port dari Flutter `_catalogCategoryLabel`. */
+	function categoryLabel(type: string): string {
+		switch (type) {
+			case 'regional_turboprop':
+				return CATEGORY_LABELS[0];
+			case 'regional_jet':
+				return CATEGORY_LABELS[1];
+			case 'narrow_body_jet':
+				return CATEGORY_LABELS[2];
+			case 'wide_body_jet':
+				return CATEGORY_LABELS[3];
+			default:
+				return type;
+		}
+	}
+
+	/** Port dari Flutter `_rangeBracketLabel`. */
+	function rangeLabel(rangeKm: number): string {
+		if (rangeKm < 2000) return RANGE_LABELS[0];
+		if (rangeKm <= 6000) return RANGE_LABELS[1];
+		return RANGE_LABELS[2];
+	}
+
+	const manufacturers = $derived(
+		[...new Set(store.state.catalog.map((m) => m.manufacturer))].sort((a, b) =>
+			a < b ? -1 : a > b ? 1 : 0
+		)
+	);
+
+	let pickedManufacturers = $state<string[]>([]);
+	let pickedCategories = $state<string[]>([]);
+	let pickedRanges = $state<string[]>([]);
+
+	/**
+	 * AND antar field, OR di dalam satu field, kosong = semua — sama seperti
+	 * Flutter `_filterAndSortCatalog`. Urutan default `price_asc`, juga dari sana.
+	 */
+	const visibleCatalog = $derived(
+		store.state.catalog
+			.filter(
+				(m) =>
+					(pickedManufacturers.length === 0 || pickedManufacturers.includes(m.manufacturer)) &&
+					(pickedCategories.length === 0 || pickedCategories.includes(categoryLabel(m.type))) &&
+					(pickedRanges.length === 0 || pickedRanges.includes(rangeLabel(m.rangeKm)))
+			)
+			.sort((a, b) => a.purchasePrice - b.purchasePrice)
+	);
+
+	const filtering = $derived(
+		pickedManufacturers.length > 0 || pickedCategories.length > 0 || pickedRanges.length > 0
+	);
+
+	function clearFilters() {
+		pickedManufacturers = [];
+		pickedCategories = [];
+		pickedRanges = [];
 	}
 
 	let selected = $state<AircraftModel | null>(null);
@@ -81,8 +152,36 @@
 	}
 </script>
 
+{#if store.state.catalog.length > 0}
+	<div class="filters">
+		<MultiSelectField
+			label="Manufacturer"
+			options={manufacturers}
+			selected={pickedManufacturers}
+			onchange={(values) => (pickedManufacturers = values)}
+		/>
+		<MultiSelectField
+			label="Category"
+			options={CATEGORY_LABELS}
+			selected={pickedCategories}
+			onchange={(values) => (pickedCategories = values)}
+		/>
+		<MultiSelectField
+			label="Range"
+			options={RANGE_LABELS}
+			selected={pickedRanges}
+			onchange={(values) => (pickedRanges = values)}
+		/>
+	</div>
+{/if}
+{#if filtering}
+	<p class="filter-summary tnum">
+		{visibleCatalog.length} of {store.state.catalog.length} models
+	</p>
+{/if}
+
 <div class="catalog">
-	{#each store.state.catalog as model (model.id)}
+	{#each visibleCatalog as model (model.id)}
 		<CraftCard>
 			<div class="head">
 				<span class="name">{model.manufacturer} {model.modelName}</span>
@@ -118,7 +217,14 @@
 			{/if}
 		</CraftCard>
 	{:else}
-		<CraftCard><p class="muted">Catalog is empty.</p></CraftCard>
+		<CraftCard>
+			<p class="muted">
+				{store.state.catalog.length === 0 ? 'Catalog is empty.' : 'No models match the filters.'}
+			</p>
+			{#if store.state.catalog.length > 0}
+				<TactileButton text="Clear filters" type="secondary" onclick={clearFilters} />
+			{/if}
+		</CraftCard>
 	{/each}
 </div>
 
@@ -190,6 +296,23 @@
 {/if}
 
 <style>
+	.filters {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: var(--space-sm);
+		margin-bottom: var(--space-md);
+	}
+	.filter-summary {
+		margin: 0 0 var(--space-md);
+		font-size: 11px;
+		color: var(--color-text-muted);
+	}
+	/* Breakpoint 1180px sama seperti Flutter: 3 kolom sebaris, di bawahnya 2. */
+	@media (max-width: 1180px) {
+		.filters {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
 	.catalog {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
