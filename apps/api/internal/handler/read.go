@@ -29,6 +29,21 @@ func userID(w http.ResponseWriter, r *http.Request) (string, bool) {
 	return uid, true
 }
 
+// writeNotFoundOrInternal — map error lookup: ErrNoRows → 404 (notFoundMsg),
+// error lain → 500 (internalMsg). Sengaja tidak melapisi semua error jadi 404:
+// bug SQL yang tampil sebagai "not found" hilang tanpa jejak (insiden
+// intel-pane 2026-09-12).
+func writeNotFoundOrInternal(w http.ResponseWriter, err error, notFoundMsg, internalMsg string) {
+	if errors.Is(err, pgx.ErrNoRows) {
+		httperr.WriteError(w, nil, httperr.NotFound(notFoundMsg))
+		return
+	}
+	// Bungkus err supaya penyebabnya tercatat di log (WriteError mencatat
+	// he.Err untuk kode internal; pesan ke klien tetap di-mask jadi "internal
+	// error").
+	httperr.WriteError(w, nil, httperr.Wrap(httperr.CodeInternal, internalMsg, err))
+}
+
 // ── Simulation ────────────────────────────────────────────────────────
 
 func (h *ReadHandler) SimulationState(w http.ResponseWriter, r *http.Request) {
@@ -238,7 +253,7 @@ func (h *ReadHandler) FleetByID(w http.ResponseWriter, r *http.Request) {
 	}
 	f, err := h.Store.GetFleetByID(r.Context(), uid, r.PathValue("id"))
 	if err != nil {
-		httperr.WriteError(w, nil, httperr.NotFound("aircraft not found"))
+		writeNotFoundOrInternal(w, err, "aircraft not found", "load aircraft failed")
 		return
 	}
 	httperr.WriteJSON(w, http.StatusOK, f)
@@ -251,7 +266,7 @@ func (h *ReadHandler) FleetLatestForModel(w http.ResponseWriter, r *http.Request
 	}
 	f, err := h.Store.GetLatestFleetForModel(r.Context(), uid, r.PathValue("modelId"))
 	if err != nil {
-		httperr.WriteError(w, nil, httperr.NotFound("no aircraft for model"))
+		writeNotFoundOrInternal(w, err, "no aircraft for model", "load aircraft failed")
 		return
 	}
 	httperr.WriteJSON(w, http.StatusOK, f)

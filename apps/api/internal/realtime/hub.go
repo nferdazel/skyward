@@ -93,6 +93,10 @@ func (h *Hub) Unregister(c *Client) {
 }
 
 // Subscribe — client subscribe channel.
+//
+// Channel tidak divalidasi di sini: pemanggil bertanggung jawab menyaring nama
+// (lihat handler.wsAllowedChannels) agar peta channel tidak tumbuh dari nama
+// sembarang yang dikirim klien.
 func (h *Hub) Subscribe(c *Client, channel string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"skyward-api/internal/realtime"
 )
 
 func TestWSServerCheckOrigin(t *testing.T) {
@@ -45,5 +47,56 @@ func TestOriginHost(t *testing.T) {
 		if got := originHost(in); got != want {
 			t.Fatalf("originHost(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestFilterAllowedChannels(t *testing.T) {
+	cases := []struct {
+		name string
+		in   []string
+		want []string
+	}{
+		{"semua dikenal → dipertahankan", []string{"fleet_aircraft", "loans"}, []string{"fleet_aircraft", "loans"}},
+		{"tak dikenal dibuang", []string{"fleet_aircraft", "hacked", "admin"}, []string{"fleet_aircraft"}},
+		{"semua asing → kosong", []string{"a", "b"}, []string{}},
+		{"input kosong → kosong", nil, []string{}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := filterAllowedChannels(tc.in)
+			if len(got) != len(tc.want) {
+				t.Fatalf("filterAllowedChannels(%v) = %v, want %v", tc.in, got, tc.want)
+			}
+			for i := range tc.want {
+				if got[i] != tc.want[i] {
+					t.Fatalf("filterAllowedChannels(%v) = %v, want %v", tc.in, got, tc.want)
+				}
+			}
+		})
+	}
+}
+
+// TestApplySubscribeFiltersUnknown — mengunci wiring: revert filter di ServeWS
+// akan membuat test ini gagal. Dipakai client nyata + hub nyata, tanpa koneksi.
+func TestApplySubscribeFiltersUnknown(t *testing.T) {
+	hub := realtime.NewHub(nil)
+	client := realtime.NewClient(hub, "u1")
+	hub.Register(client)
+	s := &WSServer{Hub: hub}
+
+	s.applySubscribe(client, []string{"fleet_aircraft", "hacked"})
+
+	hub.Broadcast("fleet_aircraft", "UPDATE")
+	select {
+	case <-client.Send:
+	default:
+		t.Fatal("channel yang diizinkan harus terkirim")
+	}
+
+	hub.Broadcast("hacked", "UPDATE")
+	select {
+	case <-client.Send:
+		t.Fatal("channel asing tidak boleh terkirim")
+	default:
 	}
 }

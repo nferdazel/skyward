@@ -73,6 +73,43 @@ const (
 	maxMsgSize = 1024
 )
 
+// wsAllowedChannels — channel yang boleh di-subscribe klien. Broadcast sendiri
+// global dan payload-nya hanya sinyal "change" tanpa data domain, jadi allowlist
+// di sini utamanya mencegah peta channel di hub tumbuh tak terbatas dari nama
+// sembarang yang dikirim klien (memory DoS), bukan menutup kebocoran data.
+//
+// Sinkron dengan channel yang benar-benar di-broadcast: handler/mutation.go
+// (`fleet_aircraft`, `route_assignments`, `users`, `loans`) dan
+// engine/simulation.go (`bank_transactions`). Tambah channel baru di sini juga
+// saat menambah broadcast.
+var wsAllowedChannels = map[string]bool{
+	"fleet_aircraft":    true,
+	"route_assignments": true,
+	"users":             true,
+	"loans":             true,
+	"bank_transactions": true,
+}
+
+// filterAllowedChannels — buang channel di luar allowlist. Dipisah dari
+// ServeWS supaya keputusannya bisa diuji tanpa koneksi WS nyata.
+func filterAllowedChannels(channels []string) []string {
+	out := make([]string, 0, len(channels))
+	for _, ch := range channels {
+		if wsAllowedChannels[ch] {
+			out = append(out, ch)
+		}
+	}
+	return out
+}
+
+// applySubscribe — pasang channel yang lolos allowlist ke client. Dipisah dari
+// read pump supaya filter-nya bisa diuji deterministik (tanpa koneksi).
+func (s *WSServer) applySubscribe(client *realtime.Client, channels []string) {
+	for _, ch := range filterAllowedChannels(channels) {
+		s.Hub.Subscribe(client, ch)
+	}
+}
+
 type wsMessage struct {
 	Action   string   `json:"action"` // subscribe | unsubscribe | ping
 	Channels []string `json:"channels,omitempty"`
@@ -176,9 +213,7 @@ func (s *WSServer) ServeWS(w http.ResponseWriter, r *http.Request) {
 		}
 		switch m.Action {
 		case "subscribe":
-			for _, ch := range m.Channels {
-				s.Hub.Subscribe(client, ch)
-			}
+			s.applySubscribe(client, m.Channels)
 		case "unsubscribe":
 			for _, ch := range m.Channels {
 				s.Hub.Unsubscribe(client, ch)
