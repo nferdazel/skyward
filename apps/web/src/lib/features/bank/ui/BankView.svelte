@@ -242,7 +242,10 @@
 	.bank {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-md);
+		/* Anak langsung .bank adalah section (grid kredit, utang aktif, daftar
+		   pinjaman, riwayat), jadi pakai jarak antar-section; di dalam kartu
+		   jaraknya turun ke --space-block/--space-sm. */
+		gap: var(--space-section);
 	}
 	.head {
 		display: flex;
@@ -288,7 +291,7 @@
 		height: auto;
 	}
 	.card-pad {
-		padding: var(--space-lg);
+		padding: var(--space-card);
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-sm);

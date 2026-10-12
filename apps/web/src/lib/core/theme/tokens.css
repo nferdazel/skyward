@@ -69,13 +69,24 @@
 	--space-xxxxl: 40px;
 	--space-xxxxxl: 48px;
 
-	/* Semantic spacing */
+	/*
+	 * Semantic spacing (port dari app_spacing.dart). Pakai token ini, bukan
+	 * token skala, saat elemennya memang memainkan peran itu. Hirarkinya
+	 * disengaja, jangan diratakan jadi satu nilai:
+	 *   page/tab-content = tepi halaman & gap root tab (16/12)
+	 *   section   = pemisah antar-section (16), lebih lapang dari isinya
+	 *   block     = pemisah antar-blok di dalam satu section (12)
+	 *   card      = padding dalam kartu (12), seragam di semua kartu
+	 *   compact   = item rapat di dalam satu blok (8)
+	 *   micro     = jarak optik pada chip/badge/ikon (4)
+	 */
 	--space-page: 16px;
 	--space-card: 12px;
 	--space-section: 16px;
 	--space-block: 12px;
 	--space-compact: 8px;
 	--space-micro: 4px;
+	--space-tab-content: 12px;
 
 	/* ── Radius ── */
 	--radius-tight: 2px;

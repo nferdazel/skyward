@@ -153,7 +153,7 @@
 	section {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-md);
+		gap: var(--space-tab-content);
 	}
 	.hero {
 		display: flex;

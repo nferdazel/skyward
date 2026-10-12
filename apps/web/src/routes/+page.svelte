@@ -185,6 +185,11 @@
 		overflow-y: auto;
 		padding: var(--space-lg);
 	}
+	/*
+	 * View mengalir dari atas (block flow) dan tidak diregangkan memenuhi
+	 * viewport. Itu keputusan, bukan cacat: ruang kosong di bawah konten
+	 * pendek memisahkan, dan tidak diisi panel karangan.
+	 */
 	.net-status {
 		display: flex;
 		align-items: center;

@@ -67,81 +67,88 @@
 </script>
 
 <section>
-	<h2>Settings</h2>
+	<div class="head">
+		<h2>Settings</h2>
+		{#if message}
+			<p class="notice" role="status">{message}</p>
+		{/if}
+	</div>
 
-	{#if message}
-		<p class="notice" role="status">{message}</p>
-	{/if}
-
-	<CraftCard>
-		<div class="card-pad">
-			<span class="k">Branding</span>
-			<label class="field">
-				<span>Company name</span>
-				<input bind:value={companyName} />
-			</label>
-			<label class="field">
-				<span>HQ airport (IATA)</span>
-				<input bind:value={hq} list="airports" placeholder="SIN" />
-				<datalist id="airports">
-					{#each airportCodes as code (code)}<option value={code}></option>{/each}
-				</datalist>
-			</label>
-			<TactileButton
-				text="Save brand"
-				type="primary"
-				loading={busy}
-				width="100%"
-				onclick={companyName.trim() ? save : undefined}
-			/>
-		</div>
-	</CraftCard>
-
-	<CraftCard>
-		<div class="card-pad">
-			<span class="k">Flight operations</span>
-			<span class="muted"
-				>Auto-grounding threshold: aircraft below this condition are grounded automatically.</span
-			>
-			<div class="threshold">
-				<input
-					class="slider"
-					type="range"
-					min="30"
-					max="80"
-					step="5"
-					bind:value={threshold}
-					aria-label="Auto-grounding threshold percent"
-				/>
-				<span class="th-val tnum">{threshold}%</span>
-			</div>
-			<TactileButton text="Save operations" type="primary" loading={busy} onclick={save} />
-		</div>
-	</CraftCard>
-
-	<CraftCard>
-		<div class="card-pad">
-			<span class="k">Danger zone</span>
-			<span class="muted">
-				Reset restores the airline to its initial state. Deleting the account cannot be undone.
-			</span>
-			<div class="danger">
+	<div class="cell cell-brand">
+		<CraftCard>
+			<div class="card-pad">
+				<span class="k">Branding</span>
+				<label class="field">
+					<span>Company name</span>
+					<input bind:value={companyName} />
+				</label>
+				<label class="field">
+					<span>HQ airport (IATA)</span>
+					<input bind:value={hq} list="airports" placeholder="SIN" />
+					<datalist id="airports">
+						{#each airportCodes as code (code)}<option value={code}></option>{/each}
+					</datalist>
+				</label>
 				<TactileButton
-					text="Reset airline"
-					type="destructive"
-					onclick={() => (confirm = 'reset')}
-				/>
-				<TactileButton
-					text="Delete account"
-					type="destructive"
-					onclick={() => {
-						deleteConfirmText = '';
-						confirm = 'delete';
-					}}
+					text="Save brand"
+					type="primary"
+					loading={busy}
+					width="100%"
+					onclick={companyName.trim() ? save : undefined}
 				/>
 			</div>
-		</div>
-	</CraftCard>
+		</CraftCard>
+	</div>
+
+	<div class="cell cell-ops">
+		<CraftCard>
+			<div class="card-pad">
+				<span class="k">Flight operations</span>
+				<span class="muted"
+					>Auto-grounding threshold: aircraft below this condition are grounded automatically.</span
+				>
+				<div class="threshold">
+					<input
+						class="slider"
+						type="range"
+						min="30"
+						max="80"
+						step="5"
+						bind:value={threshold}
+						aria-label="Auto-grounding threshold percent"
+					/>
+					<span class="th-val tnum">{threshold}%</span>
+				</div>
+				<TactileButton text="Save operations" type="primary" loading={busy} onclick={save} />
+			</div>
+		</CraftCard>
+	</div>
+
+	<div class="cell cell-danger">
+		<CraftCard>
+			<div class="card-pad">
+				<span class="k">Danger zone</span>
+				<span class="muted">
+					Reset restores the airline to its initial state. Deleting the account cannot be undone.
+				</span>
+				<div class="danger">
+					<TactileButton
+						text="Reset airline"
+						type="destructive"
+						onclick={() => (confirm = 'reset')}
+					/>
+					<TactileButton
+						text="Delete account"
+						type="destructive"
+						onclick={() => {
+							deleteConfirmText = '';
+							confirm = 'delete';
+						}}
+					/>
+				</div>
+			</div>
+		</CraftCard>
+	</div>
 </section>
 
 {#if confirm === 'reset'}
@@ -183,8 +190,49 @@
 	section {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-md);
-		max-width: 560px;
+		gap: var(--space-section);
+		max-width: 1080px;
+		margin-inline: auto;
+	}
+	.head {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-sm);
+	}
+	.cell {
+		min-width: 0;
+	}
+	/*
+	 * ≥920px: dua kolom, meniru SettingsView Flutter (Center + maxWidth 1080,
+	 * split di 920, jarak antar kolom 16px, antar kartu 16px). Urutan DOM
+	 * (branding, operasi, bahaya) sengaja dipertahankan di tiap breakpoint
+	 * supaya urutan Tab dan pembaca layar sama dengan urutan visual; kolomnya
+	 * karena itu tercermin terhadap Flutter.
+	 */
+	@media (min-width: 920px) {
+		section {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			grid-template-areas:
+				'head head'
+				'brand ops'
+				'brand danger';
+			column-gap: var(--space-lg);
+			row-gap: var(--space-section);
+			align-items: start;
+		}
+		.head {
+			grid-area: head;
+		}
+		.cell-brand {
+			grid-area: brand;
+		}
+		.cell-ops {
+			grid-area: ops;
+		}
+		.cell-danger {
+			grid-area: danger;
+		}
 	}
 	h2 {
 		margin: 0;
