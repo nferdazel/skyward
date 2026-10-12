@@ -22,3 +22,4 @@ apps/web/dist/
 
 # Internal planning docs — this repo is public. Never commit these.
 docs/
+BACKLOG.local.md

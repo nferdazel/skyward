@@ -5,8 +5,9 @@
 # Dua perbandingan:
 #   1. DB hidup  vs  scratch DB hasil apply semua migrasi  -> menangkap DDL yang
 #      di-apply tangan ke DB hidup (sumber drift nyata di alur kerja kita).
-#   2. scratch DB vs  snapshot yang di-commit              -> menangkap snapshot
-#      yang basi setelah ada migrasi baru.
+#   2. scratch DB vs  snapshot lokal (opsional)            -> menangkap snapshot
+#      yang basi setelah ada migrasi baru. Snapshot sengaja TIDAK di-commit
+#      (repo publik); bila belum ada, langkah ini dilewati.
 #
 # Pemakaian (lokal, lewat tunnel ke VPS):
 #   DATABASE_URL=postgres://qouver@127.0.0.1:15432/skyward scripts/drift-check.sh
@@ -88,9 +89,12 @@ fi
 
 echo
 echo "==> 2/2 hasil migrasi vs snapshot"
+# Snapshot sengaja opsional & lokal: ia hanya berguna untuk mendeteksi migrasi
+# lama yang diedit in-place, dan tak perlu diterbitkan di repo publik. Bila belum
+# ada, lewati tanpa menggagalkan (drift nyata sudah ditangkap langkah 1/2).
 if [ ! -f "$SNAPSHOT" ]; then
-  echo "    snapshot belum ada — jalankan dengan --update untuk membuatnya"
-  exit 1
+  echo "    snapshot belum ada (opsional) — dilewati; buat dengan --update bila perlu"
+  exit "$status"
 fi
 if diff -u "$SNAPSHOT" "$TMP/scratch.sql" > "$TMP/snapshot.diff"; then
   echo "    cocok — snapshot masih akurat"

@@ -114,8 +114,13 @@ jobs:
             psql -v ON_ERROR_STOP=1 -h localhost -U skyward -d skyward_test -f "$f" >/dev/null
           done
 
-      - name: go test ./...
-        run: go test ./...
+      # -p 1 WAJIB di sini: semua paket memakai satu database yang sama, sedangkan
+      # `CreateUser` menaruh pemain baru di season aktif sehingga mereka diproses
+      # `WorldTick` (engine) — sementara paket `handler` membuat/menghapus user di
+      # DB yang sama. Tanpa serialisasi, tick bisa memproses user yang baru saja
+      # dihapus (status tick jadi 'degraded') → flake.
+      - name: go test ./... (-p 1, DB bersama)
+        run: go test -p 1 ./...
 
   web:
     name: Web (check + lint + test + build)
@@ -135,7 +140,9 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Disamakan dengan VPS (node 24) dan mesin dev: CI harus membangun
+          # dengan runtime yang sama seperti produksi, bukan versi lain.
+          node-version: 24
           cache: pnpm
           cache-dependency-path: apps/web/pnpm-lock.yaml
 

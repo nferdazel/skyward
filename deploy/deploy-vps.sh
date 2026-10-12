@@ -3,7 +3,7 @@
 # build DI VPS, tanpa registry/GHCR, tanpa secrets GitHub.
 #
 #   - API : podman build -> ekstrak binary native -> restart + health gate + rollback
-#   - Web : npm run build -> swap folder statis (Caddy serve)
+#   - Web : corepack pnpm install --frozen-lockfile && corepack pnpm run build -> swap folder statis (Caddy serve)
 #
 # Kontrak: ref-guard fail-closed, fetch+reset, hanya rebuild yang berubah,
 # health-gated rollback untuk API, swap atomik + SELinux untuk web.
@@ -62,8 +62,81 @@ if [ -f "$REPO_SCRIPT" ] && ! cmp -s "$REPO_SCRIPT" "$SELF_SCRIPT"; then
     && log "==> scripts/deploy-vps.sh diperbarui dari repo (berlaku deploy berikutnya)"
 fi
 
+# ── 0. Gate migrasi ──
+# Repo TIDAK menerapkan DDL otomatis: host hanya punya podman (tanpa psql), dan
+# migrate.sh butuh psql. Tapi bila ada file migrasi yang belum tercatat di
+# schema_migrations, tolak deploy supaya kode baru tidak jalan di skema lama.
+# Gate aktif saat 'migrations/' berubah ATAU di deploy pertama. Override darurat:
+# SKIP_MIGRATION_GATE=1.
+if [ "${SKIP_MIGRATION_GATE:-0}" = "1" ]; then
+  log "==> WARN: SKIP_MIGRATION_GATE=1 — gate migrasi dilewati."
+elif [ "$IS_FIRST" -eq 1 ] || grep -q "^migrations/" <<<"$CHANGED_FILES"; then
+  log "==> Cek migrasi yang belum diterapkan..."
+  if APPLIED=$(podman exec qouver-postgres psql -U qouver -d skyward -tAc \
+       "select filename from schema_migrations" 2>&1); then
+    if [ -z "$APPLIED" ]; then
+      log "==> ERROR: schema_migrations kosong — semua migrasi belum tercatat."
+      log "    Terapkan seluruh migrasi dulu, lalu deploy ulang."
+      exit 1
+    fi
+    shopt -s nullglob
+    PENDING=""
+    for f in "$MONO_DIR"/migrations/*.sql; do
+      b=$(basename "$f")
+      grep -qxF "$b" <<<"$APPLIED" || PENDING="$PENDING $b"
+    done
+    shopt -u nullglob
+    if [ -n "$PENDING" ]; then
+      log "==> ERROR: migrasi belum diterapkan:$PENDING"
+      log "    ($(grep -c . <<<"$APPLIED") migrasi tercatat di schema_migrations.)"
+      log "    Terapkan dulu (mesin dev lewat tunnel + scripts/migrate.sh), lalu deploy ulang."
+      exit 1
+    fi
+    log "==> Migrasi sinkron ($(grep -c . <<<"$APPLIED") tercatat)."
+
+    # Verifikasi ISI migrasi yang sudah punya checksum di ledger. Migrasi bersifat
+    # append-only: file yang isinya berubah (atau hilang) setelah diterapkan harus
+    # memblokir deploy — dulu gate hanya membandingkan NAMA file, sehingga suntingan
+    # pada migrasi lama lolos tanpa jejak.
+    sha() {
+      if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" | awk '{print $1}'
+      else
+        shasum -a 256 "$1" | awk '{print $1}'
+      fi
+    }
+    DRIFT=""
+    while IFS='|' read -r name sum; do
+      [ -z "$name" ] && continue
+      [ -z "$sum" ] && continue
+      if [ ! -f "$MONO_DIR/migrations/$name" ]; then
+        DRIFT="$DRIFT $name(hilang)"
+      elif [ "$(sha "$MONO_DIR/migrations/$name")" != "$sum" ]; then
+        DRIFT="$DRIFT $name(berubah)"
+      fi
+    done < <(podman exec qouver-postgres psql -U qouver -d skyward -tAc \
+             "select filename||'|'||checksum from schema_migrations where checksum is not null" 2>/dev/null)
+    if [ -n "$DRIFT" ]; then
+      log "==> ERROR: migrasi yang sudah diterapkan berubah isinya:$DRIFT"
+      log "    Migrasi append-only: jangan edit/hapus yang sudah diterapkan; buat migrasi BARU."
+      exit 1
+    fi
+
+    # Baris terlacak: sebutkan berapa migrasi lama yang tak bisa diverifikasi
+    # (tercatat sebelum ledger menyimpan checksum). Bukti drift untuk mereka tidak
+    # bisa direkonstruksi jujur — jadi hanya diinformasikan, bukan dipalsukan.
+    NULLS=$(podman exec qouver-postgres psql -U qouver -d skyward -tAc \
+            "select count(*) from schema_migrations where checksum is null" 2>/dev/null)
+    if [ -n "$NULLS" ] && [ "$NULLS" != "0" ]; then
+      log "    ($NULLS migrasi tercatat tanpa checksum — diterapkan sebelum ledger; isinya tak dapat diverifikasi.)"
+    fi
+  else
+    log "==> WARN: tidak bisa membaca schema_migrations; gate dilewati. ($APPLIED)"
+  fi
+fi
+
 # ── 1. API (Go, binary native) ──
-if echo "$CHANGED_FILES" | grep -q "^apps/api/" || [ "$IS_FIRST" -eq 1 ]; then
+if [ "$IS_FIRST" -eq 1 ] || grep -q "^apps/api/" <<<"$CHANGED_FILES"; then
   log "==> Build API (Go)..."
   cd "$MONO_DIR/apps/api"
   BIN_DIR="$APP_DIR/bin"
@@ -109,7 +182,7 @@ else
 fi
 
 # ── 2. Web (static) ──
-if echo "$CHANGED_FILES" | grep -q "^apps/web/" || [ "$IS_FIRST" -eq 1 ]; then
+if [ "$IS_FIRST" -eq 1 ] || grep -q "^apps/web/" <<<"$CHANGED_FILES"; then
   log "==> Build web (static)..."
   # Nilai build-time diambil dari env VPS (mode 600), bukan hardcode.
   # Utamakan env khusus web; fallback ke env prod lama yang memakai
@@ -125,8 +198,13 @@ if echo "$CHANGED_FILES" | grep -q "^apps/web/" || [ "$IS_FIRST" -eq 1 ]; then
     exit 1
   fi
   cd "$MONO_DIR/apps/web"
-  npm install --no-audit --no-fund 2>&1 | tail -5 | tee -a "$LOG"
-  VITE_SKYWARD_API_URL="$VITE_SKYWARD_API_URL" npm run build 2>&1 | tail -10 | tee -a "$LOG"
+  # pnpm (bukan npm) supaya dependensi yang dibangun = yang diuji CI
+  # (pnpm-lock.yaml + --frozen-lockfile). Host hanya punya node+corepack
+  # (pnpm tidak di PATH), jadi panggil lewat `corepack pnpm` — corepack mengambil
+  # versi yang dipatok di package.json (packageManager), tanpa ubah PATH.
+  export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+  corepack pnpm install --frozen-lockfile 2>&1 | tail -5 | tee -a "$LOG"
+  VITE_SKYWARD_API_URL="$VITE_SKYWARD_API_URL" corepack pnpm run build 2>&1 | tail -10 | tee -a "$LOG"
   if [ -d "$MONO_DIR/apps/web/build" ]; then
     WEB_ROOT="$APP_DIR/web"
     WEB_NEW="$APP_DIR/web.new"
