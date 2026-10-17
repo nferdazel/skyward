@@ -5,11 +5,35 @@ import { SimulationReactive } from '$lib/core/state/simulation-reactive';
 
 const DEBOUNCE_MS = 400;
 
+interface Debounced {
+	(): void;
+	cancel(): void;
+}
+
+function debounce(fn: () => void, ms: number): Debounced {
+	let timer: ReturnType<typeof setTimeout> | null = null;
+	const run = () => {
+		if (timer !== null) clearTimeout(timer);
+		timer = setTimeout(() => {
+			timer = null;
+			fn();
+		}, ms);
+	};
+	run.cancel = () => {
+		if (timer !== null) {
+			clearTimeout(timer);
+			timer = null;
+		}
+	};
+	return run;
+}
+
 /**
  * Sambungkan store satu sama lain (pengganti pola `setupReactivity` di cubit).
  *
  * - Realtime (fleet_aircraft, route_assignments, loans, bank_transactions)
- *   memicu refetch REST — bukan menulis state domain.
+ *   memicu refetch REST — bukan menulis state domain. Dibatasi debounce agar
+ *   event beruntun atau reconnect tidak membanjiri API.
  * - Reload setelah sinkronisasi simulasi selesai (transisi true→false) dengan
  *   debounce, agar rentetan tick tidak menghasilkan refetch storm.
  *
@@ -28,10 +52,14 @@ export function wireStores(stores: AppStores): () => void {
 		(listener) => stores.simulation.onSyncState(listener)
 	);
 
+	const refreshFleet = debounce(() => void stores.fleet.refresh(), DEBOUNCE_MS);
+	const refreshRoutes = debounce(() => void stores.routes.refresh(), DEBOUNCE_MS);
+	const refreshBank = debounce(() => void stores.bank.refresh(), DEBOUNCE_MS);
+
 	// Realtime refetch.
-	fleetSub.subscribe(['fleet_aircraft'], () => void stores.fleet.refresh());
-	routesSub.subscribe(['route_assignments'], () => void stores.routes.refresh());
-	bankSub.subscribe(['loans', 'bank_transactions'], () => void stores.bank.refresh());
+	fleetSub.subscribe(['fleet_aircraft'], refreshFleet);
+	routesSub.subscribe(['route_assignments'], refreshRoutes);
+	bankSub.subscribe(['loans', 'bank_transactions'], refreshBank);
 
 	// Reload irisan data saat sinkronisasi simulasi selesai.
 	reactive.subscribeToSimulation(() => {
@@ -52,6 +80,9 @@ export function wireStores(stores: AppStores): () => void {
 	void stores.achievements.load();
 
 	return () => {
+		refreshFleet.cancel();
+		refreshRoutes.cancel();
+		refreshBank.cancel();
 		fleetSub.dispose();
 		routesSub.dispose();
 		bankSub.dispose();
