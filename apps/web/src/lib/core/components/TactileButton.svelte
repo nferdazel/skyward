@@ -5,17 +5,20 @@
 	 * Tactile button with spring micro-interactions. Ported from Flutter
 	 * `TactileButton`.
 	 *
-	 * - press depth scaling (0.98) with snappy return
+	 * - press depth scaling (0.97) with snappy return
 	 * - hover brightness/border transition
 	 * - zero-layout-shift morph between idle / loading / success
+	 * - optional keyboard shortcut keycap hint
 	 */
 	type Props = {
 		text: string;
-		onclick?: () => void;
+		onclick?: (event: MouseEvent) => void;
 		loading?: boolean;
+		disabled?: boolean;
 		success?: boolean;
-		type?: 'primary' | 'secondary' | 'destructive' | 'ghost';
+		type?: 'primary' | 'secondary' | 'destructive' | 'ghost' | 'telemetry';
 		icon?: Snippet;
+		keyHint?: string;
 		width?: string;
 		height?: string;
 	};
@@ -24,15 +27,17 @@
 		text,
 		onclick,
 		loading = false,
+		disabled = false,
 		success = false,
 		type = 'primary',
 		icon,
+		keyHint,
 		width,
 		height = '36px'
 	}: Props = $props();
 
 	let pressed = $state(false);
-	const enabled = $derived(onclick !== undefined && !loading && !success);
+	const enabled = $derived(onclick !== undefined && !loading && !success && !disabled);
 </script>
 
 <button
@@ -54,11 +59,15 @@
 	{:else}
 		{#if icon}<span class="icon">{@render icon()}</span>{/if}
 		<span class="label">{text}</span>
+		{#if keyHint}
+			<span class="key-hint mono" aria-hidden="true">{keyHint}</span>
+		{/if}
 	{/if}
 </button>
 
 <style>
 	.tactile {
+		position: relative;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -96,12 +105,23 @@
 		display: inline-flex;
 	}
 
+	.key-hint {
+		font-size: 10px;
+		color: currentColor;
+		opacity: 0.65;
+		padding: 1px 4px;
+		background: rgba(0, 0, 0, 0.2);
+		border-radius: 2px;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
 	.primary {
 		background: var(--color-accent);
 		color: #000;
 	}
 	.primary:not(:disabled):hover {
 		background: var(--color-accent-bright);
+		box-shadow: var(--glow-accent);
 	}
 
 	.secondary {
@@ -123,6 +143,18 @@
 	.destructive:not(:disabled):hover {
 		background: var(--color-error);
 		color: #fff;
+		box-shadow: var(--glow-error);
+	}
+
+	.telemetry {
+		background: var(--color-surface-2);
+		color: var(--color-teal);
+		border-color: rgba(58, 175, 160, 0.3);
+	}
+	.telemetry:not(:disabled):hover {
+		background: var(--color-surface-active);
+		border-color: var(--color-teal);
+		box-shadow: var(--glow-teal);
 	}
 
 	.ghost {

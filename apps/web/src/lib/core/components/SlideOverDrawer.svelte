@@ -31,9 +31,16 @@
 		<header>
 			<div class="titles">
 				<span class="title">{title}</span>
-				{#if subtitle}<span class="subtitle">{subtitle}</span>{/if}
+				{#if subtitle}<span class="subtitle micro-label">{subtitle}</span>{/if}
 			</div>
-			<TactileButton text="ESC" type="ghost" height="28px" width="64px" onclick={onclose} />
+			<TactileButton
+				text="ESC"
+				type="ghost"
+				height="28px"
+				width="68px"
+				keyHint="⎋"
+				onclick={onclose}
+			/>
 		</header>
 		<div class="body">{@render children()}</div>
 		{#if bottomActions}
@@ -53,7 +60,8 @@
 	.scrim {
 		position: absolute;
 		inset: 0;
-		background: rgb(0 0 0 / 0.45);
+		background: rgb(0 0 0 / 0.5);
+		backdrop-filter: blur(1.5px);
 		border: none;
 		cursor: default;
 	}
@@ -62,6 +70,7 @@
 		height: 100%;
 		background: var(--color-surface-3);
 		border-left: 1px solid var(--color-border-highlight);
+		box-shadow: -8px 0 24px rgba(0, 0, 0, 0.5);
 		display: flex;
 		flex-direction: column;
 		max-width: 100vw;
@@ -91,7 +100,7 @@
 		white-space: nowrap;
 	}
 	.subtitle {
-		font-size: 11px;
+		font-size: 10px;
 		color: var(--color-text-muted);
 		letter-spacing: 0.12em;
 		overflow: hidden;

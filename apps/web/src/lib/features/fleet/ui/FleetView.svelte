@@ -2,6 +2,8 @@
 	import AppBadge from '$lib/core/components/AppBadge.svelte';
 	import CraftCard from '$lib/core/components/CraftCard.svelte';
 	import SegmentedPillControl from '$lib/core/components/SegmentedPillControl.svelte';
+	import TactileButton from '$lib/core/components/TactileButton.svelte';
+	import SlideOverDrawer from '$lib/core/components/SlideOverDrawer.svelte';
 	import FlightConditionCell from './FlightConditionCell.svelte';
 	import FleetDrawerContent from './FleetDrawerContent.svelte';
 	import AcquireTab from './AcquireTab.svelte';
@@ -24,6 +26,7 @@
 
 	let tab = $state<'fleet' | 'acquire'>('fleet');
 	let selectedId = $state<string | null>(null);
+	let drawerOpen = $state(false);
 	let busy = $state(false);
 
 	const fmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
@@ -123,11 +126,18 @@
 								<th>Condition</th>
 								<th>Status</th>
 								<th>Cabin</th>
+								<th>Actions</th>
 							</tr>
 						</thead>
 						<tbody>
 							{#each fleet as a (a.id)}
-								<tr class:selected={a.id === selected?.id} onclick={() => (selectedId = a.id)}>
+								<tr
+									class:selected={a.id === selected?.id}
+									onclick={() => {
+										selectedId = a.id;
+										drawerOpen = true;
+									}}
+								>
 									<td>
 										<div class="ac">
 											<AppBadge label={a.tailNumber || '—'} tone="primary" />
@@ -151,6 +161,32 @@
 										/>
 									</td>
 									<td class="tnum">E {a.economySeats} B {a.businessSeats} F {a.firstClassSeats}</td>
+									<td>
+										<div class="row-actions">
+											{#if a.condition < 100}
+												<TactileButton
+													text={busy ? '…' : `Repair (${money(a.repairCost)})`}
+													type="secondary"
+													height="24px"
+													disabled={busy}
+													onclick={(e) => {
+														e.stopPropagation();
+														void repair(a);
+													}}
+												/>
+											{/if}
+											<TactileButton
+												text="Manage"
+												type="ghost"
+												height="24px"
+												onclick={(e) => {
+													e.stopPropagation();
+													selectedId = a.id;
+													drawerOpen = true;
+												}}
+											/>
+										</div>
+									</td>
 								</tr>
 							{/each}
 						</tbody>
@@ -171,6 +207,32 @@
 					{/if}
 				</div>
 			</div>
+
+			{#if drawerOpen && selected}
+				<div class="mobile-drawer-gate">
+					<SlideOverDrawer
+						title={selected.model.modelName || 'Aircraft Operations'}
+						subtitle={`${selected.tailNumber || 'No tail'} • ${selected.model.manufacturer.toUpperCase()}`}
+						onclose={() => (drawerOpen = false)}
+					>
+						<FleetDrawerContent
+							aircraft={selected}
+							{autoGroundingThreshold}
+							{busy}
+							onRepair={() => void repair(selected)}
+							onSaveSeats={(e, b, f) => void saveSeats(selected, e, b, f)}
+							onSell={() => {
+								void sell(selected);
+								drawerOpen = false;
+							}}
+							onTerminateLease={() => {
+								void terminateLease(selected);
+								drawerOpen = false;
+							}}
+						/>
+					</SlideOverDrawer>
+				</div>
+			{/if}
 		{/if}
 	{:else}
 		<AcquireTab {store} {creditTier} {onFinance} />
@@ -294,6 +356,20 @@
 	}
 	@media (max-width: 1050px) {
 		.detail {
+			display: none;
+		}
+	}
+	.row-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-xs);
+		white-space: nowrap;
+	}
+	.mobile-drawer-gate {
+		display: block;
+	}
+	@media (min-width: 1051px) {
+		.mobile-drawer-gate {
 			display: none;
 		}
 	}

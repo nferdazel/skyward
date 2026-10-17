@@ -143,6 +143,7 @@
 		background: var(--color-surface-active);
 		color: var(--color-accent);
 		border-left-color: var(--color-accent);
+		box-shadow: inset 2px 0 8px rgba(91, 158, 224, 0.2);
 	}
 	.logout {
 		margin-top: var(--space-sm);

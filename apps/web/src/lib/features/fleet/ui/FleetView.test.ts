@@ -40,4 +40,10 @@ describe('FleetView', () => {
 		render(FleetView, { props: { store: makeStore({ aircraft: [] }) } });
 		expect(screen.getByText(/No aircraft yet/)).toBeInTheDocument();
 	});
+
+	it('renders table action buttons for quick repair and inspect', () => {
+		render(FleetView, { props: { store: makeStore() } });
+		expect(screen.getAllByRole('button', { name: /Repair/ }).length).toBeGreaterThanOrEqual(1);
+		expect(screen.getByRole('button', { name: 'Manage' })).toBeInTheDocument();
+	});
 });

@@ -48,18 +48,21 @@
 
 	<div class="center">
 		<span class="metric">
-			<span class="k">CASH</span>
-			<span class="v tnum" class:neg={sim.cashBalance < 0}
+			<span class="k micro-label">CASH</span>
+			<span class="v mono tnum" class:neg={sim.cashBalance < 0}
 				>${money.format(Math.round(sim.cashBalance))}</span
 			>
 		</span>
 		<span class="metric">
-			<span class="k">FLIGHTS</span>
-			<span class="v tnum">{sim.lastFlightsRun}</span>
+			<span class="k micro-label">FLIGHTS</span>
+			<span class="v mono tnum">{sim.lastFlightsRun}</span>
 		</span>
 		<span class="metric">
-			<span class="k">STATUS</span>
-			<span class="v">{sim.operationalStatus}</span>
+			<span class="k micro-label">STATUS</span>
+			<span class="v status-pill" class:neg={sim.operationalStatus.toLowerCase() === 'grounded'}>
+				<span class="beacon" aria-hidden="true"></span>
+				<span class="mono">{sim.operationalStatus}</span>
+			</span>
 		</span>
 	</div>
 
@@ -173,6 +176,18 @@
 	}
 	.v.neg {
 		color: var(--color-error);
+	}
+	.status-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+	}
+	.beacon {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: currentColor;
+		animation: radar-pulse 1.4s infinite;
 	}
 	.right {
 		position: relative;
