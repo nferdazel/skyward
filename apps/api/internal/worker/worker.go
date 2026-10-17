@@ -39,6 +39,7 @@ type Worker struct {
 	status   *Status
 	mu       sync.RWMutex
 	done     chan struct{}
+	wg       sync.WaitGroup
 }
 
 // New — buat Worker. Belum jalan sampai Start() dipanggil.
@@ -60,7 +61,11 @@ func (w *Worker) Start(ctx context.Context) {
 		w.logger.Info("worker disabled, not starting")
 		return
 	}
-	go w.loop(ctx)
+	w.wg.Add(1)
+	go func() {
+		defer w.wg.Done()
+		w.loop(ctx)
+	}()
 }
 
 // Stop — sinyal loop berhenti (blok sampai goroutine berhenti).
@@ -70,6 +75,7 @@ func (w *Worker) Stop() {
 	default:
 		close(w.done)
 	}
+	w.wg.Wait()
 }
 
 // Alive — apakah worker hidup dan tidak dalam error state.
@@ -183,8 +189,10 @@ func (w *Worker) readTickIntervalSeconds(ctx context.Context) (int, bool) {
 	if w.pool == nil {
 		return 0, false
 	}
+	readCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	var secs int
-	err := w.pool.QueryRow(ctx,
+	err := w.pool.QueryRow(readCtx,
 		`SELECT tick_interval_seconds FROM season_clock WHERE status = 'active' LIMIT 1`).Scan(&secs)
 	if err != nil || secs <= 0 {
 		return 0, false
@@ -207,7 +215,15 @@ func (w *Worker) runTick(ctx context.Context) (err error) {
 			err = fmt.Errorf("tick panic: %v", r)
 		}
 	}()
-	if err = w.tickFn(ctx); err != nil {
+
+	tickTimeout := w.interval
+	if tickTimeout < 30*time.Second {
+		tickTimeout = 45 * time.Second
+	}
+	tickCtx, cancel := context.WithTimeout(ctx, tickTimeout)
+	defer cancel()
+
+	if err = w.tickFn(tickCtx); err != nil {
 		return err
 	}
 	elapsed := time.Since(start)

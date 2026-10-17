@@ -213,6 +213,9 @@ type routePerfConfig struct {
 // player tick it excludes event multipliers (bots have no target time) but does
 // include cargo revenue and lease cost so the sign matches the player's model.
 func routeWeeklyProfit(p routePerfParams, c routePerfConfig) float64 {
+	if p.SpeedKMH <= 0 || p.DistanceKM <= 0 {
+		return 0
+	}
 	flightHours := p.DistanceKM/p.SpeedKMH + p.TurnaroundHours
 	if flightHours <= 0 {
 		return 0

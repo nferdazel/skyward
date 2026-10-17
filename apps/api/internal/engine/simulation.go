@@ -357,6 +357,9 @@ func (e *Engine) ProcessPlayer(ctx context.Context, userID string, targetTime ti
 		totalExpense = 0.0
 
 		for _, r := range routes {
+			if r.SpeedKMH <= 0 || r.DistanceKM <= 0 {
+				continue
+			}
 			// Event multiplier dari snapshot (dulu dua query per rute per pemain).
 			demandEvent := snap.demandMult(r.OriginIATA, r.DestIATA)
 			capacityEvent := snap.capacityMult(r.OriginIATA, r.DestIATA)
