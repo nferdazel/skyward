@@ -202,6 +202,10 @@ func (s *WSServer) ServeWS(w http.ResponseWriter, r *http.Request) {
 		conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
+	defer func() {
+		client.Close()
+		conn.Close()
+	}()
 	for {
 		_, data, err := conn.ReadMessage()
 		if err != nil {

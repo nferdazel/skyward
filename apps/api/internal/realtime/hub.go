@@ -59,14 +59,18 @@ func (c *Client) TrySend(msg []byte) bool {
 	}
 }
 
-// Close — tutup channel Send secara aman dan tandai status closed.
-func (c *Client) Close() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (c *Client) closeLocked() {
 	if !c.closed {
 		c.closed = true
 		close(c.Send)
 	}
+}
+
+// Close — tutup channel Send secara aman dan tandai status closed.
+func (c *Client) Close() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.closeLocked()
 }
 
 // Register — daftarkan client baru ke hub.
@@ -81,6 +85,8 @@ func (h *Hub) Unregister(c *Client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	delete(h.clients, c)
+
+	c.mu.Lock()
 	for ch := range c.channels {
 		if set, ok := h.channels[ch]; ok {
 			delete(set, c)
@@ -89,7 +95,9 @@ func (h *Hub) Unregister(c *Client) {
 			}
 		}
 	}
-	c.Close()
+	c.channels = nil
+	c.closeLocked()
+	c.mu.Unlock()
 }
 
 // Subscribe — client subscribe channel.
