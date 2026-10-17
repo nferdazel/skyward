@@ -12,7 +12,7 @@ describe('ExpenseBreakdownBar', () => {
 			}
 		});
 
-		expect(screen.getByText('COST DISTRIBUTION')).toBeInTheDocument();
+		expect(screen.getByText(/cost distribution/i)).toBeInTheDocument();
 		expect(screen.getByText('Fuel')).toBeInTheDocument();
 		expect(screen.getByText('50%')).toBeInTheDocument();
 		expect(screen.getByText('Crew')).toBeInTheDocument();

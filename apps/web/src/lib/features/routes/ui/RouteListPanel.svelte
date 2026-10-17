@@ -3,6 +3,8 @@
 	import type { UserRoute } from '../domain/route-models';
 	import { isMaintenanceGrounded } from '$lib/features/fleet/domain/fleet-models';
 	import { colors } from '$lib/core/theme/tokens';
+	import RouteEditModal from './RouteEditModal.svelte';
+	import AircraftSelectDialog from './AircraftSelectDialog.svelte';
 
 	/**
 	 * Left overlay panel: scrollable list of route cards. Ported from the Flutter
@@ -20,6 +22,9 @@
 
 	let { store, routes, selectedRouteId, autoGroundingThreshold, baseFare, ontoggle }: Props =
 		$props();
+
+	let editingRoute = $state<UserRoute | null>(null);
+	let assigningRoute = $state<UserRoute | null>(null);
 
 	const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
 
@@ -44,16 +49,6 @@
 
 	async function close(route: UserRoute) {
 		await store.remove(route.id);
-	}
-
-	function toggleAssign(route: UserRoute) {
-		// Unassign if assigned; otherwise assign the first idle-ready aircraft.
-		if (route.assignedAircraftId) {
-			void store.assign(route.id, null);
-			return;
-		}
-		const idle = store.state.availableFleet[0];
-		if (idle) void store.assign(route.id, idle.id);
 	}
 </script>
 
@@ -94,14 +89,30 @@
 				</button>
 				{#if sel}
 					<div class="actions">
-						<button onclick={() => toggleAssign(route)}>Assign</button>
-						<button class="danger" onclick={() => close(route)}>Close</button>
+						<button class="action-btn" onclick={() => (assigningRoute = route)}>
+							{route.assignedAircraftId ? 'Fleet' : 'Assign'}
+						</button>
+						<button class="action-btn" onclick={() => (editingRoute = route)}> Edit </button>
+						<button class="action-btn danger" onclick={() => close(route)}> Close </button>
 					</div>
 				{/if}
 			</li>
 		{/each}
 	</ul>
 </div>
+
+{#if editingRoute}
+	<RouteEditModal {store} route={editingRoute} {baseFare} onclose={() => (editingRoute = null)} />
+{/if}
+
+{#if assigningRoute}
+	<AircraftSelectDialog
+		{store}
+		route={assigningRoute}
+		{autoGroundingThreshold}
+		onclose={() => (assigningRoute = null)}
+	/>
+{/if}
 
 <style>
 	.panel {

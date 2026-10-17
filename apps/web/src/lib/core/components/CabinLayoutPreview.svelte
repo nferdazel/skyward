@@ -26,6 +26,10 @@
 	const ecoPct = $derived(capacity > 0 ? (ecoSlots / capacity) * 100 : 0);
 	const busPct = $derived(capacity > 0 ? (busSlots / capacity) * 100 : 0);
 	const firstPct = $derived(capacity > 0 ? (firstSlots / capacity) * 100 : 0);
+
+	const firstPods = $derived(Array.from({ length: Math.min(firstClass, 8) }, (_, i) => i));
+	const busPods = $derived(Array.from({ length: Math.min(business, 12) }, (_, i) => i));
+	const ecoPods = $derived(Array.from({ length: Math.min(economy, 18) }, (_, i) => i));
 </script>
 
 <div class="cabin-visualizer" role="region" aria-label="Aircraft Cabin Seating Visualizer">
@@ -66,7 +70,7 @@
 				>
 					<div class="section-label micro-label">FIRST CLASS ({firstClass})</div>
 					<div class="seat-grid layout-1-1">
-						{#each Array(Math.min(firstClass, 8)) as _, i (i)}
+						{#each firstPods as pod (pod)}
 							<div class="seat-pod first" aria-hidden="true">
 								<span class="seat-cushion"></span>
 							</div>
@@ -86,7 +90,7 @@
 				>
 					<div class="section-label micro-label">BUSINESS ({business})</div>
 					<div class="seat-grid layout-2-2">
-						{#each Array(Math.min(business, 12)) as _, i (i)}
+						{#each busPods as pod (pod)}
 							<div class="seat-pod business" aria-hidden="true">
 								<span class="seat-cushion"></span>
 							</div>
@@ -105,7 +109,7 @@
 			>
 				<div class="section-label micro-label">ECONOMY ({economy})</div>
 				<div class="seat-grid layout-3-3">
-					{#each Array(Math.min(economy, 18)) as _, i (i)}
+					{#each ecoPods as pod (pod)}
 						<div class="seat-pod economy" aria-hidden="true">
 							<span class="seat-cushion"></span>
 						</div>
