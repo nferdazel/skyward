@@ -97,6 +97,25 @@ export const motion = {
 	pressScale: 0.97
 } as const;
 
+/** Glass Cockpit glow tokens. */
+export const glows = {
+	accent: '0 0 12px rgba(91,158,224,0.35)',
+	teal: '0 0 12px rgba(58,175,160,0.35)',
+	success: '0 0 12px rgba(52,208,123,0.35)',
+	warning: '0 0 12px rgba(230,168,23,0.35)',
+	error: '0 0 12px rgba(224,85,85,0.35)'
+} as const;
+
+/**
+ * Aircraft cabin slot multipliers (1 First Class seat = 3 slots, 1 Business = 2 slots, 1 Economy = 1 slot).
+ * Ported from Flutter `SeatConfigDialog` & domain flight capacity models.
+ */
+export const cabinSlotCost = {
+	economy: 1,
+	business: 2,
+	firstClass: 3
+} as const;
+
 /**
  * Aircraft condition → colour band. Ported from condition_colors.dart.
  * Bands are inclusive-low; thresholds match the Flutter thresholds.

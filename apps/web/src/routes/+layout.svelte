@@ -15,6 +15,7 @@
 	import { AuthStore } from '$lib/features/auth/state/auth-store.svelte';
 	import { setAuthStore } from '$lib/features/auth/state/auth-context.svelte';
 	import { createAuthGateway } from '$lib/features/auth/data/create-auth-gateway';
+	import TerminalLoader from '$lib/core/components/TerminalLoader.svelte';
 
 	let { children } = $props();
 
@@ -97,19 +98,7 @@
 </script>
 
 {#if !ready}
-	<div class="boot" aria-busy="true">Loading…</div>
+	<TerminalLoader message="RESTORING CEO FLIGHT OPERATIONS..." />
 {:else}
 	{@render children()}
 {/if}
-
-<style>
-	.boot {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 100vh;
-		color: var(--color-text-secondary);
-		background: var(--color-bg);
-		font-family: var(--font-sans);
-	}
-</style>

@@ -2,12 +2,14 @@
 	import CraftCard from '$lib/core/components/CraftCard.svelte';
 	import AppSparkline from '$lib/core/components/AppSparkline.svelte';
 	import SegmentedPillControl from '$lib/core/components/SegmentedPillControl.svelte';
+	import ExpenseBreakdownBar from '$lib/core/components/ExpenseBreakdownBar.svelte';
 	import BankView from '$lib/features/bank/ui/BankView.svelte';
 	import LedgerTable from './LedgerTable.svelte';
 	import IfrsReportPanel from './IfrsReportPanel.svelte';
 	import type { FinanceStore } from '../state/finance-store.svelte';
 	import type { BankStore } from '$lib/features/bank/state/bank-store.svelte';
 	import { buildFinanceOverview, operatingMargin } from '../domain/finance-overview';
+	import { buildIncomeStatement } from '../domain/ifrs-report-builder';
 	import { financeTotals } from '$lib/features/dashboard/domain/overview-snapshot';
 	import { colors } from '$lib/core/theme/tokens';
 
@@ -25,6 +27,7 @@
 	const money = (n: number) => `$${fmt.format(Math.round(n))}`;
 
 	const totals = $derived(financeTotals(store.state.transactions));
+	const income = $derived(buildIncomeStatement(store.state.transactions));
 	const snapshot = $derived(store.state.snapshot);
 	const weeklyDebt = $derived(
 		bankStore.state.loans
@@ -130,6 +133,16 @@
 					<span class="muted">{overview.burnMixLabel}</span>
 				</div>
 			</div>
+		</CraftCard>
+
+		<CraftCard>
+			<ExpenseBreakdownBar
+				fuel={income.fuel}
+				crew={income.crew}
+				maintenance={income.maintenance + income.hangarRepairs}
+				lease={income.fleetLeasing}
+				other={income.airportFees}
+			/>
 		</CraftCard>
 
 		<div class="zones">

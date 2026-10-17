@@ -118,6 +118,22 @@
 	--motion-ease: cubic-bezier(0.2, 0, 0, 1);
 	--motion-ease-out: cubic-bezier(0, 0, 0.2, 1);
 	--press-scale: 0.97;
+
+	/* ── Cockpit Telemetry Glows (Glass Cockpit v2.0) ── */
+	--glow-accent: 0 0 12px rgb(91 158 224 / 0.35);
+	--glow-teal: 0 0 12px rgb(58 175 160 / 0.35);
+	--glow-success: 0 0 12px rgb(52 208 123 / 0.35);
+	--glow-warning: 0 0 12px rgb(230 168 23 / 0.35);
+	--glow-error: 0 0 12px rgb(224 85 85 / 0.35);
+
+	/* ── Cockpit Textures ── */
+	--texture-scanline: repeating-linear-gradient(
+		0deg,
+		rgba(0, 0, 0, 0.25),
+		rgba(0, 0, 0, 0.25) 1px,
+		transparent 1px,
+		transparent 2px
+	);
 }
 
 *,
@@ -146,14 +162,63 @@ h4 {
 	color: var(--color-text-primary);
 }
 
-/* Utility: tabular numerals for money/quantities. */
+/* Utility: tabular numerals for money/quantities/telemetry. */
 .tnum {
-	font-variant-numeric: tabular-nums;
+	font-variant-numeric: tabular-nums lining-nums;
+	font-feature-settings:
+		'tnum' 1,
+		'lnum' 1;
 }
 
-/* Utility: monospaced code. */
+/* Utility: monospaced code & avionics metrics. */
 .mono {
 	font-family: var(--font-mono);
+}
+
+/* Micro-label: section subheads & uppercase badges */
+.micro-label {
+	font-size: var(--text-label);
+	font-weight: 600;
+	letter-spacing: var(--tracking-label);
+	text-transform: uppercase;
+	color: var(--color-text-secondary);
+}
+
+/* KPI Large: primary telemetry figures */
+.kpi-large {
+	font-family: var(--font-mono);
+	font-size: 20px;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums lining-nums;
+	font-feature-settings:
+		'tnum' 1,
+		'lnum' 1;
+}
+
+/* Pulsing radar dot for live operational telemetry */
+@keyframes radar-pulse {
+	0% {
+		box-shadow: 0 0 0 0 currentColor;
+		opacity: 0.9;
+	}
+	70% {
+		box-shadow: 0 0 0 6px transparent;
+		opacity: 1;
+	}
+	100% {
+		box-shadow: 0 0 0 0 transparent;
+		opacity: 0.9;
+	}
+}
+
+.radar-beacon {
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background-color: currentColor;
+	animation: radar-pulse 1.4s infinite;
 }
 
 /*
@@ -174,5 +239,8 @@ h4 {
 		animation-duration: 0.01ms !important;
 		animation-iteration-count: 1 !important;
 		transition-duration: 0.01ms !important;
+	}
+	.radar-beacon {
+		animation: none;
 	}
 }

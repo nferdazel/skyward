@@ -22,6 +22,11 @@
 	}
 </script>
 
+<svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
+
+<button class="scrim" aria-label="Close notification panel" onclick={onclose} tabindex="-1"
+></button>
+
 <div class="panel" role="dialog" aria-label="Notifications">
 	<div class="head">
 		<span class="title">Notifications</span>
@@ -52,6 +57,16 @@
 </div>
 
 <style>
+	.scrim {
+		position: fixed;
+		inset: 0;
+		z-index: 110;
+		background: transparent;
+		border: none;
+		padding: 0;
+		margin: 0;
+		cursor: default;
+	}
 	.panel {
 		position: absolute;
 		top: calc(100% + var(--space-xs));
