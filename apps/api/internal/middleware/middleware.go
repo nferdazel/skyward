@@ -238,15 +238,15 @@ func RateLimit(ctx context.Context, perMin int, logger *slog.Logger) func(http.H
 func clientIP(r *http.Request) string {
 	rip := remoteIP(r.RemoteAddr)
 	if rip != nil && ipTrusted(rip) {
+		if xr := strings.TrimSpace(r.Header.Get("X-Real-IP")); xr != "" {
+			if ip := net.ParseIP(xr); ip != nil {
+				return xr
+			}
+		}
 		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
 			first := strings.TrimSpace(strings.Split(fwd, ",")[0])
 			if ip := net.ParseIP(first); ip != nil {
 				return first
-			}
-		}
-		if xr := strings.TrimSpace(r.Header.Get("X-Real-IP")); xr != "" {
-			if ip := net.ParseIP(xr); ip != nil {
-				return xr
 			}
 		}
 	}

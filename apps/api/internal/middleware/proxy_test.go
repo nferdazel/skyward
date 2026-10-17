@@ -51,6 +51,15 @@ func TestClientIPTrustBoundary(t *testing.T) {
 	if got != "127.0.0.1" {
 		t.Fatalf("invalid XFF should fall back to socket IP, got %q", got)
 	}
+
+	// 5. Trusted proxy: X-Real-IP menang melawan pemalsuan X-Forwarded-For.
+	got = clientIP(reqFrom("127.0.0.1:40404", map[string]string{
+		"X-Forwarded-For": "1.2.3.4, 198.51.100.9",
+		"X-Real-IP":       "198.51.100.9",
+	}))
+	if got != "198.51.100.9" {
+		t.Fatalf("X-Real-IP should win over spoofed XFF, got %q", got)
+	}
 }
 
 func TestSetTrustedProxies(t *testing.T) {

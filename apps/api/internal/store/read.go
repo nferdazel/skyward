@@ -190,14 +190,17 @@ const operatingBalanceExpr = `
 	COALESCE((SELECT ba.balance FROM bank_accounts ba
 	           WHERE ba.user_id = u.id AND ba.account_type = 'operating' LIMIT 1), 0)`
 
-// revenue30dExpr — total kredit 30 hari terakhir milik baris `users u`.
+// revenue30dExpr — total kredit pendapatan operasional 30 hari terakhir milik baris `users u`.
 //
 // Dulu disalin utuh di dua query. Rumus ini menentukan angka pendapatan yang
 // dilihat pemain, jadi satu salinan yang tertinggal berarti dua layar
 // menampilkan pendapatan berbeda untuk pemain yang sama.
+// Filter ifrs_category = 'revenue' mencegah pencairan pinjaman ('financing')
+// dan penjualan aset ('investing') terhitung sebagai pendapatan.
 const revenue30dExpr = `
 	COALESCE((SELECT SUM(bt.amount) FROM bank_transactions bt
 	           WHERE bt.user_id = u.id AND bt.transaction_type = 'credit'
+	             AND COALESCE(bt.ifrs_category, 'revenue') = 'revenue'
 	             AND bt.game_date >= u.game_current_time - INTERVAL '30 days'), 0)`
 
 // Batas halaman untuk endpoint daftar. Nilainya berbeda per endpoint karena
@@ -392,8 +395,8 @@ func (s *Store) GetFinanceSnapshot(ctx context.Context, userID string) (*Finance
 		return nil, fmt.Errorf("store: finance snapshot game time: %w", err)
 	}
 	if err := s.pool.QueryRow(ctx, `
-		SELECT COALESCE(SUM(CASE WHEN transaction_type='credit' THEN amount ELSE 0 END), 0),
-		       COALESCE(SUM(CASE WHEN transaction_type='debit' THEN ABS(amount) ELSE 0 END), 0)
+		SELECT COALESCE(SUM(CASE WHEN transaction_type='credit' AND COALESCE(ifrs_category, 'revenue') = 'revenue' THEN amount ELSE 0 END), 0),
+		       COALESCE(SUM(CASE WHEN transaction_type='debit' AND COALESCE(ifrs_category, 'expense') NOT IN ('financing', 'investing') THEN ABS(amount) ELSE 0 END), 0)
 		FROM bank_transactions WHERE user_id=$1 AND game_date >= $2`, userID, gameTime.AddDate(0, 0, -30),
 	).Scan(&f.RollingRevenue30d, &f.RollingExpense30d); err != nil {
 		return nil, fmt.Errorf("store: finance snapshot rolling: %w", err)
