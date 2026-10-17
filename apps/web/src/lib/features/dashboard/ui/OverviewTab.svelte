@@ -3,6 +3,8 @@
 	import AppBadge from '$lib/core/components/AppBadge.svelte';
 	import AppSparkline from '$lib/core/components/AppSparkline.svelte';
 	import TactileButton from '$lib/core/components/TactileButton.svelte';
+	import ExpenseBreakdownBar from '$lib/core/components/ExpenseBreakdownBar.svelte';
+	import { buildIncomeStatement } from '$lib/features/finance/domain/ifrs-report-builder';
 	import { buildOverviewSnapshot, financeTotals } from '../domain/overview-snapshot';
 	import type { AppUser } from '$lib/features/auth/domain/user';
 	import type { AppStores } from '$lib/core/di/app-stores.svelte';
@@ -18,6 +20,8 @@
 	const money = (n: number) => `$${fmt.format(Math.round(n))}`;
 
 	const totals = $derived(financeTotals(stores.finance.state.transactions));
+	const income = $derived(buildIncomeStatement(stores.finance.state.transactions));
+	const hasExpenses = $derived(totals.totalExpense > 0);
 	const overview = $derived(
 		buildOverviewSnapshot({
 			user,
@@ -112,6 +116,18 @@
 				</div>
 			</div>
 		</div>
+
+		{#if hasExpenses}
+			<div class="overview-breakdown">
+				<ExpenseBreakdownBar
+					fuel={income.fuel}
+					crew={income.crew}
+					maintenance={income.maintenance + income.hangarRepairs}
+					lease={income.fleetLeasing}
+					other={income.airportFees}
+				/>
+			</div>
+		{/if}
 	</CraftCard>
 
 	{#if overview.bankruptcyRiskLevel > 0}
@@ -293,6 +309,21 @@
 	.vline {
 		width: 1px;
 		background: var(--color-border);
+	}
+	.overview-breakdown {
+		margin-top: var(--space-md);
+		padding-top: var(--space-md);
+		border-top: 1px solid var(--color-border);
+	}
+	@media (max-width: 768px) {
+		.strip {
+			flex-direction: column;
+			gap: var(--space-md);
+		}
+		.vline {
+			width: 100%;
+			height: 1px;
+		}
 	}
 	.k {
 		font-size: 10px;
