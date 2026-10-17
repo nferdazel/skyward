@@ -47,9 +47,15 @@
 	const margin = $derived(operatingMargin(totals.totalRevenue, totals.totalExpense));
 	const net30d = $derived(snapshot.rollingNet30d);
 
-	const cashTrend = $derived(snapshot.cash > 0 ? [snapshot.cash, snapshot.cash] : [0, 0]);
+	const cashTrend = $derived(
+		store.state.history.length > 0
+			? store.state.history.map((h) => h.cash)
+			: snapshot.cash > 0 ? [snapshot.cash, snapshot.cash] : [0, 0]
+	);
 	const netWorthTrend = $derived(
-		snapshot.netWorth > 0 ? [snapshot.netWorth, snapshot.netWorth] : [0, 0]
+		store.state.history.length > 0
+			? store.state.history.map((h) => h.netWorth)
+			: snapshot.netWorth > 0 ? [snapshot.netWorth, snapshot.netWorth] : [0, 0]
 	);
 
 	const coverageColor = $derived(

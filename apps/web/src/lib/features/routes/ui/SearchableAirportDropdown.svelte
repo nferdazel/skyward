@@ -23,8 +23,11 @@
 		placeholder = 'Search IATA / city'
 	}: Props = $props();
 
-	// Seed once from the initial value; the user edits the query afterwards.
+	// Query synchronized with value; updated when prop changes (e.g. map marker tap or form reset).
 	let query = $state(untrack(() => (value ? display(value) : '')));
+	$effect(() => {
+		query = value ? display(value) : '';
+	});
 	let open = $state(false);
 	let dropUp = $state(false);
 	let wrap: HTMLDivElement | undefined = $state();

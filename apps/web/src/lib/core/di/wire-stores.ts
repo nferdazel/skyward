@@ -87,5 +87,6 @@ export function wireStores(stores: AppStores): () => void {
 		routesSub.dispose();
 		bankSub.dispose();
 		reactive.dispose();
+		stores.simulation.dispose();
 	};
 }
