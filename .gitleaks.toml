@@ -13,4 +13,5 @@ paths = [
   '''\.env\.example$''',
   '''\.gitleaks\.toml$''',
   '''deploy/webhook\.json$''',
+  '''task$''',
 ]

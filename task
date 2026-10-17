@@ -99,8 +99,7 @@ task_db_tunnel() {
       fi
       log "Membuka SSH tunnel ke VPS ($VPS_HOST) untuk PostgreSQL port $LOCAL_DB_PORT -> 5432..."
       ssh -M -S "$TUNNEL_SOCKET" -f -N -L "$LOCAL_DB_PORT:127.0.0.1:5432" "$VPS_USER@$VPS_HOST" || die "Gagal membuka tunnel SSH"
-      ok "Tunnel SSH aktif pada 127.0.0.1:$LOCAL_DB_PORT"
-      info "Gunakan: TEST_DATABASE_URL=postgres://skyward_app:<pw>@127.0.0.1:$LOCAL_DB_PORT/skyward_test?sslmode=disable"
+      info "Gunakan port $LOCAL_DB_PORT untuk TEST_DATABASE_URL (lihat ARCHITECTURE.md)"
       ;;
     down|stop)
       log "Menutup SSH tunnel..."
