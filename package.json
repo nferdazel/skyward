@@ -1,0 +1,19 @@
+{
+  "name": "skyward-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "comment": "Root workspace pnpm. Satu pintu perintah tetap ./task; skrip di sini untuk orkestrasi paket TS.",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev:web": "pnpm --filter skyward-web dev",
+    "build:web": "pnpm --filter skyward-web build",
+    "check:web": "pnpm --filter skyward-web check",
+    "lint:web": "pnpm --filter skyward-web lint",
+    "test:web": "pnpm --filter skyward-web test"
+  }
+}

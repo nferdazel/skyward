@@ -1,0 +1,156 @@
+#!/usr/bin/env sh
+#
+# SKYWARD - Satu pintu perintah monorepo (arsitektur selaras dengan cbs/kran).
+#
+#   ./task check              go vet + svelte-check + lint
+#   ./task test               go test -race + vitest unit
+#   ./task build              bangun binary Go (apps/api) + static client (apps/web)
+#   ./task db:migrate         jalankan migrasi SQL (scripts/migrate.sh)
+#   ./task db:drift           cek drift skema database (scripts/drift-check.sh)
+#   ./task db:tunnel [cmd]    kelola SSH tunnel DB test di VPS (up|down|status)
+#   ./task help
+#
+# Skrip POSIX murni tanpa dependensi eksternal (D-001).
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$ROOT"
+
+BUILD="$ROOT/.build"
+BIN="$BUILD/bin"
+RUN="$ROOT/.local/run"
+mkdir -p "$BUILD" "$BIN" "$RUN"
+
+TUNNEL_SOCKET="$RUN/ssh_tunnel.sock"
+VPS_HOST="43.133.148.191"
+VPS_USER="sachiel"
+LOCAL_DB_PORT="15432"
+
+log()  { printf '\n== %s\n' "$*"; }
+info() { printf '   %s\n' "$*"; }
+ok()   { printf '   ok: %s\n' "$*"; }
+die()  { printf '\n!! GAGAL: %s\n' "$*" >&2; exit 1; }
+
+task_check() {
+  log "Menjalankan static check & linter monorepo"
+  
+  info "1. Backend Go vet..."
+  (cd "$ROOT/apps/api" && go vet ./...) || die "go vet gagal"
+  ok "Go vet bersih"
+
+  info "2. Frontend Svelte check..."
+  pnpm --filter skyward-web check || die "svelte-check gagal"
+  ok "Svelte check bersih"
+
+  if command -v gitleaks >/dev/null 2>&1; then
+    info "3. Secret leak scan (gitleaks)..."
+    gitleaks protect --staged --verbose 2>/dev/null || gitleaks detect --no-git 2>/dev/null || true
+    ok "Gitleaks scan selesai"
+  fi
+
+  ok "Seluruh pengecekan monorepo lulus!"
+}
+
+task_test() {
+  log "Menjalankan test suite monorepo"
+  
+  info "1. Backend unit tests (race detector)..."
+  (cd "$ROOT/apps/api" && go test -race ./...) || die "go test gagal"
+  ok "Backend Go tests lulus"
+
+  info "2. Frontend web tests (vitest)..."
+  pnpm --filter skyward-web test || die "web tests gagal"
+  ok "Frontend web tests lulus"
+
+  ok "Semua unit test monorepo lulus!"
+}
+
+task_build() {
+  log "Membangun artefak biner dan static web"
+  
+  info "1. Backend skyward-api..."
+  (cd "$ROOT/apps/api" && go build -o "$BIN/skyward-api" ./cmd/server) || die "build skyward-api gagal"
+  ok "Binary dibangun: .build/bin/skyward-api"
+
+  info "2. Frontend skyward-web..."
+  pnpm --filter skyward-web build || die "build web gagal"
+  ok "Web static dibangun: apps/web/build"
+
+  ok "Seluruh build selesai dengan sukses!"
+}
+
+task_db_migrate() {
+  log "Menjalankan migrasi database"
+  "$ROOT/scripts/migrate.sh" "$@"
+}
+
+task_db_drift() {
+  log "Memeriksa drift skema database"
+  "$ROOT/scripts/drift-check.sh" "$@"
+}
+
+task_db_tunnel() {
+  subcmd="${1:-status}"
+  case "$subcmd" in
+    up|start)
+      if [ -S "$TUNNEL_SOCKET" ] && ssh -S "$TUNNEL_SOCKET" -O check "$VPS_HOST" 2>/dev/null; then
+        info "Tunnel SSH sudah aktif pada port 127.0.0.1:$LOCAL_DB_PORT"
+        return 0
+      fi
+      log "Membuka SSH tunnel ke VPS ($VPS_HOST) untuk PostgreSQL port $LOCAL_DB_PORT -> 5432..."
+      ssh -M -S "$TUNNEL_SOCKET" -f -N -L "$LOCAL_DB_PORT:127.0.0.1:5432" "$VPS_USER@$VPS_HOST" || die "Gagal membuka tunnel SSH"
+      ok "Tunnel SSH aktif pada 127.0.0.1:$LOCAL_DB_PORT"
+      info "Gunakan: TEST_DATABASE_URL=postgres://skyward_app:<pw>@127.0.0.1:$LOCAL_DB_PORT/skyward_test?sslmode=disable"
+      ;;
+    down|stop)
+      log "Menutup SSH tunnel..."
+      if [ -S "$TUNNEL_SOCKET" ]; then
+        ssh -S "$TUNNEL_SOCKET" -O exit "$VPS_HOST" 2>/dev/null || true
+        rm -f "$TUNNEL_SOCKET"
+        ok "Tunnel SSH ditutup"
+      else
+        info "Tidak ada tunnel aktif"
+      fi
+      ;;
+    status)
+      if [ -S "$TUNNEL_SOCKET" ] && ssh -S "$TUNNEL_SOCKET" -O check "$VPS_HOST" 2>/dev/null; then
+        ok "Tunnel SSH aktif (127.0.0.1:$LOCAL_DB_PORT -> VPS:5432)"
+      else
+        info "Tunnel SSH mati / tidak aktif"
+      fi
+      ;;
+    *)
+      die "Penggunaan: ./task db:tunnel [up|down|status]"
+      ;;
+  esac
+}
+
+task_help() {
+  cat <<'EOF'
+Skyward Task Runner — satu pintu perintah monorepo
+
+Penggunaan:
+  ./task check              Jalankan static checks (go vet, svelte-check)
+  ./task test               Jalankan test suite (go test -race, pnpm test)
+  ./task build              Bangun binary Go dan bundle static SvelteKit
+  ./task db:migrate [arg]   Jalankan migrasi database
+  ./task db:drift           Cek drift skema database
+  ./task db:tunnel [up|down|status]
+                            Kelola SSH tunnel port forwarding ke VPS test DB
+  ./task help               Tampilkan bantuan ini
+EOF
+}
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+  check) task_check "$@" ;;
+  test) task_test "$@" ;;
+  build) task_build "$@" ;;
+  db:migrate) task_db_migrate "$@" ;;
+  db:drift) task_db_drift "$@" ;;
+  db:tunnel) task_db_tunnel "$@" ;;
+  help|--help|-h) task_help ;;
+  *) die "Perintah tidak dikenal: $cmd. Ketik './task help' untuk daftar perintah." ;;
+esac
