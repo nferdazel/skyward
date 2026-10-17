@@ -50,12 +50,16 @@
 	const cashTrend = $derived(
 		store.state.history.length > 0
 			? store.state.history.map((h) => h.cash)
-			: snapshot.cash > 0 ? [snapshot.cash, snapshot.cash] : [0, 0]
+			: snapshot.cash > 0
+				? [snapshot.cash, snapshot.cash]
+				: [0, 0]
 	);
 	const netWorthTrend = $derived(
 		store.state.history.length > 0
 			? store.state.history.map((h) => h.netWorth)
-			: snapshot.netWorth > 0 ? [snapshot.netWorth, snapshot.netWorth] : [0, 0]
+			: snapshot.netWorth > 0
+				? [snapshot.netWorth, snapshot.netWorth]
+				: [0, 0]
 	);
 
 	const coverageColor = $derived(

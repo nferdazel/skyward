@@ -195,7 +195,7 @@ else
 fi
 
 # ── 2. Web (static) ──
-if [ "$IS_FIRST" -eq 1 ] || grep -q "^apps/web/" <<<"$CHANGED_FILES"; then
+if [ "$IS_FIRST" -eq 1 ] || grep -q -E "^(apps/web/|package\.json|pnpm-)" <<<"$CHANGED_FILES"; then
   log "==> Build web (static)..."
   # Nilai build-time diambil dari env VPS (mode 600), bukan hardcode.
   # Utamakan env khusus web; fallback ke env prod lama yang memakai
@@ -210,13 +210,14 @@ if [ "$IS_FIRST" -eq 1 ] || grep -q "^apps/web/" <<<"$CHANGED_FILES"; then
     log "==> ERROR: VITE_SKYWARD_API_URL/SKYWARD_API_URL tidak ditemukan di env — build web dibatalkan."
     exit 1
   fi
-  cd "$MONO_DIR/apps/web"
+  cd "$MONO_DIR"
   # pnpm (bukan npm) supaya dependensi yang dibangun = yang diuji CI
   # (pnpm-lock.yaml + --frozen-lockfile). Host hanya punya node+corepack
   # (pnpm tidak di PATH), jadi panggil lewat `corepack pnpm` — corepack mengambil
   # versi yang dipatok di package.json (packageManager), tanpa ubah PATH.
   export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
   corepack pnpm install --frozen-lockfile 2>&1 | tail -5 | tee -a "$LOG"
+  cd "$MONO_DIR/apps/web"
   VITE_SKYWARD_API_URL="$VITE_SKYWARD_API_URL" corepack pnpm run build 2>&1 | tail -10 | tee -a "$LOG"
   if [ -d "$MONO_DIR/apps/web/build" ]; then
     WEB_ROOT="$APP_DIR/web"

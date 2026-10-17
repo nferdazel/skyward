@@ -134,8 +134,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
-        with:
-          package_json_file: apps/web/package.json
 
       - name: Setup Node
         uses: actions/setup-node@v7
@@ -144,9 +142,10 @@ jobs:
           # dengan runtime yang sama seperti produksi, bukan versi lain.
           node-version: 24
           cache: pnpm
-          cache-dependency-path: apps/web/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install
+        working-directory: .
         run: pnpm install --frozen-lockfile
 
       - name: Check (svelte-check)

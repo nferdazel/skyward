@@ -28,4 +28,3 @@ BACKLOG.local.md
 .build/
 .local/
 node_modules/
-pnpm-lock.yaml
